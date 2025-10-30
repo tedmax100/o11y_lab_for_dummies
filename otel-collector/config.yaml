@@ -57,8 +57,8 @@ processors:
     timeout: 5s
 
 exporters:
-  # Logging exporter - 用于调试
-  logging:
+  # Debug exporter - 用于调试
+  debug:
     verbosity: detailed
     sampling_initial: 5
     sampling_thereafter: 200
@@ -76,21 +76,48 @@ exporters:
     const_labels:
       environment: lab
 
-  # Prometheus Remote Write (可选，用于推送到 Prometheus)
-  prometheusremotewrite:
-    endpoint: http://prometheus:9090/api/v1/write
+  otlphttp/prometheus:
+    endpoint: "http://prometheus:9090/api/v1/otlp"
     tls:
       insecure: true
 
-  # Loki exporter for logs
-  loki:
-    endpoint: http://loki:3100/loki/api/v1/push
+  # OTLP exporter for Loki (Logs)
+  otlp/loki:
+    endpoint: loki:4317
+    tls:
+      insecure: true
 
-  # Logging exporter for debugging
-  logging/logs:
+  # Debug exporter for debugging logs
+  debug/logs:
     verbosity: detailed
     sampling_initial: 5
     sampling_thereafter: 200
+
+connectors:
+  spanmetrics:
+    histogram:
+      explicit:
+        buckets: [1ms, 5ms, 10ms, 100ms, 250ms, 500ms, 1s, 5s]
+    dimensions:
+      - name: http.method
+        default: GET
+      - name: http.status_code
+    exemplars:
+      enabled: true
+    #exclude_dimensions: ['status.code']
+    dimensions_cache_size: 1000
+    aggregation_temporality: "AGGREGATION_TEMPORALITY_CUMULATIVE"    
+    metrics_flush_interval: 15s
+    metrics_expiration: 5m
+    events:
+      enabled: true
+      dimensions:
+        - name: exception.type
+        - name: exception.message
+    resource_metrics_key_attributes:
+      - service.name
+      - telemetry.sdk.language
+      - telemetry.sdk.name
 
 extensions:
   # Health check endpoint
@@ -113,23 +140,22 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, resourcedetection, resource, batch]
-      exporters: [otlp/tempo, logging]
+      exporters: [otlp/tempo,spanmetrics, debug]
 
     # Metrics pipeline
     metrics:
-      receivers: [otlp, prometheus]
+      receivers: [otlp, prometheus, spanmetrics]
       processors: [memory_limiter, resourcedetection, resource, batch]
-      exporters: [prometheus, prometheusremotewrite, logging]
+      exporters: [prometheus, otlphttp/prometheus, debug]
 
     # Logs pipeline
     logs:
       receivers: [otlp]
       processors: [memory_limiter, resourcedetection, resource, batch]
-      exporters: [loki, logging/logs]
+      exporters: [otlp/loki, debug/logs]
 
   telemetry:
     logs:
       level: info
     metrics:
       level: detailed
-      address: 0.0.0.0:8888
