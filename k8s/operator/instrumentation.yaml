@@ -1,0 +1,63 @@
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: o11y-lab-instrumentation
+  namespace: o11y-lab
+spec:
+  # Exporter 配置 - 发送到 OpenTelemetry Collector
+  exporter:
+    endpoint: http://otel-collector.observability.svc.cluster.local:4317
+
+  # Propagators - 定义 context 传播方式
+  propagators:
+    - tracecontext
+    - baggage
+
+  # Sampler - 采样策略
+  sampler:
+    type: parentbased_traceidratio
+    argument: "1.0"  # 100% 采样用于 lab 环境
+
+  # Python 自动埋点配置
+  python:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.42b0
+    env:
+      - name: OTEL_LOGS_EXPORTER
+        value: otlp
+      - name: OTEL_METRICS_EXPORTER
+        value: otlp
+      - name: OTEL_TRACES_EXPORTER
+        value: otlp
+      - name: OTEL_EXPORTER_OTLP_PROTOCOL
+        value: grpc
+      - name: OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED
+        value: "true"
+      - name: OTEL_PYTHON_LOG_CORRELATION_ENABLED
+        value: "true"
+
+  # Go 自动埋点配置
+  go:
+    image: ghcr.io/open-telemetry/opentelemetry-go-instrumentation/autoinstrumentation-go:v0.8.0-alpha
+    env:
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: http://otel-collector.observability.svc.cluster.local:4317
+      - name: OTEL_GO_AUTO_TARGET_EXE
+        value: /app/service  # 根据实际的可执行文件路径调整
+
+  # Java 自动埋点配置 (可选)
+  java:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:1.32.0
+    env:
+      - name: OTEL_LOGS_EXPORTER
+        value: otlp
+      - name: OTEL_METRICS_EXPORTER
+        value: otlp
+      - name: OTEL_TRACES_EXPORTER
+        value: otlp
+
+  # 资源属性 - 添加到所有遥测数据
+  resource:
+    addK8sUIDAttributes: true
+    resourceAttributes:
+      deployment.environment: "lab"
+      service.namespace: "o11y-lab"

@@ -1,0 +1,242 @@
+version: '3.9'
+
+# OpenTelemetry Observability Lab
+# 完整的可观测性栈，包含 logs、metrics、traces 三大支柱
+
+services:
+  # ==================== 应用服务 ====================
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVICE_A_URL=http://service-a:8001
+      - OTEL_COLLECTOR_ENDPOINT=otel-collector:4317
+    depends_on:
+      - otel-collector
+      - service-a
+    networks:
+      - o11y-lab
+
+  service-a:
+    build:
+      context: ./services/service-a
+    container_name: service-a
+    ports:
+      - "8001:8001"
+    environment:
+      - SERVICE_B_URL=http://service-b:8002
+      - SERVICE_D_URL=http://service-d:8004
+      - THIRD_PARTY_API=https://api.github.com/zen
+      - OTEL_COLLECTOR_ENDPOINT=otel-collector:4317
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=o11ylab
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+    depends_on:
+      - otel-collector
+      - postgres
+      - service-b
+      - service-d
+    networks:
+      - o11y-lab
+
+  service-b:
+    build:
+      context: ./services/service-b
+    container_name: service-b
+    ports:
+      - "8002:8002"
+    environment:
+      - OTEL_COLLECTOR_ENDPOINT=otel-collector:4317
+      - KAFKA_BROKER=kafka:9092
+    depends_on:
+      - otel-collector
+      - kafka
+    networks:
+      - o11y-lab
+
+  service-c:
+    build:
+      context: ./services/service-c
+    container_name: service-c
+    ports:
+      - "8003:8003"
+    environment:
+      - OTEL_COLLECTOR_ENDPOINT=otel-collector:4317
+      - KAFKA_BROKER=kafka:9092
+    depends_on:
+      - otel-collector
+      - kafka
+    networks:
+      - o11y-lab
+
+  service-d:
+    build:
+      context: ./services/service-d
+    container_name: service-d
+    ports:
+      - "8004:8004"
+    environment:
+      - OTEL_COLLECTOR_ENDPOINT=otel-collector:4317
+    depends_on:
+      - otel-collector
+    networks:
+      - o11y-lab
+
+  # ==================== 数据存储 ====================
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      - POSTGRES_DB=o11ylab
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - o11y-lab
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - o11y-lab
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9093:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - o11y-lab
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # ==================== OpenTelemetry ====================
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.91.0
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector/config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+      - "13133:13133" # health_check extension
+      - "55679:55679" # zpages extension
+    depends_on:
+      - tempo
+      - loki
+      - prometheus
+    networks:
+      - o11y-lab
+
+  # ==================== 可观测性后端 ====================
+
+  # Tempo - Traces
+  tempo:
+    image: grafana/tempo:2.3.1
+    container_name: tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./grafana/tempo-config.yaml:/etc/tempo.yaml
+      - tempo-data:/tmp/tempo
+    ports:
+      - "3200:3200"   # tempo
+      - "4317"        # otlp grpc
+    networks:
+      - o11y-lab
+
+  # Loki - Logs
+  loki:
+    image: grafana/loki:2.9.3
+    container_name: loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki-data:/loki
+    networks:
+      - o11y-lab
+
+  # Prometheus - Metrics
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--enable-feature=exemplar-storage'
+    volumes:
+      - ./grafana/prometheus.yaml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - o11y-lab
+
+  # Grafana - Unified Dashboard
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: grafana
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    networks:
+      - o11y-lab
+
+networks:
+  o11y-lab:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  tempo-data:
+  loki-data:
+  prometheus-data:
+  grafana-data:

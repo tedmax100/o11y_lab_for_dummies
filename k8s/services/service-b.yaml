@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: service-b-config
+  namespace: o11y-lab
+data:
+  OTEL_COLLECTOR_ENDPOINT: "otel-collector.observability.svc.cluster.local:4317"
+  KAFKA_BROKER: "kafka.o11y-lab.svc.cluster.local:9092"
+  OTEL_SERVICE_NAME: "service-b"
+  OTEL_RESOURCE_ATTRIBUTES: "service.namespace=o11y-lab,deployment.environment=k8s"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-b
+  namespace: o11y-lab
+  labels:
+    app: service-b
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: service-b
+  template:
+    metadata:
+      labels:
+        app: service-b
+      annotations:
+        # Service B 使用手动埋点，不需要自动注入
+        # 但可以选择性地使用 Go auto-instrumentation
+        # instrumentation.opentelemetry.io/inject-go: "true"
+    spec:
+      containers:
+        - name: service-b
+          image: service-b:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8002
+              name: http
+          envFrom:
+            - configMapRef:
+                name: service-b-config
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 10
+            periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-b
+  namespace: o11y-lab
+  labels:
+    app: service-b
+spec:
+  selector:
+    app: service-b
+  ports:
+    - port: 8002
+      targetPort: 8002
+      protocol: TCP
+      name: http
+  type: ClusterIP

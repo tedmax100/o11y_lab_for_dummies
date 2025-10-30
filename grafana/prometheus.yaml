@@ -1,0 +1,45 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: o11y-lab
+    environment: lab
+
+scrape_configs:
+  # OpenTelemetry Collector
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8888']
+        labels:
+          service: 'otel-collector'
+
+  # Prometheus 自身的 metrics
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # Tempo metrics
+  - job_name: 'tempo'
+    static_configs:
+      - targets: ['tempo:3200']
+        labels:
+          service: 'tempo'
+
+  # Loki metrics
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki:3100']
+        labels:
+          service: 'loki'
+
+  # 应用服务 (如果暴露 metrics endpoint)
+  - job_name: 'services'
+    static_configs:
+      - targets:
+          - 'api-gateway:8080'
+          - 'service-a:8001'
+          - 'service-b:8002'
+          - 'service-c:8003'
+          - 'service-d:8004'
