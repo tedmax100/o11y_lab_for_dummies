@@ -81,9 +81,9 @@ exporters:
     tls:
       insecure: true
 
-  # OTLP exporter for Loki (Logs)
-  otlp/loki:
-    endpoint: loki:4317
+  # OTLP HTTP exporter for Loki (Logs)
+  otlphttp/loki:
+    endpoint: "http://loki:3100/otlp"
     tls:
       insecure: true
 
@@ -152,7 +152,7 @@ service:
     logs:
       receivers: [otlp]
       processors: [memory_limiter, resourcedetection, resource, batch]
-      exporters: [otlp/loki, debug/logs]
+      exporters: [otlphttp/loki, debug/logs]
 
   telemetry:
     logs:

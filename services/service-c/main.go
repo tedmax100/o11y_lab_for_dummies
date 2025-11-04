@@ -543,11 +543,39 @@ func main() {
 	// 启动 Kafka 消费者
 	go consumeMessages(ctx)
 
-	// 创建 Gin router
-	r := gin.Default()
+	// 创建 Gin router (使用 New 而非 Default，避免非结构化日志)
+	r := gin.New()
+
+	// 添加 Recovery 中间件
+	r.Use(gin.Recovery())
 
 	// 添加 OpenTelemetry 中间件
 	r.Use(otelgin.Middleware("service-c"))
+
+	// 添加自定义的 JSON 格式日志中间件
+	r.Use(func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		raw := c.Request.URL.RawQuery
+
+		c.Next()
+
+		// 获取 trace context
+		ctx := c.Request.Context()
+		spanCtx := trace.SpanContextFromContext(ctx)
+
+		// 使用 slog 记录 JSON 格式的访问日志
+		logger.InfoContext(ctx, "HTTP request",
+			slog.String("method", c.Request.Method),
+			slog.String("path", path),
+			slog.String("query", raw),
+			slog.Int("status", c.Writer.Status()),
+			slog.Duration("latency", time.Since(start)),
+			slog.String("client_ip", c.ClientIP()),
+			slog.String("trace_id", spanCtx.TraceID().String()),
+			slog.String("span_id", spanCtx.SpanID().String()),
+		)
+	})
 
 	// 注册路由
 	r.GET("/health", healthHandler)
