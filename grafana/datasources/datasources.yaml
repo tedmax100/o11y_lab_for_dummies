@@ -23,8 +23,10 @@ datasources:
       maxLines: 1000
       derivedFields:
         - datasourceUid: tempo
-          matcherRegex: '"trace_id":"(\w+)"'
           name: TraceID
+          type: label
+          matcherRegex: 'trace_id'
+          matcherType: label
           url: '$${__value.raw}'
           urlDisplayLabel: 'View Trace'
     uid: loki

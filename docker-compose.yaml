@@ -165,8 +165,9 @@ services:
 
   # Tempo - Traces
   tempo:
-    image: grafana/tempo:2.3.1
+    image: grafana/tempo:main-8842bf0
     container_name: tempo
+    user: "0:0"
     command: ["-config.file=/etc/tempo.yaml"]
     volumes:
       - ./grafana/tempo-config.yaml:/etc/tempo.yaml
@@ -211,7 +212,7 @@ services:
 
   # Grafana - Unified Dashboard
   grafana:
-    image: grafana/grafana:10.2.2
+    image: grafana/grafana:main
     container_name: grafana
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
