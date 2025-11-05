@@ -40,13 +40,13 @@ datasources:
       httpMethod: GET
       tracesToLogsV2:
         datasourceUid: loki
-        tags: []
+        tags: ['service_name']
         spanStartTimeShift: '-1h'
         spanEndTimeShift: '1h'
         filterByTraceID: true
         lokiSearch: true
         customQuery: true
-        query: '{job="$${__span.tags["service.namespace"]}/$${__span.tags["service.name"]}"} |="$${__span.traceId}"'
+        query: '{service_name="$${__span.tags["service.name"]}"} |="$${__span.traceId}"'
       tracesToMetrics:
         datasourceUid: prometheus
         tags: [{ key: 'service.name', value: 'service' }]
