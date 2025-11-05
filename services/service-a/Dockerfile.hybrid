@@ -1,0 +1,35 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# 安装 Python 依赖
+COPY requirements_hybrid.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ============================================================
+# 不使用 opentelemetry-bootstrap -a install
+# 因为我们已经在 requirements.txt 中显式列出所有 instrumentation libraries
+# 避免 psycopg2-binary 的依赖冲突
+# ============================================================
+
+# 复制应用代码
+COPY main_hybrid.py main.py
+
+# 暴露端口
+EXPOSE 8001
+
+# ============================================================
+# 使用 opentelemetry-instrument 启动应用（Auto Instrumentation）
+#
+# 这会自动埋点：
+# - FastAPI 框架
+# - httpx HTTP 客户端
+# - psycopg2 数据库连接
+#
+# 同时代码中的自定义 span、metrics、attributes 仍然有效
+#
+# 配置说明：
+# - OTEL_EXPORTER_OTLP_ENDPOINT 通过环境变量传入
+# - service.name 和其他 resource attributes 也通过环境变量配置
+# ============================================================
+CMD ["opentelemetry-instrument", "python", "main.py"]

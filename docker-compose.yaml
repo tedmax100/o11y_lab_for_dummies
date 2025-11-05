@@ -22,19 +22,29 @@ services:
   service-a:
     build:
       context: ./services/service-a
+      dockerfile: Dockerfile.hybrid
     container_name: service-a
     ports:
       - "8001:8001"
     environment:
+      # Application config
       - SERVICE_B_URL=http://service-b:8002
       - SERVICE_D_URL=http://service-d:8004
       - THIRD_PARTY_API=https://api.github.com/zen
-      - OTEL_COLLECTOR_ENDPOINT=otel-collector:4317
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_NAME=o11ylab
       - DB_USER=postgres
       - DB_PASSWORD=postgres
+      # OpenTelemetry config (for auto instrumentation)
+      - OTEL_SERVICE_NAME=service-a-hybrid
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_INSECURE=true
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
+      - OTEL_RESOURCE_ATTRIBUTES=service.namespace=o11y-lab,deployment.environment=lab,instrumentation.type=hybrid
     depends_on:
       - otel-collector
       - postgres
