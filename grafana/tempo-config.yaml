@@ -37,4 +37,5 @@ storage:
       path: /tmp/tempo/blocks
 
 overrides:
-  metrics_generator_processors: [service-graphs, span-metrics]
+  # 只保留 service-graphs，禁用 span-metrics（由 OTel Collector 统一管理）
+  metrics_generator_processors: [service-graphs]

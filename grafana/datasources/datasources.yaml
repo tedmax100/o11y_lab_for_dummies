@@ -10,6 +10,7 @@ datasources:
     jsonData:
       timeInterval: 15s
       exemplarTraceIdDestinations:
+        # OTel Collector spanmetrics (唯一的 span metrics 来源)
         - name: trace_id
           datasourceUid: tempo
     uid: prometheus

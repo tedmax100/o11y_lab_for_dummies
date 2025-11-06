@@ -75,6 +75,9 @@ exporters:
     namespace: "otel"
     const_labels:
       environment: lab
+    # 启用 exemplars 支持
+    enable_open_metrics: true
+    add_metric_suffixes: false
 
   otlphttp/prometheus:
     endpoint: "http://prometheus:9090/api/v1/otlp"
