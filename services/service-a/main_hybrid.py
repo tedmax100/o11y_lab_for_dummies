@@ -30,9 +30,13 @@ from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.resources import Resource, SERVICE_NAME
 
 # 配置结构化日志
+# 重要：需要同时配置 StreamHandler (输出到控制台) 和 OpenTelemetry LoggingHandler (发送到 OTLP)
 logging.basicConfig(
     level=logging.INFO,
-    format='{"time":"%(asctime)s", "level":"%(levelname)s", "service":"service-a-hybrid", "trace_id":"%(otelTraceID)s", "span_id":"%(otelSpanID)s", "message":"%(message)s"}'
+    format='{"time":"%(asctime)s", "level":"%(levelname)s", "service":"service-a-hybrid", "trace_id":"%(otelTraceID)s", "span_id":"%(otelSpanID)s", "message":"%(message)s"}',
+    handlers=[
+        logging.StreamHandler()  # 确保日志输出到控制台
+    ]
 )
 logger = logging.getLogger(__name__)
 

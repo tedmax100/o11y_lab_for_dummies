@@ -43,7 +43,8 @@ services:
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_LOGS_EXPORTER=otlp
-      - OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
+      # 注释掉自动日志注入，因为我们在代码中手动配置了 LoggerProvider
+      # - OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
       - OTEL_RESOURCE_ATTRIBUTES=service.namespace=o11y-lab,deployment.environment=lab,instrumentation.type=hybrid
     depends_on:
       - otel-collector
@@ -192,10 +193,11 @@ services:
   loki:
     image: grafana/loki:3.5.7
     container_name: loki
-    command: -config.file=/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/config.yaml
     ports:
       - "3100:3100"
     volumes:
+      - ./grafana/loki-config.yaml:/etc/loki/config.yaml
       - loki-data:/loki
     networks:
       - o11y-lab
