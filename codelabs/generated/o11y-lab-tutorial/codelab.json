@@ -1,0 +1,27 @@
+{
+  "environment": "web",
+  "format": "html",
+  "prefix": "https://storage.googleapis.com",
+  "mainga": "UA-49880327-14",
+  "updated": "2025-11-08T01:38:18+08:00",
+  "id": "o11y-lab-tutorial",
+  "duration": 125,
+  "title": "OpenTelemetry 可观测性实验室教程",
+  "summary": "OpenTelemetry 可观测性实验室完整教程",
+  "source": "tutorials/observability-lab.md",
+  "theme": "",
+  "status": [
+    "published"
+  ],
+  "category": [
+    "observability",
+    "opentelemetry",
+    "docker"
+  ],
+  "tags": [
+    "web"
+  ],
+  "feedback": "https://github.com/yourusername/o11y_lab_for_dummies",
+  "ga": "Google Analytics ID",
+  "url": "o11y-lab-tutorial"
+}

@@ -1,0 +1,943 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>OpenTelemetry 可观测性实验室教程</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/claat-public/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid="Google Analytics ID"
+                  id="o11y-lab-tutorial"
+                  title="OpenTelemetry 可观测性实验室教程"
+                  environment="web"
+                  feedback-link="https://github.com/yourusername/o11y_lab_for_dummies">
+    
+      <google-codelab-step label="课程简介" duration="2">
+        <h2 is-upgraded>你将学到什么</h2>
+<p>在这个实验室中，你将学习如何：</p>
+<ul>
+<li>搭建完整的可观测性环境（Grafana + Prometheus + Loki + Tempo）</li>
+<li>使用 Docker Compose 快速部署微服务架构</li>
+<li>理解 Python 自动埋点（Auto Instrumentation）</li>
+<li>实践 Python 手动埋点（Manual Instrumentation）</li>
+<li>使用 K6 生成测试流量</li>
+<li>使用 Pumba 进行混沌工程（延迟注入）</li>
+<li>在 Grafana 中关联 Logs、Metrics、Traces</li>
+</ul>
+<h2 is-upgraded>前置要求</h2>
+<ul>
+<li>基本的 Linux 命令行知识</li>
+<li>理解 Docker 基础概念</li>
+<li>Python 或 Go 编程基础</li>
+</ul>
+<h2 is-upgraded>实验环境</h2>
+<ul>
+<li>Ubuntu/MacOS/Windows (WSL2)</li>
+<li>至少 8GB RAM</li>
+<li>20GB 可用磁盘空间</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="环境准备 - Docker &amp; Docker Compose" duration="10">
+        <h2 is-upgraded>安装 Docker</h2>
+<h3 is-upgraded>Linux (Ubuntu/Debian)</h3>
+<pre><code language="language-bash" class="language-bash"># 更新软件包索引
+sudo apt-get update
+
+# 安装依赖
+sudo apt-get install -y \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release
+
+# 添加 Docker 官方 GPG key
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+# 设置仓库
+echo \
+  &#34;deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable&#34; | sudo tee /etc/apt/sources.list.d/docker.list &gt; /dev/null
+
+# 安装 Docker Engine
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# 将当前用户加入 docker 组
+sudo usermod -aG docker $USER
+newgrp docker
+</code></pre>
+<h3 is-upgraded>MacOS</h3>
+<pre><code language="language-bash" class="language-bash"># 使用 Homebrew 安装
+brew install --cask docker
+
+# 或者直接下载 Docker Desktop
+# https://www.docker.com/products/docker-desktop/
+</code></pre>
+<h3 is-upgraded>Windows</h3>
+<p>下载并安装 Docker Desktop for Windows: https://www.docker.com/products/docker-desktop/</p>
+<h2 is-upgraded>验证安装</h2>
+<pre><code language="language-bash" class="language-bash"># 检查 Docker 版本
+docker --version
+# 应显示: Docker version 24.0.0 或更高
+
+# 检查 Docker Compose
+docker compose version
+# 应显示: Docker Compose version v2.20.0 或更高
+
+# 测试 Docker 运行
+docker run hello-world
+</code></pre>
+<p>Positive : 如果看到 &#34;Hello from Docker!&#34; 消息，说明 Docker 安装成功！</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="环境准备 - Python &amp; Go" duration="8">
+        <h2 is-upgraded>安装 Python 3.11+</h2>
+<h3 is-upgraded>Linux (Ubuntu/Debian)</h3>
+<pre><code language="language-bash" class="language-bash"># 添加 deadsnakes PPA
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt-get update
+
+# 安装 Python 3.11
+sudo apt-get install -y python3.11 python3.11-venv python3.11-dev
+
+# 安装 pip
+curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
+
+# 验证安装
+python3.11 --version
+pip3.11 --version
+</code></pre>
+<h3 is-upgraded>MacOS</h3>
+<pre><code language="language-bash" class="language-bash">brew install python@3.11
+
+# 验证
+python3.11 --version
+</code></pre>
+<h3 is-upgraded>Windows</h3>
+<p>下载并安装 Python 3.11: https://www.python.org/downloads/</p>
+<h2 is-upgraded>安装 Go 1.21+</h2>
+<h3 is-upgraded>Linux</h3>
+<pre><code language="language-bash" class="language-bash"># 下载 Go
+wget https://go.dev/dl/go1.21.5.linux-amd64.tar.gz
+
+# 解压到 /usr/local
+sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz
+
+# 添加到 PATH (加入 ~/.bashrc 或 ~/.zshrc)
+echo &#39;export PATH=$PATH:/usr/local/go/bin&#39; &gt;&gt; ~/.bashrc
+source ~/.bashrc
+
+# 验证
+go version
+</code></pre>
+<h3 is-upgraded>MacOS</h3>
+<pre><code language="language-bash" class="language-bash">brew install go@1.21
+
+# 验证
+go version
+</code></pre>
+<h3 is-upgraded>Windows</h3>
+<p>下载并安装 Go: https://go.dev/dl/</p>
+<h2 is-upgraded>安装 K6</h2>
+<p>K6 是一个现代化的负载测试工具。</p>
+<h3 is-upgraded>Linux</h3>
+<pre><code language="language-bash" class="language-bash">sudo gpg -k
+sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+echo &#34;deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main&#34; | sudo tee /etc/apt/sources.list.d/k6.list
+sudo apt-get update
+sudo apt-get install k6
+
+# 验证
+k6 version
+</code></pre>
+<h3 is-upgraded>MacOS</h3>
+<pre><code language="language-bash" class="language-bash">brew install k6
+
+# 验证
+k6 version
+</code></pre>
+<h3 is-upgraded>使用 Docker (跨平台)</h3>
+<pre><code language="language-bash" class="language-bash">docker pull grafana/k6:latest
+docker run --rm -i grafana/k6 version
+</code></pre>
+<p>Positive : 所有工具安装完成！现在可以开始实验了。</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="克隆项目并启动环境" duration="5">
+        <h2 is-upgraded>获取项目代码</h2>
+<pre><code language="language-bash" class="language-bash"># 克隆仓库
+git clone https://github.com/yourusername/o11y_lab_for_dummies.git
+cd o11y_lab_for_dummies
+
+# 查看项目结构
+ls -la
+</code></pre>
+<h2 is-upgraded>启动所有服务</h2>
+<pre><code language="language-bash" class="language-bash"># 使用 Docker Compose 启动
+docker compose up -d
+
+# 查看服务状态
+docker compose ps
+
+# 查看日志（可选）
+docker compose logs -f
+</code></pre>
+<p>你应该看到以下服务启动：</p>
+<ul>
+<li><strong>api-gateway</strong>: Python FastAPI 网关</li>
+<li><strong>service-a</strong>: Python FastAPI 服务（自动埋点）</li>
+<li><strong>service-b</strong>: Go 服务（手动埋点）</li>
+<li><strong>service-c</strong>: Go 服务（手动埋点）</li>
+<li><strong>service-d</strong>: Python Flask 服务（自动埋点）</li>
+<li><strong>grafana</strong>: 可视化平台</li>
+<li><strong>prometheus</strong>: Metrics 存储</li>
+<li><strong>loki</strong>: 日志存储</li>
+<li><strong>tempo</strong>: Trace 存储</li>
+<li><strong>otel-collector</strong>: OpenTelemetry 收集器</li>
+<li><strong>postgres</strong>: 数据库</li>
+<li><strong>kafka</strong>: 消息队列</li>
+</ul>
+<h2 is-upgraded>等待服务就绪</h2>
+<pre><code language="language-bash" class="language-bash"># 检查所有容器是否健康
+docker compose ps
+
+# 等待约 30-60 秒让所有服务启动完成
+</code></pre>
+<p>Positive : 所有服务启动后，我们就可以访问 Grafana 了！</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="访问 Grafana 平台" duration="10">
+        <h2 is-upgraded>登录 Grafana</h2>
+<ol type="1">
+<li>打开浏览器访问: <strong>http://localhost:3000</strong></li>
+<li>使用默认凭证登录:<ul>
+<li><strong>用户名</strong>: <code>admin</code></li>
+<li><strong>密码</strong>: <code>admin</code></li>
+</ul>
+</li>
+<li>首次登录会提示修改密码，可以选择跳过（Skip）</li>
+</ol>
+<h2 is-upgraded>Grafana 界面介绍</h2>
+<p>登录后你会看到 Grafana 主界面：</p>
+<p class="image-container"><img alt="Grafana Home" src="img/0.png"></p>
+<h3 is-upgraded>左侧菜单栏</h3>
+<ul>
+<li><strong>Home</strong>: 主页</li>
+<li><strong>Dashboards</strong>: 仪表板列表</li>
+<li><strong>Explore</strong>: 数据探索界面（我们主要使用这个）</li>
+<li><strong>Alerting</strong>: 告警配置</li>
+<li><strong>Configuration</strong>: 配置选项</li>
+</ul>
+<h2 is-upgraded>查看数据源</h2>
+<ol type="1">
+<li>点击左侧菜单的齿轮图标 (Configuration)</li>
+<li>选择 <strong>Data sources</strong></li>
+<li>你应该看到以下数据源已配置: <ul>
+<li><strong>Prometheus</strong>: Metrics 数据</li>
+<li><strong>Loki</strong>: 日志数据</li>
+<li><strong>Tempo</strong>: Trace 数据</li>
+</ul>
+</li>
+</ol>
+<p class="image-container"><img alt="Data Sources" src="img/0.png"></p>
+<h2 is-upgraded>探索预配置的 Dashboard</h2>
+<ol type="1">
+<li>点击左侧菜单的 Dashboard 图标</li>
+<li>你会看到预配置的仪表板: <ul>
+<li><strong>OpenTelemetry Overview</strong>: 整体概览</li>
+<li><strong>Service Performance</strong>: 服务性能监控</li>
+<li><strong>Distributed Tracing</strong>: 分布式追踪</li>
+</ul>
+</li>
+</ol>
+<p class="image-container"><img alt="Dashboards" src="img/0.png"></p>
+<p>Positive : Grafana 平台已经准备好了！接下来我们将使用 K6 生成流量。</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="使用 K6 生成测试流量" duration="8">
+        <h2 is-upgraded>K6 测试脚本</h2>
+<p>项目中已经包含了 K6 测试脚本。让我们查看并运行它：</p>
+<pre><code language="language-bash" class="language-bash"># 查看 K6 脚本（如果存在）
+cat k6/load-test.js
+</code></pre>
+<p>如果项目中没有，创建一个简单的 K6 脚本：</p>
+<pre><code language="language-bash" class="language-bash">mkdir -p k6
+cat &gt; k6/load-test.js &lt;&lt; &#39;EOF&#39;
+import http from &#39;k6/http&#39;;
+import { check, sleep } from &#39;k6&#39;;
+
+export const options = {
+  stages: [
+    { duration: &#39;30s&#39;, target: 10 },  // 爬升到 10 个用户
+    { duration: &#39;1m&#39;, target: 10 },   // 保持 10 个用户
+    { duration: &#39;30s&#39;, target: 0 },   // 降到 0
+  ],
+};
+
+export default function () {
+  const response = http.get(&#39;http://localhost:8080/api/process&#39;);
+
+  check(response, {
+    &#39;status is 200&#39;: (r) =&gt; r.status === 200,
+    &#39;response time &lt; 500ms&#39;: (r) =&gt; r.timings.duration &lt; 500,
+  });
+
+  sleep(1);
+}
+EOF
+</code></pre>
+<h2 is-upgraded>运行 K6 测试</h2>
+<pre><code language="language-bash" class="language-bash"># 运行负载测试
+k6 run k6/load-test.js
+</code></pre>
+<p>你会看到类似这样的输出：</p>
+<pre><code>     ✓ status is 200
+     ✓ response time &lt; 500ms
+
+     checks.........................: 100.00% ✓ 200  ✗ 0
+     data_received..................: 1.2 MB  20 kB/s
+     data_sent......................: 24 kB   400 B/s
+     http_req_duration..............: avg=125ms min=50ms med=120ms max=300ms
+</code></pre>
+<h2 is-upgraded>在 Grafana 中观察流量</h2>
+<ol type="1">
+<li>在 Grafana 中打开 <strong>Explore</strong></li>
+<li>选择数据源: <strong>Prometheus</strong></li>
+<li>输入查询: <pre><code language="language-promql" class="language-promql">rate(http_requests_total[1m])
+</code></pre>
+</li>
+<li>点击 <strong>Run query</strong></li>
+</ol>
+<p>你应该看到请求速率的图表：</p>
+<p class="image-container"><img alt="K6 Traffic" src="img/0.png"></p>
+<h2 is-upgraded>持续流量生成（可选）</h2>
+<p>如果想要持续生成流量用于后续实验：</p>
+<pre><code language="language-bash" class="language-bash"># 后台运行 K6
+k6 run --duration 30m k6/load-test.js &amp;
+</code></pre>
+<p>Positive : 现在我们有流量数据了！接下来注入一些混沌。</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="使用 Pumba 注入延迟" duration="10">
+        <h2 is-upgraded>什么是 Pumba？</h2>
+<p>Pumba 是一个混沌工程工具，可以对 Docker 容器进行各种故障注入：</p>
+<ul>
+<li>网络延迟</li>
+<li>网络丢包</li>
+<li>容器停止/杀死</li>
+<li>资源限制</li>
+</ul>
+<h2 is-upgraded>安装 Pumba</h2>
+<h3 is-upgraded>Linux</h3>
+<pre><code language="language-bash" class="language-bash"># 下载 Pumba
+curl -L https://github.com/alexei-led/pumba/releases/download/0.9.9/pumba_linux_amd64 -o pumba
+chmod +x pumba
+sudo mv pumba /usr/local/bin/
+</code></pre>
+<h3 is-upgraded>MacOS</h3>
+<pre><code language="language-bash" class="language-bash">curl -L https://github.com/alexei-led/pumba/releases/download/0.9.9/pumba_darwin_amd64 -o pumba
+chmod +x pumba
+sudo mv pumba /usr/local/bin/
+</code></pre>
+<h3 is-upgraded>验证安装</h3>
+<pre><code language="language-bash" class="language-bash">pumba --version
+</code></pre>
+<h2 is-upgraded>注入网络延迟到 Service-A</h2>
+<pre><code language="language-bash" class="language-bash"># 对 service-a 注入 500ms 延迟，持续 2 分钟
+pumba netem \
+  --duration 2m \
+  delay \
+  --time 500 \
+  o11y_lab_for_dummies-service-a-1
+</code></pre>
+<p>参数说明：</p>
+<ul>
+<li><code>--duration 2m</code>: 故障持续 2 分钟</li>
+<li><code>delay</code>: 延迟类型</li>
+<li><code>--time 500</code>: 延迟 500 毫秒</li>
+<li>最后是容器名称</li>
+</ul>
+<h2 is-upgraded>查看容器名称</h2>
+<p>如果不确定容器名称：</p>
+<pre><code language="language-bash" class="language-bash"># 列出所有容器
+docker compose ps
+
+# 或者
+docker ps --format &#34;table &#123;&#123;.Names}}\t&#123;&#123;.Status}}&#34;
+</code></pre>
+<h2 is-upgraded>在 Grafana 中观察延迟影响</h2>
+<ol type="1">
+<li>在注入延迟的同时，运行 K6 测试:<pre><code language="language-bash" class="language-bash">k6 run k6/load-test.js
+</code></pre>
+</li>
+<li>在 Grafana Explore 中查询:<pre><code language="language-promql" class="language-promql">histogram_quantile(0.95,
+  rate(http_server_duration_milliseconds_bucket[1m])
+)
+</code></pre>
+</li>
+<li>你应该看到 service-a 的 P95 延迟从 ~100ms 上升到 ~600ms</li>
+</ol>
+<p class="image-container"><img alt="Pumba Delay Effect" src="img/0.png"></p>
+<h2 is-upgraded>其他 Pumba 示例</h2>
+<pre><code language="language-bash" class="language-bash"># 注入随机延迟（100-500ms）
+pumba netem --duration 2m delay --time 300 --jitter 200 service-a
+
+# 注入 10% 丢包
+pumba netem --duration 2m loss --percent 10 service-a
+
+# 限制带宽到 1Mbps
+pumba netem --duration 2m rate --rate 1mbit service-a
+</code></pre>
+<p>Negative : 注意：Pumba 会真实影响服务性能，实验完成后记得停止故障注入！</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Python Auto Instrumentation 详解" duration="15">
+        <h2 is-upgraded>什么是自动埋点？</h2>
+<p>自动埋点（Auto Instrumentation）是指<strong>无需修改代码</strong>，通过 OpenTelemetry Agent 或 SDK 自动捕获遥测数据。</p>
+<h2 is-upgraded>Service-A 的自动埋点配置</h2>
+<p>查看 Service-A 的 Dockerfile：</p>
+<pre><code language="language-bash" class="language-bash">cat services/service-a/Dockerfile
+</code></pre>
+<p>你会看到类似这样的配置：</p>
+<pre><code language="language-dockerfile" class="language-dockerfile">FROM python:3.11-slim
+
+# 安装依赖
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# 安装 OpenTelemetry 自动埋点包
+RUN pip install opentelemetry-distro \
+                opentelemetry-exporter-otlp
+
+# 自动检测并安装相关库的埋点
+RUN opentelemetry-bootstrap -a install
+
+COPY . /app
+WORKDIR /app
+
+# 使用 opentelemetry-instrument 启动应用
+CMD [&#34;opentelemetry-instrument&#34;, &#34;uvicorn&#34;, &#34;main:app&#34;, &#34;--host&#34;, &#34;0.0.0.0&#34;, &#34;--port&#34;, &#34;8001&#34;]
+</code></pre>
+<h2 is-upgraded>关键组件说明</h2>
+<h3 is-upgraded>1. <code>opentelemetry-distro</code></h3>
+<p>OpenTelemetry 的完整发行版，包含所有核心功能。</p>
+<h3 is-upgraded>2. <code>opentelemetry-bootstrap</code></h3>
+<p>自动检测应用依赖的库，并安装相应的埋点包：</p>
+<ul>
+<li>FastAPI → <code>opentelemetry-instrumentation-fastapi</code></li>
+<li>Requests → <code>opentelemetry-instrumentation-requests</code></li>
+<li>SQLAlchemy → <code>opentelemetry-instrumentation-sqlalchemy</code></li>
+</ul>
+<h3 is-upgraded>3. <code>opentelemetry-instrument</code></h3>
+<p>启动时的包装器，自动启用所有埋点。</p>
+<h2 is-upgraded>环境变量配置</h2>
+<p>在 <code>docker-compose.yaml</code> 中，Service-A 配置了以下环境变量：</p>
+<pre><code language="language-yaml" class="language-yaml">environment:
+  OTEL_SERVICE_NAME: service-a
+  OTEL_TRACES_EXPORTER: otlp
+  OTEL_METRICS_EXPORTER: otlp
+  OTEL_LOGS_EXPORTER: otlp
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+  OTEL_RESOURCE_ATTRIBUTES: service.name=service-a,service.version=1.0.0
+</code></pre>
+<h2 is-upgraded>查看自动生成的 Traces</h2>
+<ol type="1">
+<li>触发一个请求:<pre><code language="language-bash" class="language-bash">curl http://localhost:8080/api/process
+</code></pre>
+</li>
+<li>在 Grafana 中:<ul>
+<li>打开 <strong>Explore</strong></li>
+<li>选择数据源: <strong>Tempo</strong></li>
+<li>选择 <strong>Service</strong>: <code>service-a</code></li>
+<li>点击 <strong>Run query</strong></li>
+</ul>
+</li>
+<li>点击任意 trace，你会看到自动生成的 spans:<ul>
+<li>HTTP 请求 span</li>
+<li>数据库查询 span</li>
+<li>下游服务调用 span</li>
+</ul>
+</li>
+</ol>
+<p class="image-container"><img alt="Auto Instrumentation Trace" src="img/0.png"></p>
+<h2 is-upgraded>自动埋点的优势</h2>
+<p>✅ <strong>零代码侵入</strong>: 不需要修改业务代码 ✅ <strong>快速启用</strong>: 几分钟内完成配置 ✅ <strong>覆盖广泛</strong>: 自动支持常见框架和库 ✅ <strong>标准化</strong>: 遵循 OpenTelemetry 规范</p>
+<h2 is-upgraded>自动埋点的局限</h2>
+<p>❌ <strong>缺乏业务上下文</strong>: 无法捕获业务特定的指标 ❌ <strong>精细度有限</strong>: 无法自定义 span 属性 ❌ <strong>性能开销</strong>: 可能捕获不必要的信息</p>
+<p>Positive : 自动埋点适合快速开始和通用场景，但复杂业务需要手动埋点！</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Python Manual Instrumentation 详解" duration="15">
+        <h2 is-upgraded>为什么需要手动埋点？</h2>
+<p>手动埋点允许你：</p>
+<ul>
+<li>添加业务特定的 metrics 和 traces</li>
+<li>自定义 span 属性和事件</li>
+<li>优化性能（只记录需要的数据）</li>
+<li>添加业务语义</li>
+</ul>
+<h2 is-upgraded>Service-D 的手动埋点示例</h2>
+<p>查看 Service-D 的代码：</p>
+<pre><code language="language-bash" class="language-bash">cat services/service-d/app.py
+</code></pre>
+<h3 is-upgraded>1. 初始化 OpenTelemetry</h3>
+<pre><code language="language-python" class="language-python">from opentelemetry import trace, metrics
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+
+# 定义服务资源
+resource = Resource.create({
+    &#34;service.name&#34;: &#34;service-d&#34;,
+    &#34;service.version&#34;: &#34;1.0.0&#34;,
+    &#34;deployment.environment&#34;: &#34;production&#34;
+})
+
+# 配置 Trace Provider
+trace_provider = TracerProvider(resource=resource)
+span_processor = BatchSpanProcessor(
+    OTLPSpanExporter(endpoint=&#34;http://otel-collector:4317&#34;)
+)
+trace_provider.add_span_processor(span_processor)
+trace.set_tracer_provider(trace_provider)
+
+# 配置 Metrics Provider
+metric_reader = PeriodicExportingMetricReader(
+    OTLPMetricExporter(endpoint=&#34;http://otel-collector:4317&#34;)
+)
+meter_provider = MeterProvider(
+    resource=resource,
+    metric_readers=[metric_reader]
+)
+metrics.set_meter_provider(meter_provider)
+
+# 获取 tracer 和 meter
+tracer = trace.get_tracer(__name__)
+meter = metrics.get_meter(__name__)
+</code></pre>
+<h3 is-upgraded>2. 创建自定义 Span</h3>
+<pre><code language="language-python" class="language-python">from flask import Flask, request
+from opentelemetry import trace
+
+app = Flask(__name__)
+tracer = trace.get_tracer(__name__)
+
+@app.route(&#39;/process&#39;)
+def process():
+    # 创建一个自定义 span
+    with tracer.start_as_current_span(&#34;business_logic&#34;) as span:
+        # 添加自定义属性
+        span.set_attribute(&#34;user.id&#34;, request.headers.get(&#34;X-User-ID&#34;, &#34;anonymous&#34;))
+        span.set_attribute(&#34;request.size&#34;, len(request.data))
+
+        # 添加事件
+        span.add_event(&#34;Processing started&#34;, {
+            &#34;items&#34;: 10,
+            &#34;priority&#34;: &#34;high&#34;
+        })
+
+        # 业务逻辑
+        result = do_business_logic()
+
+        # 添加结果属性
+        span.set_attribute(&#34;result.count&#34;, len(result))
+
+        return result
+</code></pre>
+<h3 is-upgraded>3. 创建自定义 Metrics</h3>
+<pre><code language="language-python" class="language-python">from opentelemetry import metrics
+
+meter = metrics.get_meter(__name__)
+
+# 创建计数器
+request_counter = meter.create_counter(
+    name=&#34;business.requests.total&#34;,
+    description=&#34;Total number of business requests&#34;,
+    unit=&#34;1&#34;
+)
+
+# 创建直方图
+processing_time = meter.create_histogram(
+    name=&#34;business.processing.duration&#34;,
+    description=&#34;Processing duration in milliseconds&#34;,
+    unit=&#34;ms&#34;
+)
+
+# 使用 metrics
+@app.route(&#39;/process&#39;)
+def process():
+    start_time = time.time()
+
+    # 增加计数器
+    request_counter.add(1, {&#34;endpoint&#34;: &#34;/process&#34;, &#34;method&#34;: &#34;GET&#34;})
+
+    # 处理请求
+    result = do_work()
+
+    # 记录处理时间
+    duration = (time.time() - start_time) * 1000
+    processing_time.record(duration, {&#34;status&#34;: &#34;success&#34;})
+
+    return result
+</code></pre>
+<h3 is-upgraded>4. 结构化日志与 Trace 关联</h3>
+<pre><code language="language-python" class="language-python">import logging
+from opentelemetry import trace
+
+# 配置 JSON 日志
+import json_log_formatter
+
+formatter = json_log_formatter.JSONFormatter()
+json_handler = logging.StreamHandler()
+json_handler.setFormatter(formatter)
+
+logger = logging.getLogger(__name__)
+logger.addHandler(json_handler)
+logger.setLevel(logging.INFO)
+
+@app.route(&#39;/process&#39;)
+def process():
+    # 获取当前 span context
+    span = trace.get_current_span()
+    trace_id = format(span.get_span_context().trace_id, &#39;032x&#39;)
+    span_id = format(span.get_span_context().span_id, &#39;016x&#39;)
+
+    # 记录包含 trace 信息的日志
+    logger.info(&#34;Processing request&#34;, extra={
+        &#34;trace_id&#34;: trace_id,
+        &#34;span_id&#34;: span_id,
+        &#34;user_id&#34;: request.headers.get(&#34;X-User-ID&#34;),
+        &#34;endpoint&#34;: &#34;/process&#34;
+    })
+
+    return result
+</code></pre>
+<h2 is-upgraded>在 Grafana 中查看手动埋点数据</h2>
+<h3 is-upgraded>查看自定义 Span</h3>
+<ol type="1">
+<li>Grafana → Explore → Tempo</li>
+<li>搜索 service-d 的 traces</li>
+<li>你会看到自定义的 <code>business_logic</code> span</li>
+<li>点击查看详细属性: <ul>
+<li><code>user.id</code></li>
+<li><code>request.size</code></li>
+<li><code>result.count</code></li>
+</ul>
+</li>
+</ol>
+<h3 is-upgraded>查看自定义 Metrics</h3>
+<ol type="1">
+<li>Grafana → Explore → Prometheus</li>
+<li>查询: <pre><code language="language-promql" class="language-promql">rate(business_requests_total[1m])
+</code></pre>
+</li>
+<li>或者: <pre><code language="language-promql" class="language-promql">histogram_quantile(0.95,
+  rate(business_processing_duration_bucket[1m])
+)
+</code></pre>
+</li>
+</ol>
+<h3 is-upgraded>关联日志</h3>
+<ol type="1">
+<li>Grafana → Explore → Loki</li>
+<li>查询: <pre><code language="language-logql" class="language-logql">{service_name=&#34;service-d&#34;} | json
+</code></pre>
+</li>
+<li>点击任意日志行的 trace_id，直接跳转到对应的 trace</li>
+</ol>
+<p class="image-container"><img alt="Manual Instrumentation" src="img/0.png"></p>
+<h2 is-upgraded>手动埋点最佳实践</h2>
+<ol type="1">
+<li><strong>有意义的 Span 名称</strong>: 使用业务术语，如 <code>checkout_cart</code> 而不是 <code>process</code></li>
+<li><strong>添加上下文属性</strong>: 用户ID、订单ID、产品类型等</li>
+<li><strong>记录关键事件</strong>: 支付开始、库存检查、第三方调用等</li>
+<li><strong>控制基数</strong>: 避免高基数属性（如时间戳、UUID）作为 metric 标签</li>
+<li><strong>性能考虑</strong>: 使用采样、避免在热路径创建过多 span</li>
+</ol>
+<p>Positive : 手动埋点给你完全控制权，但需要更多代码和维护工作！</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="混合使用 Auto 和 Manual Instrumentation" duration="10">
+        <h2 is-upgraded>最佳实践：结合两者</h2>
+<p>在实际项目中，通常会<strong>混合使用</strong>自动埋点和手动埋点：</p>
+<pre><code language="language-python" class="language-python"># app.py
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry import trace
+from fastapi import FastAPI
+
+app = FastAPI()
+
+# 1. 启用自动埋点（框架级别）
+FastAPIInstrumentor.instrument_app(app)
+
+# 2. 获取 tracer 用于手动埋点（业务级别）
+tracer = trace.get_tracer(__name__)
+
+@app.get(&#34;/checkout&#34;)
+async def checkout(cart_id: str):
+    # 自动埋点已经创建了 HTTP span
+
+    # 添加业务级别的 span
+    with tracer.start_as_current_span(&#34;validate_cart&#34;) as span:
+        span.set_attribute(&#34;cart.id&#34;, cart_id)
+        cart = await validate_cart(cart_id)
+
+    with tracer.start_as_current_span(&#34;calculate_total&#34;) as span:
+        total = calculate_total(cart)
+        span.set_attribute(&#34;cart.total&#34;, total)
+
+    with tracer.start_as_current_span(&#34;process_payment&#34;) as span:
+        span.set_attribute(&#34;payment.method&#34;, &#34;credit_card&#34;)
+        result = await process_payment(total)
+
+    return result
+</code></pre>
+<h2 is-upgraded>在 Grafana 中查看混合埋点</h2>
+<p>生成的 trace 会显示：</p>
+<pre><code>HTTP POST /checkout (auto)              [200ms]
+├─ validate_cart (manual)               [50ms]
+│  └─ SELECT FROM carts (auto)          [20ms]
+├─ calculate_total (manual)             [30ms]
+└─ process_payment (manual)             [120ms]
+   └─ HTTP POST /api/charge (auto)      [100ms]
+</code></pre>
+<h2 is-upgraded>决策树：何时使用哪种方式？</h2>
+<pre><code>是否是标准框架/库（HTTP、DB、消息队列）？
+├─ 是 → 使用自动埋点
+└─ 否 → 是否是业务核心逻辑？
+   ├─ 是 → 使用手动埋点
+   └─ 否 → 可能不需要埋点
+</code></pre>
+<p>Positive : 自动埋点打基础，手动埋点加深度！</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Grafana 高级功能：关联 Logs-Traces-Metrics" duration="12">
+        <h2 is-upgraded>Trace to Logs</h2>
+<p>在查看 trace 时，直接跳转到相关日志：</p>
+<ol type="1">
+<li>在 Tempo 中打开一个 trace</li>
+<li>点击任意 span</li>
+<li>在右侧面板找到 <strong>Logs for this span</strong></li>
+<li>点击后自动跳转到 Loki，显示该 span 的日志</li>
+</ol>
+<h2 is-upgraded>Logs to Traces</h2>
+<p>从日志跳转到 trace：</p>
+<ol type="1">
+<li>在 Loki 中查询: <pre><code language="language-logql" class="language-logql">{service_name=&#34;service-a&#34;} | json
+</code></pre>
+</li>
+<li>在日志行中找到 <code>trace_id</code> 字段</li>
+<li>点击 trace_id 旁的图标，跳转到 Tempo</li>
+</ol>
+<h2 is-upgraded>Metrics to Traces</h2>
+<p>从 metrics 告警定位到具体请求：</p>
+<ol type="1">
+<li>在 Prometheus 中发现异常: <pre><code language="language-promql" class="language-promql">rate(http_requests_total{status=&#34;500&#34;}[1m]) &gt; 0
+</code></pre>
+</li>
+<li>记下时间范围和服务名称</li>
+<li>在 Tempo 中按时间和服务搜索 traces</li>
+<li>找到失败的请求，查看详细信息</li>
+</ol>
+<h2 is-upgraded>创建关联 Dashboard</h2>
+<p>创建一个包含三者的 dashboard：</p>
+<pre><code language="language-json" class="language-json">{
+  &#34;dashboard&#34;: {
+    &#34;title&#34;: &#34;Service Overview&#34;,
+    &#34;panels&#34;: [
+      {
+        &#34;title&#34;: &#34;Request Rate&#34;,
+        &#34;type&#34;: &#34;graph&#34;,
+        &#34;datasource&#34;: &#34;Prometheus&#34;,
+        &#34;targets&#34;: [
+          {
+            &#34;expr&#34;: &#34;rate(http_requests_total[5m])&#34;
+          }
+        ]
+      },
+      {
+        &#34;title&#34;: &#34;Recent Traces&#34;,
+        &#34;type&#34;: &#34;traces&#34;,
+        &#34;datasource&#34;: &#34;Tempo&#34;
+      },
+      {
+        &#34;title&#34;: &#34;Error Logs&#34;,
+        &#34;type&#34;: &#34;logs&#34;,
+        &#34;datasource&#34;: &#34;Loki&#34;,
+        &#34;targets&#34;: [
+          {
+            &#34;expr&#34;: &#34;{service_name=\&#34;service-a\&#34;} |= \&#34;ERROR\&#34;&#34;
+          }
+        ]
+      }
+    ]
+  }
+}
+</code></pre>
+<p class="image-container"><img alt="Correlated Dashboard" src="img/0.png"></p>
+<p>Positive : 三大支柱的关联是可观测性的精髓！</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="实战演练：完整调试流程" duration="15">
+        <p>让我们通过一个完整的场景来演练：</p>
+<h2 is-upgraded>场景：发现并定位性能问题</h2>
+<h3 is-upgraded>步骤 1: 注入延迟</h3>
+<pre><code language="language-bash" class="language-bash"># 对 service-b 注入 1 秒延迟
+pumba netem --duration 5m delay --time 1000 o11y_lab_for_dummies-service-b-1
+</code></pre>
+<h3 is-upgraded>步骤 2: 生成流量</h3>
+<pre><code language="language-bash" class="language-bash"># 运行 K6 测试
+k6 run k6/load-test.js
+</code></pre>
+<h3 is-upgraded>步骤 3: 在 Prometheus 发现问题</h3>
+<ol type="1">
+<li>Grafana → Explore → Prometheus</li>
+<li>查询: <pre><code language="language-promql" class="language-promql">histogram_quantile(0.95,
+  rate(http_server_duration_milliseconds_bucket[1m])
+)
+</code></pre>
+</li>
+<li>发现 P95 延迟从 100ms 跳到 1100ms</li>
+</ol>
+<h3 is-upgraded>步骤 4: 在 Tempo 定位慢请求</h3>
+<ol type="1">
+<li>切换到 Tempo</li>
+<li>设置过滤: <ul>
+<li>Service: <code>service-b</code></li>
+<li>Min Duration: <code>1s</code></li>
+</ul>
+</li>
+<li>找到慢 trace，查看详情</li>
+</ol>
+<h3 is-upgraded>步骤 5: 在 Loki 查看相关日志</h3>
+<ol type="1">
+<li>在 trace 详情中点击 &#34;Logs for this span&#34;</li>
+<li>或者手动查询: <pre><code language="language-logql" class="language-logql">{service_name=&#34;service-b&#34;}
+| json
+| trace_id=&#34;&lt;your-trace-id&gt;&#34;
+</code></pre>
+</li>
+<li>查看错误日志和上下文</li>
+</ol>
+<h3 is-upgraded>步骤 6: 根因分析</h3>
+<p>通过 trace waterfall 图，你会看到：</p>
+<ul>
+<li>service-b 的某个内部操作耗时 1000ms</li>
+<li>这正是我们注入的延迟</li>
+</ul>
+<h3 is-upgraded>步骤 7: 验证修复（移除延迟）</h3>
+<pre><code language="language-bash" class="language-bash"># Pumba 注入会自动过期，或手动重启容器
+docker compose restart service-b
+</code></pre>
+<p>再次运行 K6，确认延迟恢复正常。</p>
+<h2 is-upgraded>总结工作流</h2>
+<pre><code>Metrics (发现异常)
+  → Traces (定位具体请求)
+    → Logs (查看详细上下文)
+      → 根因分析
+        → 修复验证
+</code></pre>
+<p>Positive : 这就是现代可观测性的威力！</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="清理和后续学习" duration="5">
+        <h2 is-upgraded>停止所有服务</h2>
+<pre><code language="language-bash" class="language-bash"># 停止并删除所有容器
+docker compose down
+
+# 同时删除 volumes（清理数据）
+docker compose down -v
+</code></pre>
+<h2 is-upgraded>后续学习资源</h2>
+<h3 is-upgraded>官方文档</h3>
+<ul>
+<li><a href="https://opentelemetry.io/docs/" target="_blank">OpenTelemetry 文档</a></li>
+<li><a href="https://grafana.com/docs/" target="_blank">Grafana 文档</a></li>
+<li><a href="https://prometheus.io/docs/" target="_blank">Prometheus 文档</a></li>
+</ul>
+<h3 is-upgraded>进阶主题</h3>
+<ul>
+<li><strong>采样策略</strong>: 减少数据量，控制成本</li>
+<li><strong>尾部采样</strong>: 只保留有价值的 traces</li>
+<li><strong>告警配置</strong>: 基于 metrics 设置告警规则</li>
+<li><strong>SLO/SLI</strong>: 服务水平目标和指标</li>
+<li><strong>分布式追踪的高级模式</strong>: Baggage、Context Propagation</li>
+</ul>
+<h3 is-upgraded>社区资源</h3>
+<ul>
+<li><a href="https://github.com/open-telemetry" target="_blank">OpenTelemetry GitHub</a></li>
+<li><a href="https://slack.cncf.io/" target="_blank">CNCF Slack</a> - #opentelemetry 频道</li>
+<li><a href="https://community.grafana.com/" target="_blank">Grafana Community</a></li>
+</ul>
+<h2 is-upgraded>你学到了什么</h2>
+<p>恭喜！你已经完成了整个实验室。你现在掌握了：</p>
+<p>✅ 搭建完整的可观测性栈 ✅ Docker Compose 部署微服务 ✅ Python 自动和手动埋点 ✅ K6 负载测试 ✅ Pumba 混沌工程 ✅ Grafana 三大支柱关联 ✅ 完整的问题定位流程</p>
+<h2 is-upgraded>下一步</h2>
+<ul>
+<li>尝试在自己的项目中应用这些技术</li>
+<li>探索 Go 服务的手动埋点（service-b/c）</li>
+<li>配置自定义告警规则</li>
+<li>实验不同的采样策略</li>
+</ul>
+<p>Positive : 感谢完成本教程！可观测性之旅才刚刚开始！</p>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/claat-public/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/prettify.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/codelab-elements.js"></script>
+  <script src="//support.google.com/inapp/api.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Codelabs 相关
+claat-*
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 本地预览时的临时文件
+.claat-cache/
+
+# 编辑器相关
+.vscode/
+.idea/
+*.iml
+
+# 操作系统相关
+Thumbs.db

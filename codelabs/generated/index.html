@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenTelemetry 可观测性实验室 - 教程目录</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 50px;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .codelabs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .codelab-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+
+        .codelab-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .card-header h2 {
+            font-size: 1.8em;
+            margin-bottom: 10px;
+        }
+
+        .card-header .duration {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .card-body {
+            padding: 30px;
+        }
+
+        .card-body p {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .tag {
+            background: #e0e7ff;
+            color: #667eea;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .start-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+
+        .start-button:hover {
+            transform: scale(1.05);
+        }
+
+        .info-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .info-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .info-section ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info-section li {
+            padding: 8px 0;
+            color: #555;
+        }
+
+        .info-section li:before {
+            content: "✓ ";
+            color: #667eea;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        footer {
+            text-align: center;
+            color: white;
+            margin-top: 60px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔭 OpenTelemetry 可观测性实验室</h1>
+            <p class="subtitle">交互式动手教程 - 从入门到实践</p>
+        </header>
+
+        <div class="info-section">
+            <h3>欢迎来到可观测性实验室！</h3>
+            <p>本系列教程将带你深入了解 OpenTelemetry 和现代可观测性实践。通过实际操作，你将掌握：</p>
+            <ul>
+                <li>完整的可观测性技术栈（Grafana + Prometheus + Loki + Tempo）</li>
+                <li>Docker 容器化部署和管理</li>
+                <li>Python 和 Go 的 OpenTelemetry 埋点</li>
+                <li>分布式追踪、日志、指标的关联分析</li>
+                <li>负载测试和混沌工程实践</li>
+                <li>真实场景的故障定位和调试</li>
+            </ul>
+        </div>
+
+        <div class="codelabs-grid">
+            <div class="codelab-card" onclick="window.location.href='o11y-lab-tutorial/index.html'">
+                <div class="card-header">
+                    <h2>OpenTelemetry 完整教程</h2>
+                    <p class="duration">⏱️ 约 2 小时</p>
+                </div>
+                <div class="card-body">
+                    <div class="tags">
+                        <span class="tag">Docker</span>
+                        <span class="tag">Python</span>
+                        <span class="tag">Go</span>
+                        <span class="tag">Grafana</span>
+                        <span class="tag">K6</span>
+                        <span class="tag">Pumba</span>
+                    </div>
+                    <p>
+                        从零开始搭建完整的可观测性环境，学习自动和手动埋点，
+                        使用 K6 进行负载测试，使用 Pumba 进行混沌工程实验，
+                        最后通过 Grafana 关联 Logs、Metrics、Traces 进行问题定位。
+                    </p>
+                    <a href="o11y-lab-tutorial/index.html" class="start-button">开始学习 →</a>
+                </div>
+            </div>
+
+            <!-- 可以在这里添加更多教程卡片 -->
+            <div class="codelab-card" style="opacity: 0.6; cursor: not-allowed;">
+                <div class="card-header">
+                    <h2>高级追踪技术</h2>
+                    <p class="duration">⏱️ 即将推出</p>
+                </div>
+                <div class="card-body">
+                    <div class="tags">
+                        <span class="tag">Traces</span>
+                        <span class="tag">采样</span>
+                        <span class="tag">性能优化</span>
+                    </div>
+                    <p>
+                        深入学习分布式追踪的高级特性：尾部采样、Baggage、
+                        跨服务上下文传播、性能优化等。
+                    </p>
+                </div>
+            </div>
+
+            <div class="codelab-card" style="opacity: 0.6; cursor: not-allowed;">
+                <div class="card-header">
+                    <h2>Kubernetes 部署实战</h2>
+                    <p class="duration">⏱️ 即将推出</p>
+                </div>
+                <div class="card-body">
+                    <div class="tags">
+                        <span class="tag">Kubernetes</span>
+                        <span class="tag">Operator</span>
+                        <span class="tag">自动注入</span>
+                    </div>
+                    <p>
+                        学习在 Kubernetes 环境中使用 OpenTelemetry Operator
+                        实现自动埋点，零代码侵入的可观测性方案。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Made with ❤️ for the OpenTelemetry Community</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">
+                <a href="https://github.com/yourusername/o11y_lab_for_dummies"
+                   style="color: white; text-decoration: underline;">
+                    GitHub Repository
+                </a>
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

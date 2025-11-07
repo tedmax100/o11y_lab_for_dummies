@@ -45,6 +45,35 @@ API Gateway → Service A → Service D
 - **自动埋点**: Service A/D 使用 OpenTelemetry Operator 或 SDK 自动埋点
 - **手动埋点**: Service B/C 展示如何手动添加 spans、metrics 和结构化日志
 
+## 📚 交互式教程
+
+我们提供了基于 Google Codelabs 格式的**交互式动手教程**！
+
+### 🚀 启动教程
+
+```bash
+cd codelabs
+./serve.sh
+```
+
+然后访问: **http://localhost:8000**
+
+### 🌐 在线访问
+
+教程已部署到 GitHub Pages：[在线教程链接]
+
+教程涵盖：
+- ✅ 环境搭建（Docker、Python、Go、K6）
+- ✅ Grafana 平台使用
+- ✅ K6 负载测试
+- ✅ Pumba 混沌工程
+- ✅ Python 自动和手动埋点
+- ✅ 分布式追踪、日志、指标关联
+
+详细说明请查看 [codelabs/README.md](codelabs/README.md)
+
+---
+
 ## 快速开始
 
 ### 前置要求
@@ -108,6 +137,16 @@ kubectl port-forward svc/grafana 3000:3000 -n observability
 │   ├── datasources/            # 数据源配置
 │   ├── dashboards/             # Dashboard JSON
 │   └── provisioning/           # 自动配置
+├── codelabs/                   # 📚 交互式教程 (Google Codelabs 格式)
+│   ├── tutorials/              # Markdown 格式教程源文件
+│   ├── generated/              # 生成的 HTML 教程
+│   ├── serve.sh                # 启动教程服务器
+│   ├── QUICKSTART.md           # 快速开始指南
+│   ├── DEPLOYMENT.md           # GitHub Pages 部署指南
+│   └── README.md               # 教程文档
+├── .github/
+│   └── workflows/
+│       └── deploy-codelabs.yml # 自动部署 Codelabs 到 GitHub Pages
 ├── docker-compose.yaml         # Docker Compose 配置
 └── README.md                   # 本文件
 ```
