@@ -1,88 +1,88 @@
-# OpenTelemetry 可观测性实验室 - Codelabs 教程
+# OpenTelemetry 可觀測性實驗室 - Codelabs 教學
 
-这是一个基于 Google Codelabs 格式的交互式教程平台，帮助你学习 OpenTelemetry 和可观测性技术。
+這是一個基於 Google Codelabs 格式的互動式教學平台，幫助你學習 OpenTelemetry 和可觀測性技術。
 
-## 快速开始
+## 快速開始
 
-### 1. 启动教程服务器
+### 1. 啟動教學伺服器
 
 ```bash
 cd codelabs
 ./serve.sh
 ```
 
-默认在端口 8000 启动，或者指定端口：
+預設在連接埠 8000 啟動，或者指定連接埠：
 
 ```bash
 ./serve.sh 9000
 ```
 
-### 2. 访问教程
+### 2. 存取教學
 
-在浏览器中打开：
-- **主页**: http://localhost:8000
-- **完整教程**: http://localhost:8000/o11y-lab-tutorial/
+在瀏覽器中開啟：
+- **首頁**: http://localhost:8000
+- **完整教學**: http://localhost:8000/o11y-lab-tutorial/
 
-## 添加截图
+## 新增螢幕截圖
 
-教程中有一些占位符图片需要替换为实际截图：
+教學中有一些佔位符圖片需要替換為實際螢幕截圖：
 
-### 需要的截图列表
+### 需要的螢幕截圖清單
 
-1. **grafana-home.png** - Grafana 主页界面
-2. **grafana-datasources.png** - 数据源配置页面
-3. **grafana-dashboards.png** - Dashboard 列表
-4. **k6-traffic.png** - K6 生成流量后的 Grafana 图表
-5. **pumba-delay.png** - 注入延迟后的性能影响图表
-6. **auto-trace.png** - 自动埋点生成的 Trace 示例
-7. **manual-trace.png** - 手动埋点的 Trace 示例
-8. **correlated-dashboard.png** - Logs/Traces/Metrics 关联的 Dashboard
+1. **grafana-home.png** - Grafana 首頁介面
+2. **grafana-datasources.png** - 資料來源配置頁面
+3. **grafana-dashboards.png** - Dashboard 清單
+4. **k6-traffic.png** - K6 生成流量後的 Grafana 圖表
+5. **pumba-delay.png** - 注入延遲後的效能影響圖表
+6. **auto-trace.png** - 自動埋點生成的 Trace 範例
+7. **manual-trace.png** - 手動埋點的 Trace 範例
+8. **correlated-dashboard.png** - Logs/Traces/Metrics 關聯的 Dashboard
 
-### 如何添加截图
+### 如何新增螢幕截圖
 
-1. 按照教程操作，在相应步骤截图
-2. 将截图保存到对应位置：
+1. 按照教學操作，在相應步驟截圖
+2. 將螢幕截圖儲存到對應位置：
 
 ```bash
-# 截图保存位置
+# 螢幕截圖儲存位置
 codelabs/tutorials/assets/images/
 
-# 或者在生成后的教程中替换
+# 或者在生成後的教學中替換
 codelabs/generated/o11y-lab-tutorial/img/
 ```
 
-3. 重新生成教程（如果修改了 Markdown）：
+3. 重新生成教學（如果修改了 Markdown）：
 
 ```bash
 cd codelabs
 ./claat export -o generated tutorials/observability-lab.md
 ```
 
-## 目录结构
+## 目錄結構
 
 ```
 codelabs/
-├── tutorials/              # Markdown 格式的教程源文件
+├── tutorials/              # Markdown 格式的教學原始檔案
 │   ├── observability-lab.md
 │   └── assets/
-│       └── images/        # 教程中使用的图片
-├── generated/             # 生成的 HTML 教程
-│   ├── index.html         # 教程主页
-│   └── o11y-lab-tutorial/ # 生成的教程内容
-├── claat                  # Codelabs 转换工具
-├── serve.sh              # 启动 Web 服务器脚本
+│       └── images/        # 教學中使用的圖片
+├── generated/             # 生成的 HTML 教學
+│   ├── index.html         # 教學首頁
+│   └── o11y-lab-tutorial/ # 生成的教學內容
+├── claat                  # Codelabs 轉換工具
+├── serve.sh              # 啟動 Web 伺服器腳本
 └── README.md             # 本文件
 ```
 
-## 创建新教程
+## 建立新教學
 
-### 1. 创建 Markdown 文件
+### 1. 建立 Markdown 檔案
 
-在 `tutorials/` 目录下创建新的 `.md` 文件，格式如下：
+在 `tutorials/` 目錄下建立新的 `.md` 檔案，格式如下：
 
 ```markdown
 author: 作者名
-summary: 教程简介
+summary: 教學簡介
 id: unique-tutorial-id
 categories: category1,category2
 environments: Web
@@ -90,17 +90,17 @@ status: Published
 feedback link: https://github.com/your-repo
 analytics account: Google Analytics ID
 
-# 教程标题
+# 教學標題
 
 ## 第一步
 Duration: 5
 
-这是第一步的内容...
+這是第一步的內容...
 
 ## 第二步
 Duration: 10
 
-这是第二步的内容...
+這是第二步的內容...
 ```
 
 ### 2. 生成 HTML
@@ -109,18 +109,18 @@ Duration: 10
 ./claat export -o generated tutorials/your-tutorial.md
 ```
 
-### 3. 更新主页
+### 3. 更新首頁
 
-编辑 `generated/index.html`，添加新教程的卡片。
+編輯 `generated/index.html`，新增新教學的卡片。
 
-## Markdown 语法特性
+## Markdown 語法特性
 
-### Duration (时长)
+### Duration (時長)
 
-在每个步骤下方指定预计完成时间（分钟）：
+在每個步驟下方指定預計完成時間（分鐘）：
 
 ```markdown
-## 步骤标题
+## 步驟標題
 Duration: 10
 ```
 
@@ -128,51 +128,51 @@ Duration: 10
 
 ```markdown
 Positive
-: 这是一个成功/正面的提示
+: 這是一個成功/正面的提示
 
 Negative
-: 这是一个警告/负面的提示
+: 這是一個警告/負面的提示
 ```
 
-### 代码块
+### 程式碼區塊
 
 ```markdown
 \`\`\`bash
-# 命令示例
+# 命令範例
 docker compose up -d
 \`\`\`
 
 \`\`\`python
-# Python 代码
+# Python 程式碼
 print("Hello World")
 \`\`\`
 ```
 
-### 图片
+### 圖片
 
 ```markdown
-![图片描述](assets/images/image-name.png)
+![圖片描述](assets/images/image-name.png)
 ```
 
-### 链接
+### 連結
 
 ```markdown
-[链接文本](https://example.com)
+[連結文字](https://example.com)
 ```
 
-## 自定义样式
+## 自訂樣式
 
-如需自定义教程外观，可以修改：
+如需自訂教學外觀，可以修改：
 
-1. **主页样式**: `generated/index.html` 中的 `<style>` 部分
-2. **教程样式**: claat 生成的默认样式在生成的 HTML 中
+1. **首頁樣式**: `generated/index.html` 中的 `<style>` 部分
+2. **教學樣式**: claat 生成的預設樣式在生成的 HTML 中
 
-## 部署到生产环境
+## 部署到生產環境
 
 ### 使用 GitHub Pages
 
-1. 将 `generated/` 目录内容推送到 `gh-pages` 分支
-2. 在仓库设置中启用 GitHub Pages
+1. 將 `generated/` 目錄內容推送到 `gh-pages` 分支
+2. 在儲存庫設定中啟用 GitHub Pages
 
 ### 使用 Nginx
 
@@ -192,7 +192,7 @@ server {
 
 ### 使用 Docker
 
-创建 `Dockerfile`:
+建立 `Dockerfile`:
 
 ```dockerfile
 FROM nginx:alpine
@@ -201,73 +201,73 @@ EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 ```
 
-构建并运行：
+建置並執行：
 
 ```bash
 docker build -t o11y-codelabs .
 docker run -d -p 8080:80 o11y-codelabs
 ```
 
-## 工具说明
+## 工具說明
 
 ### claat (Codelabs As A Thing)
 
-这是 Google 开发的工具，用于将 Markdown 转换为 Codelabs HTML 格式。
+這是 Google 開發的工具，用於將 Markdown 轉換為 Codelabs HTML 格式。
 
-- **官方仓库**: https://github.com/googlecodelabs/tools
-- **文档**: https://github.com/googlecodelabs/tools/blob/main/claat/README.md
+- **官方儲存庫**: https://github.com/googlecodelabs/tools
+- **文件**: https://github.com/googlecodelabs/tools/blob/main/claat/README.md
 
 ### 常用命令
 
 ```bash
-# 导出为 HTML
+# 匯出為 HTML
 ./claat export tutorials/your-tutorial.md
 
-# 预览（启动开发服务器）
+# 預覽（啟動開發伺服器）
 ./claat serve
 
-# 更新已存在的教程
+# 更新已存在的教學
 ./claat update o11y-lab-tutorial
 
 # 查看版本
 ./claat version
 ```
 
-## 故障排查
+## 故障排除
 
-### 图片无法显示
+### 圖片無法顯示
 
-检查图片路径是否正确：
+檢查圖片路徑是否正確：
 - Markdown 中: `assets/images/image.png`
-- 生成后: `img/image.png`
+- 生成後: `img/image.png`
 
-### 样式异常
+### 樣式異常
 
-清除浏览器缓存或使用隐私模式重新访问。
+清除瀏覽器快取或使用隱私模式重新存取。
 
-### 端口被占用
+### 連接埠被佔用
 
-修改启动脚本中的端口：
+修改啟動腳本中的連接埠：
 
 ```bash
 ./serve.sh 9000
 ```
 
-## 贡献
+## 貢獻
 
-欢迎提交新教程或改进现有教程！
+歡迎提交新教學或改進現有教學！
 
-1. Fork 本项目
-2. 创建新的 Markdown 教程
-3. 生成 HTML 并测试
+1. Fork 本專案
+2. 建立新的 Markdown 教學
+3. 生成 HTML 並測試
 4. 提交 Pull Request
 
-## 许可证
+## 授權條款
 
 MIT License
 
-## 参考资源
+## 參考資源
 
-- [Google Codelabs 官方文档](https://github.com/googlecodelabs/tools)
-- [Markdown 语法指南](https://www.markdownguide.org/)
-- [OpenTelemetry 官方文档](https://opentelemetry.io/docs/)
+- [Google Codelabs 官方文件](https://github.com/googlecodelabs/tools)
+- [Markdown 語法指南](https://www.markdownguide.org/)
+- [OpenTelemetry 官方文件](https://opentelemetry.io/docs/)

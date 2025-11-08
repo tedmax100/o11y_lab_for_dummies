@@ -32,7 +32,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// 全局变量
 var (
 	tracer         trace.Tracer
 	meter          metric.Meter
@@ -42,7 +41,7 @@ var (
 	kafkaDuration  metric.Float64Histogram
 )
 
-// StructuredLog 结构化日志格式
+// StructuredLog
 type StructuredLog struct {
 	Time    string `json:"time"`
 	Level   string `json:"level"`
@@ -52,11 +51,10 @@ type StructuredLog struct {
 	Message string `json:"message"`
 }
 
-// logStructured 输出结构化日志（使用 OpenTelemetry）
+// logStructured
 func logStructured(ctx context.Context, level, message string) {
 	spanCtx := trace.SpanContextFromContext(ctx)
 
-	// 使用 slog 记录日志，trace context 会自动注入
 	switch level {
 	case "INFO":
 		logger.InfoContext(ctx, message,
@@ -81,7 +79,7 @@ func logStructured(ctx context.Context, level, message string) {
 	}
 }
 
-// initTracer 初始化 Tracer
+// initTracer
 func initTracer() (*sdktrace.TracerProvider, error) {
 	collectorEndpoint := os.Getenv("OTEL_COLLECTOR_ENDPOINT")
 	if collectorEndpoint == "" {
@@ -90,7 +88,6 @@ func initTracer() (*sdktrace.TracerProvider, error) {
 
 	ctx := context.Background()
 
-	// 创建 OTLP exporter
 	conn, err := grpc.NewClient(collectorEndpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
@@ -103,7 +100,6 @@ func initTracer() (*sdktrace.TracerProvider, error) {
 		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
 	}
 
-	// 创建 Resource
 	resource, err := sdkresource.Merge(
 		sdkresource.Default(),
 		sdkresource.NewWithAttributes(
@@ -119,7 +115,6 @@ func initTracer() (*sdktrace.TracerProvider, error) {
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	// 创建 TracerProvider
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exporter),
 		sdktrace.WithResource(resource),
@@ -134,7 +129,7 @@ func initTracer() (*sdktrace.TracerProvider, error) {
 	return tp, nil
 }
 
-// initMeter 初始化 Meter
+// initMeter
 func initMeter() (*sdkmetric.MeterProvider, error) {
 	collectorEndpoint := os.Getenv("OTEL_COLLECTOR_ENDPOINT")
 	if collectorEndpoint == "" {
@@ -178,7 +173,7 @@ func initMeter() (*sdkmetric.MeterProvider, error) {
 	return mp, nil
 }
 
-// initLogger 初始化 Logger
+// initLogger
 func initLogger() (*sdklog.LoggerProvider, error) {
 	collectorEndpoint := os.Getenv("OTEL_COLLECTOR_ENDPOINT")
 	if collectorEndpoint == "" {
@@ -226,7 +221,7 @@ func initLogger() (*sdklog.LoggerProvider, error) {
 	return lp, nil
 }
 
-// initKafka 初始化 Kafka Writer
+// initKafka
 func initKafka() {
 	kafkaBroker := os.Getenv("KAFKA_BROKER")
 	if kafkaBroker == "" {
@@ -243,13 +238,13 @@ func initKafka() {
 	log.Printf("Kafka writer initialized for broker: %s", kafkaBroker)
 }
 
-// EnqueueRequest 入队请求结构
+// EnqueueRequest
 type EnqueueRequest struct {
 	Message string `json:"message" binding:"required"`
 	TraceID string `json:"trace_id"`
 }
 
-// healthHandler 健康检查
+// healthHandler
 func healthHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 	logStructured(ctx, "INFO", "Health check called")
@@ -260,11 +255,10 @@ func healthHandler(c *gin.Context) {
 	})
 }
 
-// enqueueHandler 将消息发送到 Kafka
+// enqueueHandler
 func enqueueHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	// 手动创建 span
 	ctx, span := tracer.Start(ctx, "service_b.enqueue",
 		trace.WithSpanKind(trace.SpanKindServer),
 	)
@@ -272,7 +266,6 @@ func enqueueHandler(c *gin.Context) {
 
 	logStructured(ctx, "INFO", "Received enqueue request")
 
-	// 解析请求
 	var req EnqueueRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		logStructured(ctx, "ERROR", fmt.Sprintf("Failed to parse request: %v", err))
@@ -287,18 +280,15 @@ func enqueueHandler(c *gin.Context) {
 		attribute.String("message.trace_id", req.TraceID),
 	)
 
-	// 增加计数器
 	messageCounter.Add(ctx, 1, metric.WithAttributes(
 		attribute.String("operation", "enqueue"),
 	))
 
-	// 手动创建子 span 用于 Kafka 操作
 	kafkaStart := time.Now()
 	_, kafkaSpan := tracer.Start(ctx, "service_b.kafka_publish",
 		trace.WithSpanKind(trace.SpanKindProducer),
 	)
 
-	// 构造消息
 	messageData := map[string]interface{}{
 		"message":   req.Message,
 		"trace_id":  req.TraceID,
@@ -316,7 +306,6 @@ func enqueueHandler(c *gin.Context) {
 		return
 	}
 
-	// 发送到 Kafka
 	kafkaMsg := kafka.Message{
 		Key:   []byte(req.TraceID),
 		Value: messageJSON,
@@ -326,7 +315,7 @@ func enqueueHandler(c *gin.Context) {
 		},
 	}
 
-	// 注入 trace context 到 Kafka headers
+	// Inject trace context into Kafka message headers
 	carrier := &kafkaHeaderCarrier{headers: &kafkaMsg.Headers}
 	otel.GetTextMapPropagator().Inject(ctx, carrier)
 
@@ -356,7 +345,6 @@ func enqueueHandler(c *gin.Context) {
 	)
 	kafkaSpan.End()
 
-	// 记录 Kafka 延迟
 	kafkaDuration.Record(ctx, kafkaDurationSeconds, metric.WithAttributes(
 		attribute.String("operation", "publish"),
 		attribute.String("topic", "o11y-lab-events"),
@@ -373,7 +361,7 @@ func enqueueHandler(c *gin.Context) {
 	})
 }
 
-// infoHandler 获取服务信息
+// infoHandler
 func infoHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 	logStructured(ctx, "INFO", "Info endpoint called")
@@ -392,7 +380,7 @@ func infoHandler(c *gin.Context) {
 	})
 }
 
-// kafkaHeaderCarrier 实现 TextMapCarrier 接口用于 Kafka headers
+// kafkaHeaderCarrier to implement TextMapCarrier for Kafka headers
 type kafkaHeaderCarrier struct {
 	headers *[]kafka.Header
 }
@@ -424,7 +412,6 @@ func (c *kafkaHeaderCarrier) Keys() []string {
 func main() {
 	log.Println("Starting Service B...")
 
-	// 初始化 OpenTelemetry
 	tp, err := initTracer()
 	if err != nil {
 		log.Fatalf("Failed to initialize tracer: %v", err)
@@ -455,11 +442,9 @@ func main() {
 		}
 	}()
 
-	// 创建 tracer 和 meter
 	tracer = otel.Tracer("service-b")
 	meter = otel.Meter("service-b")
 
-	// 创建自定义 metrics
 	messageCounter, err = meter.Int64Counter(
 		"service_b_messages_total",
 		metric.WithDescription("Total number of messages processed"),
@@ -478,20 +463,15 @@ func main() {
 		log.Fatalf("Failed to create kafka duration histogram: %v", err)
 	}
 
-	// 初始化 Kafka
 	initKafka()
 	defer kafkaWriter.Close()
 
-	// 创建 Gin router (使用 New 而非 Default，避免非结构化日志)
 	r := gin.New()
 
-	// 添加 Recovery 中间件
 	r.Use(gin.Recovery())
 
-	// 添加 OpenTelemetry 中间件
 	r.Use(otelgin.Middleware("service-b"))
 
-	// 添加自定义的 JSON 格式日志中间件
 	r.Use(func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
@@ -499,11 +479,9 @@ func main() {
 
 		c.Next()
 
-		// 获取 trace context
 		ctx := c.Request.Context()
 		spanCtx := trace.SpanContextFromContext(ctx)
 
-		// 使用 slog 记录 JSON 格式的访问日志
 		logger.InfoContext(ctx, "HTTP request",
 			slog.String("method", c.Request.Method),
 			slog.String("path", path),
@@ -516,12 +494,10 @@ func main() {
 		)
 	})
 
-	// 注册路由
 	r.GET("/health", healthHandler)
 	r.POST("/enqueue", enqueueHandler)
 	r.GET("/info", infoHandler)
 
-	// 启动服务
 	log.Println("Service B listening on :8002")
 	if err := r.Run(":8002"); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

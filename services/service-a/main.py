@@ -118,7 +118,7 @@ external_call_counter = meter.create_counter(
 )
 
 def get_db_connection():
-    """获取数据库连接"""
+    """Tty to connect to the PostgreSQL database"""
     try:
         conn = psycopg2.connect(
             host=DB_HOST,
@@ -133,12 +133,11 @@ def get_db_connection():
         raise
 
 def init_db():
-    """初始化数据库表"""
+    """Initialize the database schema"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # 创建请求日志表
         cur.execute("""
             CREATE TABLE IF NOT EXISTS request_logs (
                 id SERIAL PRIMARY KEY,
@@ -159,37 +158,35 @@ def init_db():
 
 @app.on_event("startup")
 async def startup_event():
-    """应用启动时初始化"""
+    """Initialize resources on startup"""
     logger.info("Service A starting up...")
     init_db()
     logger.info("Service A startup complete")
 
 @app.get("/health")
 async def health():
-    """健康检查"""
+    """Health check endpoint"""
     logger.info("Health check called")
     return {"status": "healthy", "service": "service-a"}
 
 @app.get("/process")
 async def process():
     """
-    主要的业务处理端点
-    调用多个下游服务和数据库
+    Main processing endpoint
+    Invokes database operations, third-party API, Service D and Service B
     """
     start_time = time.time()
     logger.info("Starting process request in Service A")
 
-    # 增加计数器
     process_counter.add(1, {"endpoint": "/process"})
 
     with tracer.start_as_current_span("service_a.process") as span:
-        # 获取当前 trace_id 用于关联
+        # Get current trace ID to correlate logs and traces
         trace_id = format(span.get_span_context().trace_id, '032x')
         span.set_attribute("trace_id", trace_id)
         span.set_attribute("service.operation", "process")
 
         try:
-            # 1. 查询数据库
             logger.info("Querying database")
             db_start = time.time()
 
@@ -197,14 +194,12 @@ async def process():
                 conn = get_db_connection()
                 cur = conn.cursor(cursor_factory=RealDictCursor)
 
-                # 插入请求记录
                 cur.execute(
                     "INSERT INTO request_logs (trace_id, endpoint, status) VALUES (%s, %s, %s) RETURNING id",
                     (trace_id, "/process", "started")
                 )
                 log_id = cur.fetchone()['id']
 
-                # 查询最近的请求
                 cur.execute(
                     "SELECT COUNT(*) as total FROM request_logs WHERE timestamp > NOW() - INTERVAL '1 hour'"
                 )
@@ -218,7 +213,7 @@ async def process():
             db_query_duration.record(db_duration, {"operation": "insert_and_query"})
             logger.info(f"Database query completed in {db_duration:.3f}s, log_id={log_id}, recent_requests={recent_requests}")
 
-            # 2. 调用第三方 API
+            # 2. Invoke third-party API
             logger.info(f"Calling third-party API: {THIRD_PARTY_API}")
             external_call_counter.add(1, {"target": "third_party_api"})
 
@@ -232,13 +227,12 @@ async def process():
                         logger.warning(f"Third-party API call failed: {str(e)}")
                         third_party_data = "unavailable"
 
-            # 3. 并行调用 Service D 和 Service B
+            # 3. invoke Service D and Service B
             logger.info("Calling Service D and Service B")
             external_call_counter.add(1, {"target": "service_d"})
             external_call_counter.add(1, {"target": "service_b"})
 
             async with httpx.AsyncClient() as client:
-                # 调用 Service D
                 with tracer.start_as_current_span("service_a.call_service_d"):
                     try:
                         service_d_response = await client.get(
@@ -252,7 +246,6 @@ async def process():
                         logger.error(f"Failed to call Service D: {str(e)}")
                         service_d_data = {"error": str(e)}
 
-                # 调用 Service B
                 with tracer.start_as_current_span("service_a.call_service_b"):
                     try:
                         service_b_response = await client.post(
@@ -266,7 +259,6 @@ async def process():
                         logger.error(f"Failed to call Service B: {str(e)}")
                         service_b_data = {"error": str(e)}
 
-            # 4. 更新数据库状态
             with tracer.start_as_current_span("service_a.update_database"):
                 conn = get_db_connection()
                 cur = conn.cursor()
@@ -309,7 +301,7 @@ async def process():
 
 @app.get("/stats")
 async def get_stats():
-    """获取统计信息"""
+    """Get service statistics from the database"""
     logger.info("Getting statistics")
 
     try:

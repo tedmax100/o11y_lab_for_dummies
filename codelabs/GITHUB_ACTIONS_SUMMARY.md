@@ -1,97 +1,97 @@
-# 🎉 GitHub Actions 自动部署配置完成！
+# 🎉 GitHub Actions 自動部署配置完成！
 
 ## ✅ 已完成的配置
 
 ### 1. GitHub Actions Workflow
-文件: `.github/workflows/deploy-codelabs.yml`
+檔案: `.github/workflows/deploy-codelabs.yml`
 
 **功能**:
-- ✅ 自动检测 `codelabs/` 目录的变更
-- ✅ 下载并安装 claat 工具
-- ✅ 从 Markdown 生成 HTML
-- ✅ 自动部署到 GitHub Pages
-- ✅ 支持手动触发
+- ✅ 自動偵測 `codelabs/` 目錄的變更
+- ✅ 下載並安裝 claat 工具
+- ✅ 從 Markdown 生成 HTML
+- ✅ 自動部署到 GitHub Pages
+- ✅ 支援手動觸發
 
-### 2. 快速部署脚本
-文件: `codelabs/deploy-quick.sh`
+### 2. 快速部署腳本
+檔案: `codelabs/deploy-quick.sh`
 
 **功能**:
-- ✅ 一键添加、提交、推送更改
-- ✅ 自动显示部署状态链接
-- ✅ 显示最终访问 URL
+- ✅ 一鍵新增、提交、推送變更
+- ✅ 自動顯示部署狀態連結
+- ✅ 顯示最終存取 URL
 
-### 3. 完整文档
-- ✅ `codelabs/DEPLOYMENT.md` - 详细部署指南
-- ✅ `codelabs/QUICKSTART.md` - 快速开始
-- ✅ `codelabs/SCREENSHOTS_GUIDE.md` - 截图指南
-- ✅ `codelabs/README.md` - 完整文档
+### 3. 完整文件
+- ✅ `codelabs/DEPLOYMENT.md` - 詳細部署指南
+- ✅ `codelabs/QUICKSTART.md` - 快速開始
+- ✅ `codelabs/SCREENSHOTS_GUIDE.md` - 螢幕截圖指南
+- ✅ `codelabs/README.md` - 完整文件
 
 ---
 
-## 🚀 三种部署方式
+## 🚀 三種部署方式
 
-### 方式 1: 自动部署（推荐）
+### 方式 1: 自動部署（推薦）
 
-**适用场景**: 日常更新教程
+**適用場景**: 日常更新教學
 
 ```bash
-# 1. 编辑教程
+# 1. 編輯教學
 vim codelabs/tutorials/observability-lab.md
 
-# 2. 推送到 GitHub（自动触发部署）
+# 2. 推送到 GitHub（自動觸發部署）
 git add codelabs/
 git commit -m "docs: update tutorial"
 git push origin main
 
-# 3. 等待 1-2 分钟，自动部署完成
+# 3. 等待 1-2 分鐘，自動部署完成
 ```
 
-访问: `https://你的用户名.github.io/o11y_lab_for_dummies/`
+存取: `https://你的使用者名稱.github.io/o11y_lab_for_dummies/`
 
-### 方式 2: 使用快速部署脚本
+### 方式 2: 使用快速部署腳本
 
-**适用场景**: 快速更新并部署
+**適用場景**: 快速更新並部署
 
 ```bash
 cd codelabs
 ./deploy-quick.sh
 
-# 按提示输入提交信息，脚本会自动：
-# - 添加所有更改
+# 按提示輸入提交訊息，腳本會自動：
+# - 新增所有變更
 # - 提交
 # - 推送
-# - 显示部署链接
+# - 顯示部署連結
 ```
 
-### 方式 3: 手动触发
+### 方式 3: 手動觸發
 
-**适用场景**: 不想推送代码，只想重新部署
+**適用場景**: 不想推送程式碼，只想重新部署
 
-1. 访问仓库的 Actions 页面
-2. 选择 "Deploy Codelabs to GitHub Pages"
-3. 点击 "Run workflow"
-4. 选择分支，点击 "Run workflow"
+1. 存取儲存庫的 Actions 頁面
+2. 選擇 "Deploy Codelabs to GitHub Pages"
+3. 點擊 "Run workflow"
+4. 選擇分支，點擊 "Run workflow"
 
 ---
 
-## ⚙️ GitHub 设置（首次部署需要）
+## ⚙️ GitHub 設定（首次部署需要）
 
-### 步骤 1: 启用 GitHub Pages
+### 步驟 1: 啟用 GitHub Pages
 
-1. 进入仓库 → **Settings** → **Pages**
-2. Source 选择: **GitHub Actions**
-3. 保存
+1. 進入儲存庫 → **Settings** → **Pages**
+2. Source 選擇: **GitHub Actions**
+3. 儲存
 
-### 步骤 2: 配置 Actions 权限
+### 步驟 2: 配置 Actions 權限
 
-1. 进入仓库 → **Settings** → **Actions** → **General**
-2. 在 **Workflow permissions** 选择:
+1. 進入儲存庫 → **Settings** → **Actions** → **General**
+2. 在 **Workflow permissions** 選擇:
    - ✅ Read and write permissions
-3. 勾选:
+3. 勾選:
    - ✅ Allow GitHub Actions to create and approve pull requests
-4. 保存
+4. 儲存
 
-### 步骤 3: 首次推送
+### 步驟 3: 首次推送
 
 ```bash
 git add .
@@ -99,36 +99,36 @@ git commit -m "feat: add Codelabs with auto-deployment"
 git push origin main
 ```
 
-### 步骤 4: 等待部署
+### 步驟 4: 等待部署
 
-1. 访问: `https://github.com/你的用户名/o11y_lab_for_dummies/actions`
-2. 查看 workflow 运行状态
-3. 等待绿色 ✅ 出现
-4. 访问: `https://你的用户名.github.io/o11y_lab_for_dummies/`
+1. 存取: `https://github.com/你的使用者名稱/o11y_lab_for_dummies/actions`
+2. 查看 workflow 執行狀態
+3. 等待綠色 ✅ 出現
+4. 存取: `https://你的使用者名稱.github.io/o11y_lab_for_dummies/`
 
 ---
 
-## 📊 监控部署状态
+## 📊 監控部署狀態
 
-### 查看 Actions 运行日志
+### 查看 Actions 執行日誌
 
 ```
-https://github.com/你的用户名/o11y_lab_for_dummies/actions
+https://github.com/你的使用者名稱/o11y_lab_for_dummies/actions
 ```
 
-### 添加状态徽章到 README
+### 新增狀態徽章到 README
 
-在主 README.md 中添加：
+在主 README.md 中新增：
 
 ```markdown
-[![Deploy Codelabs](https://github.com/你的用户名/o11y_lab_for_dummies/actions/workflows/deploy-codelabs.yml/badge.svg)](https://github.com/你的用户名/o11y_lab_for_dummies/actions/workflows/deploy-codelabs.yml)
+[![Deploy Codelabs](https://github.com/你的使用者名稱/o11y_lab_for_dummies/actions/workflows/deploy-codelabs.yml/badge.svg)](https://github.com/你的使用者名稱/o11y_lab_for_dummies/actions/workflows/deploy-codelabs.yml)
 ```
 
 ---
 
-## 🔧 Workflow 配置说明
+## 🔧 Workflow 配置說明
 
-### 触发条件
+### 觸發條件
 
 ```yaml
 on:
@@ -140,145 +140,145 @@ on:
   workflow_dispatch:
 ```
 
-**含义**:
-- 当推送到 `main` 分支
-- 且 `codelabs/` 目录有变更时
-- 自动触发部署
-- 也可以手动触发
+**含義**:
+- 當推送到 `main` 分支
+- 且 `codelabs/` 目錄有變更時
+- 自動觸發部署
+- 也可以手動觸發
 
-### 构建步骤
+### 建置步驟
 
-1. **Checkout**: 检出代码
-2. **Install claat**: 下载 Codelabs 转换工具
-3. **Generate HTML**: 从 Markdown 生成 HTML
-4. **Upload artifact**: 上传构建产物
+1. **Checkout**: 檢出程式碼
+2. **Install claat**: 下載 Codelabs 轉換工具
+3. **Generate HTML**: 從 Markdown 生成 HTML
+4. **Upload artifact**: 上傳建置產物
 5. **Deploy**: 部署到 GitHub Pages
 
-### 权限设置
+### 權限設定
 
 ```yaml
 permissions:
-  contents: read    # 读取代码
-  pages: write      # 写入 Pages
-  id-token: write   # 写入 ID token
+  contents: read    # 讀取程式碼
+  pages: write      # 寫入 Pages
+  id-token: write   # 寫入 ID token
 ```
 
 ---
 
-## 🎯 工作流程示例
+## 🎯 工作流程範例
 
-### 场景 1: 更新教程内容
+### 場景 1: 更新教學內容
 
 ```bash
-# 1. 编辑教程
+# 1. 編輯教學
 vim codelabs/tutorials/observability-lab.md
 
-# 2. 本地预览（可选）
+# 2. 本機預覽（選用）
 cd codelabs
 ./serve.sh
-# 访问 http://localhost:8000 确认
+# 存取 http://localhost:8000 確認
 
-# 3. 提交并推送
+# 3. 提交並推送
 git add codelabs/tutorials/observability-lab.md
 git commit -m "docs: update observability tutorial"
 git push
 
-# 4. 自动部署触发！
-# 访问 Actions 页面查看进度
-# 1-2 分钟后，访问在线 URL 查看更新
+# 4. 自動部署觸發！
+# 存取 Actions 頁面查看進度
+# 1-2 分鐘後，存取線上 URL 查看更新
 ```
 
-### 场景 2: 添加新教程
+### 場景 2: 新增新教學
 
 ```bash
-# 1. 创建新教程
+# 1. 建立新教學
 vim codelabs/tutorials/new-tutorial.md
 
-# 2. 生成 HTML（本地测试）
+# 2. 生成 HTML（本機測試）
 cd codelabs
 ./claat export -o generated tutorials/new-tutorial.md
 
-# 3. 更新主页，添加新教程卡片
+# 3. 更新首頁，新增新教學卡片
 vim generated/index.html
 
-# 4. 提交并推送
+# 4. 提交並推送
 git add codelabs/
 git commit -m "docs: add new tutorial"
 git push
 
-# 5. 自动部署！
+# 5. 自動部署！
 ```
 
-### 场景 3: 添加截图
+### 場景 3: 新增螢幕截圖
 
 ```bash
-# 1. 按照教程截图
-# 2. 保存到 tutorials/assets/images/
+# 1. 按照教學截圖
+# 2. 儲存到 tutorials/assets/images/
 
 # 3. 快速部署
 cd codelabs
 ./deploy-quick.sh
-# 输入: "docs: add screenshots"
+# 輸入: "docs: add screenshots"
 
-# 4. 自动推送并部署！
+# 4. 自動推送並部署！
 ```
 
 ---
 
-## 🐛 常见问题和解决方法
+## 🐛 常見問題和解決方法
 
-### Q1: Actions 失败 - 权限错误
+### Q1: Actions 失敗 - 權限錯誤
 
-**错误**: `Resource not accessible by integration`
+**錯誤**: `Resource not accessible by integration`
 
-**解决**:
+**解決**:
 1. Settings → Actions → General
-2. Workflow permissions 选择 "Read and write permissions"
-3. 重新运行 workflow
+2. Workflow permissions 選擇 "Read and write permissions"
+3. 重新執行 workflow
 
-### Q2: Pages 404 错误
+### Q2: Pages 404 錯誤
 
-**原因**: Pages 未启用或配置错误
+**原因**: Pages 未啟用或配置錯誤
 
-**解决**:
+**解決**:
 1. Settings → Pages
-2. Source 确保选择 "GitHub Actions"
-3. 不要选择 "None"
+2. Source 確保選擇 "GitHub Actions"
+3. 不要選擇 "None"
 
-### Q3: 样式丢失
+### Q3: 樣式遺失
 
-**原因**: 路径问题
+**原因**: 路徑問題
 
-**解决**:
-检查 `generated/index.html` 中的相对路径是否正确
+**解決**:
+檢查 `generated/index.html` 中的相對路徑是否正確
 
-### Q4: 部署成功但没有更新
+### Q4: 部署成功但沒有更新
 
-**原因**: 浏览器缓存
+**原因**: 瀏覽器快取
 
-**解决**:
-- 硬刷新: Ctrl+Shift+R (Windows/Linux) 或 Cmd+Shift+R (Mac)
-- 或使用隐私模式访问
+**解決**:
+- 硬重新整理: Ctrl+Shift+R (Windows/Linux) 或 Cmd+Shift+R (Mac)
+- 或使用隱私模式存取
 
 ---
 
-## 📈 进阶配置
+## 📈 進階配置
 
-### 1. 添加自定义域名
+### 1. 新增自訂網域
 
 ```bash
-# 创建 CNAME 文件
+# 建立 CNAME 檔案
 echo "codelabs.yourdomain.com" > codelabs/generated/CNAME
 git add codelabs/generated/CNAME
 git commit -m "Add custom domain"
 git push
 
-# 在 Settings → Pages 配置自定义域名
+# 在 Settings → Pages 配置自訂網域
 ```
 
-### 2. 添加构建缓存（加速构建）
+### 2. 新增建置快取（加速建置）
 
-在 workflow 中添加：
+在 workflow 中新增：
 
 ```yaml
 - name: Cache claat
@@ -288,21 +288,21 @@ git push
     key: claat-${{ runner.os }}-v2.2.6
 ```
 
-### 3. 多环境部署
+### 3. 多環境部署
 
-修改 workflow 支持 staging 和 production：
+修改 workflow 支援 staging 和 production：
 
 ```yaml
 on:
   push:
     branches:
-      - main        # 生产环境
-      - develop     # 测试环境
+      - main        # 生產環境
+      - develop     # 測試環境
 ```
 
-### 4. 添加通知
+### 4. 新增通知
 
-部署完成后发送通知（如 Slack）：
+部署完成後發送通知（如 Slack）：
 
 ```yaml
 - name: Notify Slack
@@ -315,37 +315,37 @@ on:
 
 ---
 
-## 🎓 学习资源
+## 🎓 學習資源
 
-- [GitHub Actions 文档](https://docs.github.com/en/actions)
-- [GitHub Pages 文档](https://docs.github.com/en/pages)
+- [GitHub Actions 文件](https://docs.github.com/en/actions)
+- [GitHub Pages 文件](https://docs.github.com/en/pages)
 - [Google Codelabs 工具](https://github.com/googlecodelabs/tools)
 
 ---
 
-## ✅ 部署检查清单
+## ✅ 部署檢查清單
 
-完成以下步骤确保部署成功：
+完成以下步驟確保部署成功：
 
-- [ ] `.github/workflows/deploy-codelabs.yml` 已创建
-- [ ] GitHub Pages 已启用 (Settings → Pages → Source: GitHub Actions)
-- [ ] Actions 权限已配置 (Read and write)
-- [ ] 本地测试教程正常 (`./serve.sh`)
-- [ ] 代码已推送到 main 分支
-- [ ] Workflow 运行成功（绿色 ✅）
-- [ ] 访问 `https://用户名.github.io/仓库名/` 确认显示正常
-- [ ] 移动端显示正常
-- [ ] 所有链接可点击
-- [ ] 图片正常加载
+- [ ] `.github/workflows/deploy-codelabs.yml` 已建立
+- [ ] GitHub Pages 已啟用 (Settings → Pages → Source: GitHub Actions)
+- [ ] Actions 權限已配置 (Read and write)
+- [ ] 本機測試教學正常 (`./serve.sh`)
+- [ ] 程式碼已推送到 main 分支
+- [ ] Workflow 執行成功（綠色 ✅）
+- [ ] 存取 `https://使用者名稱.github.io/儲存庫名稱/` 確認顯示正常
+- [ ] 行動裝置顯示正常
+- [ ] 所有連結可點擊
+- [ ] 圖片正常載入
 
 ---
 
 ## 🎉 下一步
 
-1. ✅ 按照教程操作，进行实际截图
-2. ✅ 替换教程中的占位符图片
-3. ✅ 推送更新，自动部署
-4. ✅ 分享给团队或社区
-5. ✅ 收集反馈，持续改进
+1. ✅ 按照教學操作，進行實際截圖
+2. ✅ 替換教學中的佔位符圖片
+3. ✅ 推送更新，自動部署
+4. ✅ 分享給團隊或社群
+5. ✅ 收集回饋，持續改進
 
-恭喜！你的 Codelabs 教程平台已经配置完成，现在每次更新都会自动部署到 GitHub Pages！🚀
+恭喜！你的 Codelabs 教學平台已經配置完成，現在每次更新都會自動部署到 GitHub Pages！🚀

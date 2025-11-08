@@ -60,7 +60,7 @@ cd codelabs
 
 ### 🌐 在线访问
 
-教程已部署到 GitHub Pages：[在线教程链接]
+教程已部署到 GitHub Pages：https://tedmax100.github.io/o11y_lab_for_dummies/
 
 教程涵盖：
 - ✅ 环境搭建（Docker、Python、Go、K6）

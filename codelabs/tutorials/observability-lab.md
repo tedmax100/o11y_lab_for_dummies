@@ -1,5 +1,5 @@
 author: Your Name
-summary: OpenTelemetry 可观测性实验室完整教程
+summary: OpenTelemetry 可觀測性實驗室完整教學
 id: o11y-lab-tutorial
 categories: observability,opentelemetry,docker
 environments: Web
@@ -7,69 +7,69 @@ status: Published
 feedback link: https://github.com/yourusername/o11y_lab_for_dummies
 analytics account: Google Analytics ID
 
-# OpenTelemetry 可观测性实验室教程
+# OpenTelemetry 可觀測性實驗室教學
 
-## 课程简介
+## 課程簡介
 Duration: 2
 
-### 你将学到什么
+### 你將學到什麼
 
-在这个实验室中，你将学习如何：
+在這個實驗室中，你將學習如何：
 
-- 搭建完整的可观测性环境（Grafana + Prometheus + Loki + Tempo）
-- 使用 Docker Compose 快速部署微服务架构
-- 理解 Python 自动埋点（Auto Instrumentation）
-- 实践 Python 手动埋点（Manual Instrumentation）
-- 使用 K6 生成测试流量
-- 使用 Pumba 进行混沌工程（延迟注入）
-- 在 Grafana 中关联 Logs、Metrics、Traces
+- 搭建完整的可觀測性環境（Grafana + Prometheus + Loki + Tempo）
+- 使用 Docker Compose 快速部署微服務架構
+- 理解 Python 自動埋點（Auto Instrumentation）
+- 實踐 Python 手動埋點（Manual Instrumentation）
+- 使用 K6 生成測試流量
+- 使用 Pumba 進行混沌工程（延遲注入）
+- 在 Grafana 中關聯 Logs、Metrics、Traces
 
 ### 前置要求
 
-- 基本的 Linux 命令行知识
-- 理解 Docker 基础概念
-- Python 或 Go 编程基础
+- 基本的 Linux 命令列知識
+- 理解 Docker 基礎概念
+- Python 或 Go 程式設計基礎
 
-### 实验环境
+### 實驗環境
 
 - Ubuntu/MacOS/Windows (WSL2)
 - 至少 8GB RAM
-- 20GB 可用磁盘空间
+- 20GB 可用磁碟空間
 
 ---
 
-## 环境准备 - Docker & Docker Compose
+## 環境準備 - Docker & Docker Compose
 Duration: 10
 
-### 安装 Docker
+### 安裝 Docker
 
 #### Linux (Ubuntu/Debian)
 
 ```bash
-# 更新软件包索引
+# 更新軟體套件索引
 sudo apt-get update
 
-# 安装依赖
+# 安裝相依套件
 sudo apt-get install -y \
     ca-certificates \
     curl \
     gnupg \
     lsb-release
 
-# 添加 Docker 官方 GPG key
+# 新增 Docker 官方 GPG key
 sudo mkdir -p /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
-# 设置仓库
+# 設定儲存庫
 echo \
   "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
   $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# 安装 Docker Engine
+# 安裝 Docker Engine
 sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-# 将当前用户加入 docker 组
+# 將目前使用者加入 docker 群組
 sudo usermod -aG docker $USER
 newgrp docker
 ```
@@ -77,57 +77,57 @@ newgrp docker
 #### MacOS
 
 ```bash
-# 使用 Homebrew 安装
+# 使用 Homebrew 安裝
 brew install --cask docker
 
-# 或者直接下载 Docker Desktop
+# 或者直接下載 Docker Desktop
 # https://www.docker.com/products/docker-desktop/
 ```
 
 #### Windows
 
-下载并安装 Docker Desktop for Windows:
+下載並安裝 Docker Desktop for Windows:
 https://www.docker.com/products/docker-desktop/
 
-### 验证安装
+### 驗證安裝
 
 ```bash
-# 检查 Docker 版本
+# 檢查 Docker 版本
 docker --version
-# 应显示: Docker version 24.0.0 或更高
+# 應顯示: Docker version 24.0.0 或更高
 
-# 检查 Docker Compose
+# 檢查 Docker Compose
 docker compose version
-# 应显示: Docker Compose version v2.20.0 或更高
+# 應顯示: Docker Compose version v2.20.0 或更高
 
-# 测试 Docker 运行
+# 測試 Docker 運作
 docker run hello-world
 ```
 
 Positive
-: 如果看到 "Hello from Docker!" 消息，说明 Docker 安装成功！
+: 如果看到 "Hello from Docker!" 訊息，表示 Docker 安裝成功！
 
 ---
 
-## 环境准备 - Python & Go
+## 環境準備 - Python & Go
 Duration: 8
 
-### 安装 Python 3.11+
+### 安裝 Python 3.11+
 
 #### Linux (Ubuntu/Debian)
 
 ```bash
-# 添加 deadsnakes PPA
+# 新增 deadsnakes PPA
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt-get update
 
-# 安装 Python 3.11
+# 安裝 Python 3.11
 sudo apt-get install -y python3.11 python3.11-venv python3.11-dev
 
-# 安装 pip
+# 安裝 pip
 curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
 
-# 验证安装
+# 驗證安裝
 python3.11 --version
 pip3.11 --version
 ```
@@ -137,32 +137,32 @@ pip3.11 --version
 ```bash
 brew install python@3.11
 
-# 验证
+# 驗證
 python3.11 --version
 ```
 
 #### Windows
 
-下载并安装 Python 3.11:
+下載並安裝 Python 3.11:
 https://www.python.org/downloads/
 
-### 安装 Go 1.21+
+### 安裝 Go 1.21+
 
 #### Linux
 
 ```bash
-# 下载 Go
+# 下載 Go
 wget https://go.dev/dl/go1.21.5.linux-amd64.tar.gz
 
-# 解压到 /usr/local
+# 解壓縮到 /usr/local
 sudo rm -rf /usr/local/go
 sudo tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz
 
-# 添加到 PATH (加入 ~/.bashrc 或 ~/.zshrc)
+# 新增到 PATH (加入 ~/.bashrc 或 ~/.zshrc)
 echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
 source ~/.bashrc
 
-# 验证
+# 驗證
 go version
 ```
 
@@ -171,18 +171,18 @@ go version
 ```bash
 brew install go@1.21
 
-# 验证
+# 驗證
 go version
 ```
 
 #### Windows
 
-下载并安装 Go:
+下載並安裝 Go:
 https://go.dev/dl/
 
-### 安装 K6
+### 安裝 K6
 
-K6 是一个现代化的负载测试工具。
+K6 是一個現代化的負載測試工具。
 
 #### Linux
 
@@ -193,7 +193,7 @@ echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.i
 sudo apt-get update
 sudo apt-get install k6
 
-# 验证
+# 驗證
 k6 version
 ```
 
@@ -202,7 +202,7 @@ k6 version
 ```bash
 brew install k6
 
-# 验证
+# 驗證
 k6 version
 ```
 
@@ -214,132 +214,132 @@ docker run --rm -i grafana/k6 version
 ```
 
 Positive
-: 所有工具安装完成！现在可以开始实验了。
+: 所有工具安裝完成！現在可以開始實驗了。
 
 ---
 
-## 克隆项目并启动环境
+## 複製專案並啟動環境
 Duration: 5
 
-### 获取项目代码
+### 取得專案程式碼
 
 ```bash
-# 克隆仓库
+# 複製儲存庫
 git clone https://github.com/yourusername/o11y_lab_for_dummies.git
 cd o11y_lab_for_dummies
 
-# 查看项目结构
+# 查看專案結構
 ls -la
 ```
 
-### 启动所有服务
+### 啟動所有服務
 
 ```bash
-# 使用 Docker Compose 启动
+# 使用 Docker Compose 啟動
 docker compose up -d
 
-# 查看服务状态
+# 查看服務狀態
 docker compose ps
 
-# 查看日志（可选）
+# 查看日誌（選用）
 docker compose logs -f
 ```
 
-你应该看到以下服务启动：
+你應該會看到以下服務啟動：
 
-- **api-gateway**: Python FastAPI 网关
-- **service-a**: Python FastAPI 服务（自动埋点）
-- **service-b**: Go 服务（手动埋点）
-- **service-c**: Go 服务（手动埋点）
-- **service-d**: Python Flask 服务（自动埋点）
-- **grafana**: 可视化平台
-- **prometheus**: Metrics 存储
-- **loki**: 日志存储
-- **tempo**: Trace 存储
+- **api-gateway**: Python FastAPI 閘道器
+- **service-a**: Python FastAPI 服務（自動埋點）
+- **service-b**: Go 服務（手動埋點）
+- **service-c**: Go 服務（手動埋點）
+- **service-d**: Python Flask 服務（自動埋點）
+- **grafana**: 視覺化平台
+- **prometheus**: Metrics 儲存
+- **loki**: 日誌儲存
+- **tempo**: Trace 儲存
 - **otel-collector**: OpenTelemetry 收集器
-- **postgres**: 数据库
-- **kafka**: 消息队列
+- **postgres**: 資料庫
+- **kafka**: 訊息佇列
 
-### 等待服务就绪
+### 等待服務就緒
 
 ```bash
-# 检查所有容器是否健康
+# 檢查所有容器是否健康
 docker compose ps
 
-# 等待约 30-60 秒让所有服务启动完成
+# 等待約 30-60 秒讓所有服務啟動完成
 ```
 
 Positive
-: 所有服务启动后，我们就可以访问 Grafana 了！
+: 所有服務啟動後，我們就可以存取 Grafana 了！
 
 ---
 
-## 访问 Grafana 平台
+## 存取 Grafana 平台
 Duration: 10
 
-### 登录 Grafana
+### 登入 Grafana
 
-1. 打开浏览器访问: **http://localhost:3000**
+1. 開啟瀏覽器存取: **http://localhost:3000**
 
-2. 使用默认凭证登录:
-   - **用户名**: `admin`
-   - **密码**: `admin`
+2. 使用預設憑證登入:
+   - **使用者名稱**: `admin`
+   - **密碼**: `admin`
 
-3. 首次登录会提示修改密码，可以选择跳过（Skip）
+3. 首次登入會提示修改密碼，可以選擇跳過（Skip）
 
-### Grafana 界面介绍
+### Grafana 介面介紹
 
-登录后你会看到 Grafana 主界面：
+登入後你會看到 Grafana 主介面：
 
 ![Grafana Home](assets/images/grafana-home.png)
 
-#### 左侧菜单栏
+#### 左側選單列
 
-- **Home**: 主页
-- **Dashboards**: 仪表板列表
-- **Explore**: 数据探索界面（我们主要使用这个）
+- **Home**: 首頁
+- **Dashboards**: 儀表板清單
+- **Explore**: 資料探索介面（我們主要使用這個）
 - **Alerting**: 告警配置
-- **Configuration**: 配置选项
+- **Configuration**: 配置選項
 
-### 查看数据源
+### 查看資料來源
 
-1. 点击左侧菜单的齿轮图标 (Configuration)
-2. 选择 **Data sources**
-3. 你应该看到以下数据源已配置:
-   - **Prometheus**: Metrics 数据
-   - **Loki**: 日志数据
-   - **Tempo**: Trace 数据
+1. 點擊左側選單的齒輪圖示 (Configuration)
+2. 選擇 **Data sources**
+3. 你應該會看到以下資料來源已配置:
+   - **Prometheus**: Metrics 資料
+   - **Loki**: 日誌資料
+   - **Tempo**: Trace 資料
 
 ![Data Sources](assets/images/grafana-datasources.png)
 
-### 探索预配置的 Dashboard
+### 探索預先配置的 Dashboard
 
-1. 点击左侧菜单的 Dashboard 图标
-2. 你会看到预配置的仪表板:
-   - **OpenTelemetry Overview**: 整体概览
-   - **Service Performance**: 服务性能监控
-   - **Distributed Tracing**: 分布式追踪
+1. 點擊左側選單的 Dashboard 圖示
+2. 你會看到預先配置的儀表板:
+   - **OpenTelemetry Overview**: 整體概覽
+   - **Service Performance**: 服務效能監控
+   - **Distributed Tracing**: 分散式追蹤
 
 ![Dashboards](assets/images/grafana-dashboards.png)
 
 Positive
-: Grafana 平台已经准备好了！接下来我们将使用 K6 生成流量。
+: Grafana 平台已經準備好了！接下來我們將使用 K6 生成流量。
 
 ---
 
-## 使用 K6 生成测试流量
+## 使用 K6 生成測試流量
 Duration: 8
 
-### K6 测试脚本
+### K6 測試腳本
 
-项目中已经包含了 K6 测试脚本。让我们查看并运行它：
+專案中已經包含了 K6 測試腳本。讓我們查看並執行它：
 
 ```bash
-# 查看 K6 脚本（如果存在）
+# 查看 K6 腳本（如果存在）
 cat k6/load-test.js
 ```
 
-如果项目中没有，创建一个简单的 K6 脚本：
+如果專案中沒有，建立一個簡單的 K6 腳本：
 
 ```bash
 mkdir -p k6
@@ -349,8 +349,8 @@ import { check, sleep } from 'k6';
 
 export const options = {
   stages: [
-    { duration: '30s', target: 10 },  // 爬升到 10 个用户
-    { duration: '1m', target: 10 },   // 保持 10 个用户
+    { duration: '30s', target: 10 },  // 爬升到 10 個使用者
+    { duration: '1m', target: 10 },   // 保持 10 個使用者
     { duration: '30s', target: 0 },   // 降到 0
   ],
 };
@@ -368,14 +368,14 @@ export default function () {
 EOF
 ```
 
-### 运行 K6 测试
+### 執行 K6 測試
 
 ```bash
-# 运行负载测试
+# 執行負載測試
 k6 run k6/load-test.js
 ```
 
-你会看到类似这样的输出：
+你會看到類似這樣的輸出：
 
 ```
      ✓ status is 200
@@ -387,51 +387,51 @@ k6 run k6/load-test.js
      http_req_duration..............: avg=125ms min=50ms med=120ms max=300ms
 ```
 
-### 在 Grafana 中观察流量
+### 在 Grafana 中觀察流量
 
-1. 在 Grafana 中打开 **Explore**
-2. 选择数据源: **Prometheus**
-3. 输入查询:
+1. 在 Grafana 中開啟 **Explore**
+2. 選擇資料來源: **Prometheus**
+3. 輸入查詢:
    ```promql
    rate(http_requests_total[1m])
    ```
-4. 点击 **Run query**
+4. 點擊 **Run query**
 
-你应该看到请求速率的图表：
+你應該會看到請求速率的圖表：
 
 ![K6 Traffic](assets/images/k6-traffic.png)
 
-### 持续流量生成（可选）
+### 持續流量生成（選用）
 
-如果想要持续生成流量用于后续实验：
+如果想要持續生成流量用於後續實驗：
 
 ```bash
-# 后台运行 K6
+# 背景執行 K6
 k6 run --duration 30m k6/load-test.js &
 ```
 
 Positive
-: 现在我们有流量数据了！接下来注入一些混沌。
+: 現在我們有流量資料了！接下來注入一些混沌。
 
 ---
 
-## 使用 Pumba 注入延迟
+## 使用 Pumba 注入延遲
 Duration: 10
 
-### 什么是 Pumba？
+### 什麼是 Pumba？
 
-Pumba 是一个混沌工程工具，可以对 Docker 容器进行各种故障注入：
-- 网络延迟
-- 网络丢包
-- 容器停止/杀死
-- 资源限制
+Pumba 是一個混沌工程工具，可以對 Docker 容器進行各種故障注入：
+- 網路延遲
+- 網路丟包
+- 容器停止/終止
+- 資源限制
 
-### 安装 Pumba
+### 安裝 Pumba
 
 #### Linux
 
 ```bash
-# 下载 Pumba
+# 下載 Pumba
 curl -L https://github.com/alexei-led/pumba/releases/download/0.9.9/pumba_linux_amd64 -o pumba
 chmod +x pumba
 sudo mv pumba /usr/local/bin/
@@ -445,16 +445,16 @@ chmod +x pumba
 sudo mv pumba /usr/local/bin/
 ```
 
-#### 验证安装
+#### 驗證安裝
 
 ```bash
 pumba --version
 ```
 
-### 注入网络延迟到 Service-A
+### 注入網路延遲到 Service-A
 
 ```bash
-# 对 service-a 注入 500ms 延迟，持续 2 分钟
+# 對 service-a 注入 500ms 延遲，持續 2 分鐘
 pumba netem \
   --duration 2m \
   delay \
@@ -462,15 +462,15 @@ pumba netem \
   o11y_lab_for_dummies-service-a-1
 ```
 
-参数说明：
-- `--duration 2m`: 故障持续 2 分钟
-- `delay`: 延迟类型
-- `--time 500`: 延迟 500 毫秒
-- 最后是容器名称
+參數說明：
+- `--duration 2m`: 故障持續 2 分鐘
+- `delay`: 延遲類型
+- `--time 500`: 延遲 500 毫秒
+- 最後是容器名稱
 
-### 查看容器名称
+### 查看容器名稱
 
-如果不确定容器名称：
+如果不確定容器名稱：
 
 ```bash
 # 列出所有容器
@@ -480,50 +480,50 @@ docker compose ps
 docker ps --format "table {{.Names}}\t{{.Status}}"
 ```
 
-### 在 Grafana 中观察延迟影响
+### 在 Grafana 中觀察延遲影響
 
-1. 在注入延迟的同时，运行 K6 测试:
+1. 在注入延遲的同時，執行 K6 測試:
    ```bash
    k6 run k6/load-test.js
    ```
 
-2. 在 Grafana Explore 中查询:
+2. 在 Grafana Explore 中查詢:
    ```promql
    histogram_quantile(0.95,
      rate(http_server_duration_milliseconds_bucket[1m])
    )
    ```
 
-3. 你应该看到 service-a 的 P95 延迟从 ~100ms 上升到 ~600ms
+3. 你應該會看到 service-a 的 P95 延遲從 ~100ms 上升到 ~600ms
 
 ![Pumba Delay Effect](assets/images/pumba-delay.png)
 
-### 其他 Pumba 示例
+### 其他 Pumba 範例
 
 ```bash
-# 注入随机延迟（100-500ms）
+# 注入隨機延遲（100-500ms）
 pumba netem --duration 2m delay --time 300 --jitter 200 service-a
 
-# 注入 10% 丢包
+# 注入 10% 丟包
 pumba netem --duration 2m loss --percent 10 service-a
 
-# 限制带宽到 1Mbps
+# 限制頻寬到 1Mbps
 pumba netem --duration 2m rate --rate 1mbit service-a
 ```
 
 Negative
-: 注意：Pumba 会真实影响服务性能，实验完成后记得停止故障注入！
+: 注意：Pumba 會真實影響服務效能，實驗完成後記得停止故障注入！
 
 ---
 
-## Python Auto Instrumentation 详解
+## Python Auto Instrumentation 詳解
 Duration: 15
 
-### 什么是自动埋点？
+### 什麼是自動埋點？
 
-自动埋点（Auto Instrumentation）是指**无需修改代码**，通过 OpenTelemetry Agent 或 SDK 自动捕获遥测数据。
+自動埋點（Auto Instrumentation）是指**無需修改程式碼**，透過 OpenTelemetry Agent 或 SDK 自動捕獲遙測資料。
 
-### Service-A 的自动埋点配置
+### Service-A 的自動埋點配置
 
 查看 Service-A 的 Dockerfile：
 
@@ -531,46 +531,46 @@ Duration: 15
 cat services/service-a/Dockerfile
 ```
 
-你会看到类似这样的配置：
+你會看到類似這樣的配置：
 
 ```dockerfile
 FROM python:3.11-slim
 
-# 安装依赖
+# 安裝相依套件
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-# 安装 OpenTelemetry 自动埋点包
+# 安裝 OpenTelemetry 自動埋點套件
 RUN pip install opentelemetry-distro \
                 opentelemetry-exporter-otlp
 
-# 自动检测并安装相关库的埋点
+# 自動檢測並安裝相關函式庫的埋點
 RUN opentelemetry-bootstrap -a install
 
 COPY . /app
 WORKDIR /app
 
-# 使用 opentelemetry-instrument 启动应用
+# 使用 opentelemetry-instrument 啟動應用程式
 CMD ["opentelemetry-instrument", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
 ```
 
-### 关键组件说明
+### 關鍵元件說明
 
 #### 1. `opentelemetry-distro`
-OpenTelemetry 的完整发行版，包含所有核心功能。
+OpenTelemetry 的完整發行版，包含所有核心功能。
 
 #### 2. `opentelemetry-bootstrap`
-自动检测应用依赖的库，并安装相应的埋点包：
+自動檢測應用程式相依的函式庫，並安裝對應的埋點套件：
 - FastAPI → `opentelemetry-instrumentation-fastapi`
 - Requests → `opentelemetry-instrumentation-requests`
 - SQLAlchemy → `opentelemetry-instrumentation-sqlalchemy`
 
 #### 3. `opentelemetry-instrument`
-启动时的包装器，自动启用所有埋点。
+啟動時的包裝器，自動啟用所有埋點。
 
-### 环境变量配置
+### 環境變數配置
 
-在 `docker-compose.yaml` 中，Service-A 配置了以下环境变量：
+在 `docker-compose.yaml` 中，Service-A 配置了以下環境變數：
 
 ```yaml
 environment:
@@ -583,58 +583,58 @@ environment:
   OTEL_RESOURCE_ATTRIBUTES: service.name=service-a,service.version=1.0.0
 ```
 
-### 查看自动生成的 Traces
+### 查看自動生成的 Traces
 
-1. 触发一个请求:
+1. 觸發一個請求:
    ```bash
    curl http://localhost:8080/api/process
    ```
 
 2. 在 Grafana 中:
-   - 打开 **Explore**
-   - 选择数据源: **Tempo**
-   - 选择 **Service**: `service-a`
-   - 点击 **Run query**
+   - 開啟 **Explore**
+   - 選擇資料來源: **Tempo**
+   - 選擇 **Service**: `service-a`
+   - 點擊 **Run query**
 
-3. 点击任意 trace，你会看到自动生成的 spans:
-   - HTTP 请求 span
-   - 数据库查询 span
-   - 下游服务调用 span
+3. 點擊任意 trace，你會看到自動生成的 spans:
+   - HTTP 請求 span
+   - 資料庫查詢 span
+   - 下游服務呼叫 span
 
 ![Auto Instrumentation Trace](assets/images/auto-trace.png)
 
-### 自动埋点的优势
+### 自動埋點的優勢
 
-✅ **零代码侵入**: 不需要修改业务代码
-✅ **快速启用**: 几分钟内完成配置
-✅ **覆盖广泛**: 自动支持常见框架和库
-✅ **标准化**: 遵循 OpenTelemetry 规范
+✅ **零程式碼侵入**: 不需要修改業務程式碼
+✅ **快速啟用**: 幾分鐘內完成配置
+✅ **覆蓋廣泛**: 自動支援常見框架和函式庫
+✅ **標準化**: 遵循 OpenTelemetry 規範
 
-### 自动埋点的局限
+### 自動埋點的局限
 
-❌ **缺乏业务上下文**: 无法捕获业务特定的指标
-❌ **精细度有限**: 无法自定义 span 属性
-❌ **性能开销**: 可能捕获不必要的信息
+❌ **缺乏業務情境**: 無法捕獲業務特定的指標
+❌ **精細度有限**: 無法自訂 span 屬性
+❌ **效能開銷**: 可能捕獲不必要的資訊
 
 Positive
-: 自动埋点适合快速开始和通用场景，但复杂业务需要手动埋点！
+: 自動埋點適合快速開始和通用場景，但複雜業務需要手動埋點！
 
 ---
 
-## Python Manual Instrumentation 详解
+## Python Manual Instrumentation 詳解
 Duration: 15
 
-### 为什么需要手动埋点？
+### 為什麼需要手動埋點？
 
-手动埋点允许你：
-- 添加业务特定的 metrics 和 traces
-- 自定义 span 属性和事件
-- 优化性能（只记录需要的数据）
-- 添加业务语义
+手動埋點允許你：
+- 新增業務特定的 metrics 和 traces
+- 自訂 span 屬性和事件
+- 最佳化效能（只記錄需要的資料）
+- 新增業務語義
 
-### Service-D 的手动埋点示例
+### Service-D 的手動埋點範例
 
-查看 Service-D 的代码：
+查看 Service-D 的程式碼：
 
 ```bash
 cat services/service-d/app.py
@@ -652,7 +652,7 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
 
-# 定义服务资源
+# 定義服務資源
 resource = Resource.create({
     "service.name": "service-d",
     "service.version": "1.0.0",
@@ -677,12 +677,12 @@ meter_provider = MeterProvider(
 )
 metrics.set_meter_provider(meter_provider)
 
-# 获取 tracer 和 meter
+# 取得 tracer 和 meter
 tracer = trace.get_tracer(__name__)
 meter = metrics.get_meter(__name__)
 ```
 
-#### 2. 创建自定义 Span
+#### 2. 建立自訂 Span
 
 ```python
 from flask import Flask, request
@@ -693,42 +693,42 @@ tracer = trace.get_tracer(__name__)
 
 @app.route('/process')
 def process():
-    # 创建一个自定义 span
+    # 建立一個自訂 span
     with tracer.start_as_current_span("business_logic") as span:
-        # 添加自定义属性
+        # 新增自訂屬性
         span.set_attribute("user.id", request.headers.get("X-User-ID", "anonymous"))
         span.set_attribute("request.size", len(request.data))
 
-        # 添加事件
+        # 新增事件
         span.add_event("Processing started", {
             "items": 10,
             "priority": "high"
         })
 
-        # 业务逻辑
+        # 業務邏輯
         result = do_business_logic()
 
-        # 添加结果属性
+        # 新增結果屬性
         span.set_attribute("result.count", len(result))
 
         return result
 ```
 
-#### 3. 创建自定义 Metrics
+#### 3. 建立自訂 Metrics
 
 ```python
 from opentelemetry import metrics
 
 meter = metrics.get_meter(__name__)
 
-# 创建计数器
+# 建立計數器
 request_counter = meter.create_counter(
     name="business.requests.total",
     description="Total number of business requests",
     unit="1"
 )
 
-# 创建直方图
+# 建立直方圖
 processing_time = meter.create_histogram(
     name="business.processing.duration",
     description="Processing duration in milliseconds",
@@ -740,26 +740,26 @@ processing_time = meter.create_histogram(
 def process():
     start_time = time.time()
 
-    # 增加计数器
+    # 增加計數器
     request_counter.add(1, {"endpoint": "/process", "method": "GET"})
 
-    # 处理请求
+    # 處理請求
     result = do_work()
 
-    # 记录处理时间
+    # 記錄處理時間
     duration = (time.time() - start_time) * 1000
     processing_time.record(duration, {"status": "success"})
 
     return result
 ```
 
-#### 4. 结构化日志与 Trace 关联
+#### 4. 結構化日誌與 Trace 關聯
 
 ```python
 import logging
 from opentelemetry import trace
 
-# 配置 JSON 日志
+# 配置 JSON 日誌
 import json_log_formatter
 
 formatter = json_log_formatter.JSONFormatter()
@@ -772,12 +772,12 @@ logger.setLevel(logging.INFO)
 
 @app.route('/process')
 def process():
-    # 获取当前 span context
+    # 取得目前 span context
     span = trace.get_current_span()
     trace_id = format(span.get_span_context().trace_id, '032x')
     span_id = format(span.get_span_context().span_id, '016x')
 
-    # 记录包含 trace 信息的日志
+    # 記錄包含 trace 資訊的日誌
     logger.info("Processing request", extra={
         "trace_id": trace_id,
         "span_id": span_id,
@@ -788,22 +788,22 @@ def process():
     return result
 ```
 
-### 在 Grafana 中查看手动埋点数据
+### 在 Grafana 中查看手動埋點資料
 
-#### 查看自定义 Span
+#### 查看自訂 Span
 
 1. Grafana → Explore → Tempo
-2. 搜索 service-d 的 traces
-3. 你会看到自定义的 `business_logic` span
-4. 点击查看详细属性:
+2. 搜尋 service-d 的 traces
+3. 你會看到自訂的 `business_logic` span
+4. 點擊查看詳細屬性:
    - `user.id`
    - `request.size`
    - `result.count`
 
-#### 查看自定义 Metrics
+#### 查看自訂 Metrics
 
 1. Grafana → Explore → Prometheus
-2. 查询:
+2. 查詢:
    ```promql
    rate(business_requests_total[1m])
    ```
@@ -814,36 +814,36 @@ def process():
    )
    ```
 
-#### 关联日志
+#### 關聯日誌
 
 1. Grafana → Explore → Loki
-2. 查询:
+2. 查詢:
    ```logql
    {service_name="service-d"} | json
    ```
-3. 点击任意日志行的 trace_id，直接跳转到对应的 trace
+3. 點擊任意日誌行的 trace_id，直接跳轉到對應的 trace
 
 ![Manual Instrumentation](assets/images/manual-trace.png)
 
-### 手动埋点最佳实践
+### 手動埋點最佳實踐
 
-1. **有意义的 Span 名称**: 使用业务术语，如 `checkout_cart` 而不是 `process`
-2. **添加上下文属性**: 用户ID、订单ID、产品类型等
-3. **记录关键事件**: 支付开始、库存检查、第三方调用等
-4. **控制基数**: 避免高基数属性（如时间戳、UUID）作为 metric 标签
-5. **性能考虑**: 使用采样、避免在热路径创建过多 span
+1. **有意義的 Span 名稱**: 使用業務術語，如 `checkout_cart` 而不是 `process`
+2. **新增情境屬性**: 使用者ID、訂單ID、產品類型等
+3. **記錄關鍵事件**: 支付開始、庫存檢查、第三方呼叫等
+4. **控制基數**: 避免高基數屬性（如時間戳記、UUID）作為 metric 標籤
+5. **效能考量**: 使用採樣、避免在熱路徑建立過多 span
 
 Positive
-: 手动埋点给你完全控制权，但需要更多代码和维护工作！
+: 手動埋點給你完全控制權，但需要更多程式碼和維護工作！
 
 ---
 
 ## 混合使用 Auto 和 Manual Instrumentation
 Duration: 10
 
-### 最佳实践：结合两者
+### 最佳實踐：結合兩者
 
-在实际项目中，通常会**混合使用**自动埋点和手动埋点：
+在實際專案中，通常會**混合使用**自動埋點和手動埋點：
 
 ```python
 # app.py
@@ -853,17 +853,17 @@ from fastapi import FastAPI
 
 app = FastAPI()
 
-# 1. 启用自动埋点（框架级别）
+# 1. 啟用自動埋點（框架層級）
 FastAPIInstrumentor.instrument_app(app)
 
-# 2. 获取 tracer 用于手动埋点（业务级别）
+# 2. 取得 tracer 用於手動埋點（業務層級）
 tracer = trace.get_tracer(__name__)
 
 @app.get("/checkout")
 async def checkout(cart_id: str):
-    # 自动埋点已经创建了 HTTP span
+    # 自動埋點已經建立了 HTTP span
 
-    # 添加业务级别的 span
+    # 新增業務層級的 span
     with tracer.start_as_current_span("validate_cart") as span:
         span.set_attribute("cart.id", cart_id)
         cart = await validate_cart(cart_id)
@@ -879,9 +879,9 @@ async def checkout(cart_id: str):
     return result
 ```
 
-### 在 Grafana 中查看混合埋点
+### 在 Grafana 中查看混合埋點
 
-生成的 trace 会显示：
+生成的 trace 會顯示：
 ```
 HTTP POST /checkout (auto)              [200ms]
 ├─ validate_cart (manual)               [50ms]
@@ -891,59 +891,59 @@ HTTP POST /checkout (auto)              [200ms]
    └─ HTTP POST /api/charge (auto)      [100ms]
 ```
 
-### 决策树：何时使用哪种方式？
+### 決策樹：何時使用哪種方式？
 
 ```
-是否是标准框架/库（HTTP、DB、消息队列）？
-├─ 是 → 使用自动埋点
-└─ 否 → 是否是业务核心逻辑？
-   ├─ 是 → 使用手动埋点
-   └─ 否 → 可能不需要埋点
+是否是標準框架/函式庫（HTTP、DB、訊息佇列）？
+├─ 是 → 使用自動埋點
+└─ 否 → 是否是業務核心邏輯？
+   ├─ 是 → 使用手動埋點
+   └─ 否 → 可能不需要埋點
 ```
 
 Positive
-: 自动埋点打基础，手动埋点加深度！
+: 自動埋點打基礎，手動埋點加深度！
 
 ---
 
-## Grafana 高级功能：关联 Logs-Traces-Metrics
+## Grafana 進階功能：關聯 Logs-Traces-Metrics
 Duration: 12
 
 ### Trace to Logs
 
-在查看 trace 时，直接跳转到相关日志：
+在查看 trace 時，直接跳轉到相關日誌：
 
-1. 在 Tempo 中打开一个 trace
-2. 点击任意 span
-3. 在右侧面板找到 **Logs for this span**
-4. 点击后自动跳转到 Loki，显示该 span 的日志
+1. 在 Tempo 中開啟一個 trace
+2. 點擊任意 span
+3. 在右側面板找到 **Logs for this span**
+4. 點擊後自動跳轉到 Loki，顯示該 span 的日誌
 
 ### Logs to Traces
 
-从日志跳转到 trace：
+從日誌跳轉到 trace：
 
-1. 在 Loki 中查询:
+1. 在 Loki 中查詢:
    ```logql
    {service_name="service-a"} | json
    ```
-2. 在日志行中找到 `trace_id` 字段
-3. 点击 trace_id 旁的图标，跳转到 Tempo
+2. 在日誌行中找到 `trace_id` 欄位
+3. 點擊 trace_id 旁的圖示，跳轉到 Tempo
 
 ### Metrics to Traces
 
-从 metrics 告警定位到具体请求：
+從 metrics 告警定位到具體請求：
 
-1. 在 Prometheus 中发现异常:
+1. 在 Prometheus 中發現異常:
    ```promql
    rate(http_requests_total{status="500"}[1m]) > 0
    ```
-2. 记下时间范围和服务名称
-3. 在 Tempo 中按时间和服务搜索 traces
-4. 找到失败的请求，查看详细信息
+2. 記下時間範圍和服務名稱
+3. 在 Tempo 中按時間和服務搜尋 traces
+4. 找到失敗的請求，查看詳細資訊
 
-### 创建关联 Dashboard
+### 建立關聯 Dashboard
 
-创建一个包含三者的 dashboard：
+建立一個包含三者的 dashboard：
 
 ```json
 {
@@ -983,141 +983,141 @@ Duration: 12
 ![Correlated Dashboard](assets/images/correlated-dashboard.png)
 
 Positive
-: 三大支柱的关联是可观测性的精髓！
+: 三大支柱的關聯是可觀測性的精髓！
 
 ---
 
-## 实战演练：完整调试流程
+## 實戰演練：完整除錯流程
 Duration: 15
 
-让我们通过一个完整的场景来演练：
+讓我們透過一個完整的場景來演練：
 
-### 场景：发现并定位性能问题
+### 場景：發現並定位效能問題
 
-#### 步骤 1: 注入延迟
+#### 步驟 1: 注入延遲
 
 ```bash
-# 对 service-b 注入 1 秒延迟
+# 對 service-b 注入 1 秒延遲
 pumba netem --duration 5m delay --time 1000 o11y_lab_for_dummies-service-b-1
 ```
 
-#### 步骤 2: 生成流量
+#### 步驟 2: 生成流量
 
 ```bash
-# 运行 K6 测试
+# 執行 K6 測試
 k6 run k6/load-test.js
 ```
 
-#### 步骤 3: 在 Prometheus 发现问题
+#### 步驟 3: 在 Prometheus 發現問題
 
 1. Grafana → Explore → Prometheus
-2. 查询:
+2. 查詢:
    ```promql
    histogram_quantile(0.95,
      rate(http_server_duration_milliseconds_bucket[1m])
    )
    ```
-3. 发现 P95 延迟从 100ms 跳到 1100ms
+3. 發現 P95 延遲從 100ms 跳到 1100ms
 
-#### 步骤 4: 在 Tempo 定位慢请求
+#### 步驟 4: 在 Tempo 定位慢請求
 
-1. 切换到 Tempo
-2. 设置过滤:
+1. 切換到 Tempo
+2. 設定篩選:
    - Service: `service-b`
    - Min Duration: `1s`
-3. 找到慢 trace，查看详情
+3. 找到慢 trace，查看詳情
 
-#### 步骤 5: 在 Loki 查看相关日志
+#### 步驟 5: 在 Loki 查看相關日誌
 
-1. 在 trace 详情中点击 "Logs for this span"
-2. 或者手动查询:
+1. 在 trace 詳情中點擊 "Logs for this span"
+2. 或者手動查詢:
    ```logql
    {service_name="service-b"}
    | json
    | trace_id="<your-trace-id>"
    ```
-3. 查看错误日志和上下文
+3. 查看錯誤日誌和情境
 
-#### 步骤 6: 根因分析
+#### 步驟 6: 根因分析
 
-通过 trace waterfall 图，你会看到：
-- service-b 的某个内部操作耗时 1000ms
-- 这正是我们注入的延迟
+透過 trace waterfall 圖，你會看到：
+- service-b 的某個內部操作耗時 1000ms
+- 這正是我們注入的延遲
 
-#### 步骤 7: 验证修复（移除延迟）
+#### 步驟 7: 驗證修復（移除延遲）
 
 ```bash
-# Pumba 注入会自动过期，或手动重启容器
+# Pumba 注入會自動過期，或手動重啟容器
 docker compose restart service-b
 ```
 
-再次运行 K6，确认延迟恢复正常。
+再次執行 K6，確認延遲恢復正常。
 
-### 总结工作流
+### 總結工作流程
 
 ```
-Metrics (发现异常)
-  → Traces (定位具体请求)
-    → Logs (查看详细上下文)
+Metrics (發現異常)
+  → Traces (定位具體請求)
+    → Logs (查看詳細情境)
       → 根因分析
-        → 修复验证
+        → 修復驗證
 ```
 
 Positive
-: 这就是现代可观测性的威力！
+: 這就是現代可觀測性的威力！
 
 ---
 
-## 清理和后续学习
+## 清理和後續學習
 Duration: 5
 
-### 停止所有服务
+### 停止所有服務
 
 ```bash
-# 停止并删除所有容器
+# 停止並刪除所有容器
 docker compose down
 
-# 同时删除 volumes（清理数据）
+# 同時刪除 volumes（清理資料）
 docker compose down -v
 ```
 
-### 后续学习资源
+### 後續學習資源
 
-#### 官方文档
-- [OpenTelemetry 文档](https://opentelemetry.io/docs/)
-- [Grafana 文档](https://grafana.com/docs/)
-- [Prometheus 文档](https://prometheus.io/docs/)
+#### 官方文件
+- [OpenTelemetry 文件](https://opentelemetry.io/docs/)
+- [Grafana 文件](https://grafana.com/docs/)
+- [Prometheus 文件](https://prometheus.io/docs/)
 
-#### 进阶主题
-- **采样策略**: 减少数据量，控制成本
-- **尾部采样**: 只保留有价值的 traces
-- **告警配置**: 基于 metrics 设置告警规则
-- **SLO/SLI**: 服务水平目标和指标
-- **分布式追踪的高级模式**: Baggage、Context Propagation
+#### 進階主題
+- **採樣策略**: 減少資料量，控制成本
+- **尾部採樣**: 只保留有價值的 traces
+- **告警配置**: 基於 metrics 設定告警規則
+- **SLO/SLI**: 服務水準目標和指標
+- **分散式追蹤的進階模式**: Baggage、Context Propagation
 
-#### 社区资源
+#### 社群資源
 - [OpenTelemetry GitHub](https://github.com/open-telemetry)
-- [CNCF Slack](https://slack.cncf.io/) - #opentelemetry 频道
+- [CNCF Slack](https://slack.cncf.io/) - #opentelemetry 頻道
 - [Grafana Community](https://community.grafana.com/)
 
-### 你学到了什么
+### 你學到了什麼
 
-恭喜！你已经完成了整个实验室。你现在掌握了：
+恭喜！你已經完成了整個實驗室。你現在掌握了：
 
-✅ 搭建完整的可观测性栈
-✅ Docker Compose 部署微服务
-✅ Python 自动和手动埋点
-✅ K6 负载测试
+✅ 搭建完整的可觀測性堆疊
+✅ Docker Compose 部署微服務
+✅ Python 自動和手動埋點
+✅ K6 負載測試
 ✅ Pumba 混沌工程
-✅ Grafana 三大支柱关联
-✅ 完整的问题定位流程
+✅ Grafana 三大支柱關聯
+✅ 完整的問題定位流程
 
 ### 下一步
 
-- 尝试在自己的项目中应用这些技术
-- 探索 Go 服务的手动埋点（service-b/c）
-- 配置自定义告警规则
-- 实验不同的采样策略
+- 嘗試在自己的專案中應用這些技術
+- 探索 Go 服務的手動埋點（service-b/c）
+- 配置自訂告警規則
+- 實驗不同的採樣策略
 
 Positive
-: 感谢完成本教程！可观测性之旅才刚刚开始！
+: 感謝完成本教學！可觀測性之旅才剛剛開始！
