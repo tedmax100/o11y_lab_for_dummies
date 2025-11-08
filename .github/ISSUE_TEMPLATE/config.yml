@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 GitHub Discussions
+    url: https://github.com/tedmax100/o11y_lab_for_dummies/discussions
+    about: 有問題或想討論？歡迎到 Discussions 發起話題！
+  - name: 📚 線上教學
+    url: https://tedmax100.github.io/o11y_lab_for_dummies/
+    about: 查看完整的互動式教學

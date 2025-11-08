@@ -1,0 +1,82 @@
+[
+  {
+    "name": "codelabs",
+    "color": "0075ca",
+    "description": "與 Codelabs 教學相關的問題"
+  },
+  {
+    "name": "documentation",
+    "color": "0075ca",
+    "description": "文件改進或新增"
+  },
+  {
+    "name": "bug",
+    "color": "d73a4a",
+    "description": "有問題或不如預期的行為"
+  },
+  {
+    "name": "enhancement",
+    "color": "a2eeef",
+    "description": "新功能或改進請求"
+  },
+  {
+    "name": "good first issue",
+    "color": "7057ff",
+    "description": "適合新手的 issue"
+  },
+  {
+    "name": "help wanted",
+    "color": "008672",
+    "description": "需要協助"
+  },
+  {
+    "name": "question",
+    "color": "d876e3",
+    "description": "需要進一步資訊"
+  },
+  {
+    "name": "wontfix",
+    "color": "ffffff",
+    "description": "不會處理這個問題"
+  },
+  {
+    "name": "duplicate",
+    "color": "cfd3d7",
+    "description": "重複的 issue 或 PR"
+  },
+  {
+    "name": "invalid",
+    "color": "e4e669",
+    "description": "無效或不適當"
+  },
+  {
+    "name": "docker",
+    "color": "1d76db",
+    "description": "與 Docker 相關"
+  },
+  {
+    "name": "kubernetes",
+    "color": "326ce5",
+    "description": "與 Kubernetes 相關"
+  },
+  {
+    "name": "opentelemetry",
+    "color": "f88962",
+    "description": "與 OpenTelemetry 相關"
+  },
+  {
+    "name": "grafana",
+    "color": "f46800",
+    "description": "與 Grafana 相關"
+  },
+  {
+    "name": "python",
+    "color": "3776ab",
+    "description": "與 Python 服務相關"
+  },
+  {
+    "name": "go",
+    "color": "00add8",
+    "description": "與 Go 服務相關"
+  }
+]

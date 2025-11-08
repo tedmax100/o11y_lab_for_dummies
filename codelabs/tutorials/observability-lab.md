@@ -4,7 +4,7 @@ id: o11y-lab-tutorial
 categories: observability,opentelemetry,docker
 environments: Web
 status: Published
-feedback link: https://github.com/yourusername/o11y_lab_for_dummies
+feedback link: https://github.com/tedmax100/o11y_lab_for_dummies/issues/new?template=codelabs-feedback.md&labels=codelabs,documentation
 analytics account: Google Analytics ID
 
 # OpenTelemetry 可觀測性實驗室教學
