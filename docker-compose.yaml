@@ -1,8 +1,7 @@
 # OpenTelemetry Observability Lab
-# 完整的可观测性栈，包含 logs、metrics、traces 三大支柱
 
 services:
-  # ==================== 应用服务 ====================
+  # ==================== Applications ====================
 
   api-gateway:
     build:
@@ -43,7 +42,7 @@ services:
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_LOGS_EXPORTER=otlp
-      # 注释掉自动日志注入，因为我们在代码中手动配置了 LoggerProvider
+      # Disable auto-instrumentation for some libraries to avoid duplication
       # - OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
       - OTEL_RESOURCE_ATTRIBUTES=service.namespace=o11y-lab,deployment.environment=lab,instrumentation.type=hybrid
     depends_on:
