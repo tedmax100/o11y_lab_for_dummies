@@ -414,104 +414,398 @@ Positive
 
 ---
 
-## 使用 Pumba 注入延遲
-Duration: 10
+## 混沌工程入門 - Pumba 基礎
+Duration: 8
 
-### 什麼是 Pumba？
+### 什麼是混沌工程？
 
-Pumba 是一個混沌工程工具，可以對 Docker 容器進行各種故障注入：
-- 網路延遲
-- 網路丟包
-- 容器停止/終止
-- 資源限制
+混沌工程是一種透過**主動注入故障**來測試系統韌性的實踐方法。在生產環境中，服務可能遇到：
 
-### 安裝 Pumba
+- 🌐 網路延遲或斷線
+- 💥 服務突然崩潰
+- 📉 資源不足（CPU、記憶體）
+- 🔌 依賴服務失效
 
-#### Linux
+透過混沌測試，我們可以：
+1. 驗證系統的容錯能力
+2. 發現隱藏的單點故障
+3. 測試監控和告警是否有效
+4. 提升團隊的應變能力
 
-```bash
-# 下載 Pumba
-curl -L https://github.com/alexei-led/pumba/releases/download/0.9.9/pumba_linux_amd64 -o pumba
-chmod +x pumba
-sudo mv pumba /usr/local/bin/
-```
+### Pumba 簡介
 
-#### MacOS
+Pumba 是一個專為 Docker 容器設計的混沌工程工具，支援：
 
-```bash
-curl -L https://github.com/alexei-led/pumba/releases/download/0.9.9/pumba_darwin_amd64 -o pumba
-chmod +x pumba
-sudo mv pumba /usr/local/bin/
-```
+- **網路混沌**：延遲、丟包、頻寬限制
+- **容器混沌**：隨機終止、暫停、資源限制
+- **靈活控制**：指定持續時間、目標容器、故障強度
 
-#### 驗證安裝
+**最棒的是**：我們已經在 Makefile 中整合了 Pumba，無需安裝！
+
+### 查看可用的混沌測試命令
 
 ```bash
-pumba --version
+# 查看所有混沌測試命令
+make chaos-help
 ```
 
-### 注入網路延遲到 Service-A
+你會看到：
+- 基礎混沌測試（網路延遲、丟包、容器終止）
+- 服務特定測試（針對單一服務）
+- 複雜場景（模擬真實故障）
+
+Positive
+: **提示**：所有混沌測試都使用 Docker 運行 Pumba，不需要額外安裝任何工具！
+
+### 第一個混沌測試 - 網路延遲
+
+讓我們從最簡單的測試開始：給 Service A 添加 1 秒的網路延遲。
 
 ```bash
-# 對 service-a 注入 500ms 延遲，持續 2 分鐘
-pumba netem \
-  --duration 2m \
-  delay \
-  --time 500 \
-  o11y_lab_for_dummies-service-a-1
+# 給 Service A 添加 1000ms 延遲，持續 3 分鐘
+make chaos-delay-service-a
 ```
 
-參數說明：
-- `--duration 2m`: 故障持續 2 分鐘
-- `delay`: 延遲類型
-- `--time 500`: 延遲 500 毫秒
-- 最後是容器名稱
-
-### 查看容器名稱
-
-如果不確定容器名稱：
-
-```bash
-# 列出所有容器
-docker compose ps
-
-# 或者
-docker ps --format "table {{.Names}}\t{{.Status}}"
+你會看到：
+```
+🐌 給 Service A 添加 1000ms 延遲，持續 3 分鐘
+✅ Service A 延遲已應用
 ```
 
-### 在 Grafana 中觀察延遲影響
+### 在 Grafana 中觀察影響
 
-1. 在注入延遲的同時，執行 K6 測試:
+現在混沌測試正在運行，讓我們在 Grafana 中觀察影響：
+
+1. **同時生成測試流量**：
    ```bash
    k6 run k6/load-test.js
    ```
 
-2. 在 Grafana Explore 中查詢:
+2. **在 Grafana 中查看延遲指標**：
+   - 打開 Grafana: http://localhost:3000
+   - 進入 Explore
+   - 選擇 Prometheus 數據源
+   - 執行查詢：
    ```promql
    histogram_quantile(0.95,
-     rate(http_server_duration_milliseconds_bucket[1m])
+     rate(http_server_duration_milliseconds_bucket{service_name="service-a"}[1m])
    )
    ```
 
-3. 你應該會看到 service-a 的 P95 延遲從 ~100ms 上升到 ~600ms
+3. **觀察結果**：
+   - 正常情況：P95 延遲約 50-100ms
+   - 混沌注入後：P95 延遲上升到 1000ms 以上
 
 ![Pumba Delay Effect](assets/images/pumba-delay.png)
 
-### 其他 Pumba 範例
+### 停止混沌測試
+
+3 分鐘後，測試會自動停止。或者手動停止：
 
 ```bash
-# 注入隨機延遲（100-500ms）
-pumba netem --duration 2m delay --time 300 --jitter 200 service-a
+# 停止所有混沌測試
+make chaos-stop
 
-# 注入 10% 丟包
-pumba netem --duration 2m loss --percent 10 service-a
+# 清理 Pumba 容器
+make chaos-clean
+```
 
-# 限制頻寬到 1Mbps
-pumba netem --duration 2m rate --rate 1mbit service-a
+### 查看混沌測試狀態
+
+```bash
+# 查看當前運行的混沌測試
+make chaos-status
 ```
 
 Negative
-: 注意：Pumba 會真實影響服務效能，實驗完成後記得停止故障注入！
+: **重要提醒**：混沌測試會真實影響服務效能。實驗完成後記得停止測試，避免影響後續步驟！
+
+---
+
+## 混沌工程進階 - 完整混沌測試指南
+Duration: 20
+
+現在你已經了解基礎，讓我們探索更多混沌測試場景。本章節將按難度循序漸進介紹。
+
+### Level 1：基礎網路混沌 ⭐
+
+這些測試適合初學者，幫助你理解網路問題對系統的影響。
+
+#### 1.1 網路延遲（所有服務）
+
+```bash
+# 給所有應用服務添加 500ms 延遲，持續 5 分鐘
+make chaos-network-delay
+```
+
+**適用場景**：
+- 模擬跨區域網路
+- 測試超時設定是否合理
+- 驗證用戶體驗降級策略
+
+**觀察重點**：
+- 整體系統的回應時間
+- 是否有服務因超時而失敗
+- Grafana 中的 Trace 鏈路延遲
+
+#### 1.2 網路丟包
+
+```bash
+# 給所有服務添加 20% 丟包率，持續 5 分鐘
+make chaos-network-loss
+```
+
+**適用場景**：
+- 模擬不穩定的網路環境
+- 測試重試機制
+- 驗證錯誤處理
+
+**觀察重點**：
+- 錯誤率是否上升
+- 重試邏輯是否生效
+- Logs 中的錯誤訊息
+
+#### 1.3 網路包損壞
+
+```bash
+# 給所有服務添加 10% 包損壞率，持續 5 分鐘
+make chaos-network-corrupt
+```
+
+**適用場景**：
+- 測試資料完整性驗證
+- 模擬硬體故障
+- 驗證協定的錯誤檢測能力
+
+Positive
+: **小技巧**：可以同時在另一個終端視窗運行 `make chaos-status` 來即時監控混沌測試狀態。
+
+### Level 2：服務特定混沌 ⭐⭐
+
+針對單一服務進行測試，更精確地模擬特定故障。
+
+#### 2.1 測試單一服務的韌性
+
+```bash
+# 給 Service B 添加 30% 丟包率
+make chaos-loss-service-b
+```
+
+**實驗步驟**：
+1. 啟動混沌測試
+2. 運行 K6: `k6 run k6/load-test.js`
+3. 在 Grafana 中查看：
+   - Service A 是否能正常處理 Service B 的故障？
+   - 錯誤是否被正確記錄？
+   - Trace 中是否顯示失敗的 Span？
+
+#### 2.2 資料庫混沌測試
+
+```bash
+# 對 PostgreSQL 進行壓力測試
+make chaos-stress-postgres
+```
+
+**觀察重點**：
+- 資料庫查詢延遲
+- 連接池是否耗盡
+- 應用是否有快取機制來減輕影響
+
+#### 2.3 消息佇列混沌
+
+```bash
+# 暫停 Kafka 容器 30 秒
+make chaos-pause-kafka
+```
+
+**觀察重點**：
+- Service B 和 Service C 如何處理消息發送失敗
+- 消息是否會丟失
+- 恢復後是否能正常消費
+
+### Level 3：容器生命週期混沌 ⭐⭐⭐
+
+測試服務在突然終止和重啟時的行為。
+
+#### 3.1 隨機殺死服務
+
+```bash
+# 每 30 秒隨機殺死一個應用服務
+make chaos-kill-random
+```
+
+**這個測試會**：
+- 隨機選擇一個服務（api-gateway 或 service-a/b/c/d）
+- 發送 SIGKILL 信號終止容器
+- Docker Compose 會自動重啟容器
+
+**實驗步驟**：
+1. 啟動混沌測試
+2. 在另一個終端持續運行 K6
+3. 觀察 Grafana 中的：
+   - 錯誤率變化
+   - 服務重啟的 Trace 缺口
+   - Metrics 的斷點
+
+4. 運行 2-3 分鐘後停止：
+   ```bash
+   make chaos-stop
+   ```
+
+#### 3.2 殺死 API Gateway
+
+```bash
+# 一次性殺死 API Gateway
+make chaos-kill-gateway
+```
+
+**觀察重點**：
+- 重啟需要多久？
+- 期間有多少請求失敗？
+- 負載均衡器（如果有）如何處理？
+
+Negative
+: **注意**：`chaos-kill-random` 會持續運行，記得在實驗結束後執行 `make chaos-stop` 停止！
+
+### Level 4：複雜真實場景 ⭐⭐⭐⭐
+
+模擬多個故障同時發生的複雜情況。
+
+#### 4.1 微服務鏈路故障
+
+這個場景模擬多個服務同時出現不同問題：
+
+```bash
+# 啟動複雜場景
+make chaos-microservice-chain
+```
+
+**這個命令會同時**：
+- Service A：網路延遲 800ms
+- Service B：15% 丟包
+- Service C：CPU 壓力
+
+**實驗步驟**：
+
+1. **啟動混沌測試**
+2. **持續生成流量**：
+   ```bash
+   k6 run k6/load-test.js
+   ```
+3. **在 Grafana 中觀察鏈路**：
+   - 打開 Tempo（Traces）
+   - 查找完整的請求鏈路
+   - 觀察哪個服務成為瓶頸
+
+4. **分析 Metrics**：
+   ```promql
+   # 各服務的錯誤率
+   rate(http_server_requests_total{status_code=~"5.."}[1m])
+
+   # 各服務的延遲
+   histogram_quantile(0.95,
+     rate(http_server_duration_milliseconds_bucket[1m]))
+   ```
+
+5. **查看 Logs**：
+   - 在 Grafana Loki 中搜尋錯誤
+   - 點擊 Trace ID 關聯查看
+
+6. **5 分鐘後停止**：
+   ```bash
+   make chaos-stop
+   ```
+
+#### 4.2 資料庫中斷場景
+
+```bash
+# 模擬資料庫中斷（2000ms 延遲）
+make chaos-database-outage
+```
+
+**觀察重點**：
+- Service A 的資料庫查詢超時
+- 連接池是否耗盡
+- 應用如何處理資料庫慢查詢
+
+#### 4.3 網路分區
+
+```bash
+# 模擬 Service A 和 Service B 之間網路分區
+make chaos-network-partition
+```
+
+**這個測試會**：
+- Service A 和 Service B 各有 90% 丟包
+- 模擬兩個服務幾乎無法通訊
+
+**觀察重點**：
+- 系統如何降級
+- 是否有 Circuit Breaker 觸發
+- 錯誤處理和 Fallback 機制
+
+### Level 5：自訂混沌測試 ⭐⭐⭐⭐⭐
+
+你也可以直接使用 Pumba Docker 命令進行更靈活的測試：
+
+```bash
+# 對特定服務添加複雜網路條件
+docker run -d --name my-chaos-test \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  gaiaadm/pumba:latest \
+  netem --duration 3m \
+  --tc-image ghcr.io/alexei-led/pumba-alpine-nettools:latest \
+  delay --time 1000 --jitter 300 --distribution normal \
+  service-a
+```
+
+**自訂參數**：
+- `--time`: 延遲時間（毫秒）
+- `--jitter`: 抖動範圍
+- `--distribution`: 分佈類型（normal, pareto, paretonormal）
+- `--correlation`: 相關性百分比
+
+### 混沌測試最佳實踐
+
+Positive
+: **循序漸進**
+: 1. 先從單一、簡單的故障開始
+: 2. 逐步增加複雜度
+: 3. 在生產環境前先在測試環境驗證
+: 4. 建立回滾計畫
+
+Positive
+: **觀察與分析**
+: 1. 使用 Grafana 的三大支柱（Logs、Metrics、Traces）
+: 2. 記錄每次實驗的發現
+: 3. 驗證告警是否正常觸發
+: 4. 測量恢復時間（MTTR）
+
+Positive
+: **安全第一**
+: 1. 永遠先在非生產環境測試
+: 2. 設定明確的測試時間窗口
+: 3. 確保可以快速停止測試
+: 4. 通知團隊成員正在進行混沌測試
+
+### 混沌測試 Checklist
+
+實驗前：
+- [ ] 確認所有服務正常運行 (`make status`)
+- [ ] Grafana 可以正常存取
+- [ ] K6 已安裝並可以運行
+- [ ] 了解如何停止測試 (`make chaos-stop`)
+
+實驗中：
+- [ ] 在 Grafana 中即時觀察
+- [ ] 記錄觀察到的現象
+- [ ] 截圖保存重要發現
+
+實驗後：
+- [ ] 停止所有混沌測試 (`make chaos-stop`)
+- [ ] 清理 Pumba 容器 (`make chaos-clean`)
+- [ ] 驗證服務恢復正常
+- [ ] 總結學習重點
 
 ---
 

@@ -3,11 +3,11 @@
   "format": "html",
   "prefix": "https://storage.googleapis.com",
   "mainga": "UA-49880327-14",
-  "updated": "2025-11-08T01:38:18+08:00",
+  "updated": "2025-11-14T00:43:28+08:00",
   "id": "o11y-lab-tutorial",
-  "duration": 125,
-  "title": "OpenTelemetry 可观测性实验室教程",
-  "summary": "OpenTelemetry 可观测性实验室完整教程",
+  "duration": 143,
+  "title": "OpenTelemetry 可觀測性實驗室教學",
+  "summary": "OpenTelemetry 可觀測性實驗室完整教學",
   "source": "tutorials/observability-lab.md",
   "theme": "",
   "status": [
@@ -21,7 +21,6 @@
   "tags": [
     "web"
   ],
-  "feedback": "https://github.com/yourusername/o11y_lab_for_dummies",
-  "ga": "Google Analytics ID",
+  "feedback": "https://github.com/tedmax100/o11y_lab_for_dummies/issues/new?template=codelabs-feedback.md\u0026labels=codelabs,documentation",
   "url": "o11y-lab-tutorial"
 }
