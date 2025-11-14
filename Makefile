@@ -79,7 +79,7 @@ status:
 # 测试
 test:
 	@echo "🧪 发送测试请求..."
-	@for i in 1 2 3 4 5; do \
+	@for i in 1 2 3 4 5 6 7 8 9; do \
 		echo "Request $$i:"; \
 		curl -s http://localhost:8080/api/process | jq -r '.status'; \
 		sleep 1; \
