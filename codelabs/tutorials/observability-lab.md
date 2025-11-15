@@ -290,7 +290,7 @@ Duration: 10
 
 登入後你會看到 Grafana 主介面：
 
-![Grafana Home](assets/images/0.mbp)
+![Grafana Home](assets/images/0.bmp)
 
 #### 左側選單列
 
