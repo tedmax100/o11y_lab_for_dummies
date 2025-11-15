@@ -96,7 +96,7 @@ services:
     networks:
       - o11y-lab
 
-  # ==================== 数据存储 ====================
+  # ==================== Data Storage ====================
 
   postgres:
     image: postgres:16-alpine
@@ -180,7 +180,7 @@ services:
     networks:
       - o11y-lab
 
-  # ==================== 可观测性后端 ====================
+  # ==================== Observability Backends ====================
 
   # Tempo - Traces
   tempo:

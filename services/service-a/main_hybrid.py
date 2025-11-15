@@ -1,11 +1,11 @@
 """
-Service A - 混合 Instrumentation 示例
-展示如何结合 Auto Instrumentation 和 Programmatic Instrumentation
+Service A - Hybrid Instrumentation Example
+Demonstrates how to combine Auto Instrumentation and Programmatic Instrumentation
 
-使用方式：
-1. 自动埋点由 opentelemetry-instrument 处理（FastAPI、httpx、psycopg2）
-2. 自定义 span、metrics 由代码控制
-3. 启动命令：opentelemetry-instrument python main.py
+Usage:
+1. Auto instrumentation handled by opentelemetry-instrument (FastAPI, httpx, psycopg2)
+2. Custom spans and metrics controlled by code
+3. Start command: opentelemetry-instrument python main.py
 """
 import os
 import logging
@@ -47,9 +47,9 @@ DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
 
 # ============================================================
-# 混合模式 Logger 配置
-# TracerProvider、MeterProvider 由 opentelemetry-instrument 自動建立
-# 但 Python 的 LoggerProvider 需要手動設定 OTLP exporter
+# Hybrid Mode Logger Configuration
+# TracerProvider and MeterProvider are automatically created by opentelemetry-instrument
+# But Python's LoggerProvider needs to be manually configured with OTLP exporter
 # ============================================================
 
 resource = Resource.create({
@@ -68,7 +68,7 @@ logger_provider.add_log_record_processor(
     )
 )
 
-# 添加 LoggingHandler 將 Python logging 連接到 OpenTelemetry
+# Add LoggingHandler to connect Python logging to OpenTelemetry
 handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
 logging.getLogger().addHandler(handler)
 
@@ -119,7 +119,7 @@ external_call_counter = meter.create_counter(
 )
 
 # ============================================================
-# 注意：psycopg2 將由 opentelemetry-instrument 自動監測埋點
+# Note: psycopg2 will be auto-instrumented by opentelemetry-instrument
 # ============================================================
 def get_db_connection():
     """Get a new database connection"""
@@ -171,12 +171,12 @@ async def process():
     """
     Main processing endpoint demonstrating hybrid instrumentation.
 
-    Auto Instrument（由 opentelemetry-instrument 處理）：
-    - FastAPI 框架 HTTP Req/Res
-    - httpx 的 HTTP client interactions
+    Auto Instrument (handled by opentelemetry-instrument):
+    - FastAPI framework HTTP Req/Res
+    - httpx HTTP client interactions
     - psycopg2 database queries
 
-    Manual Instrument（程式碼中自定義）：
+    Manual Instrument (custom in code):
     - Business logic spans
     - Customize attributes
     - Business metrics

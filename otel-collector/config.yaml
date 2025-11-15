@@ -1,8 +1,8 @@
 # OpenTelemetry Collector Configuration
-# 此配置文件定义了如何接收、处理和导出遥测数据
+# This configuration file defines how to receive, process, and export telemetry data
 
 receivers:
-  # OTLP receiver - 接收 OpenTelemetry Protocol 数据
+  # OTLP receiver - receives OpenTelemetry Protocol data
   otlp:
     protocols:
       grpc:
@@ -14,7 +14,7 @@ receivers:
             - "http://*"
             - "https://*"
 
-  # Prometheus receiver - 从服务抓取 metrics
+  # Prometheus receiver - scrapes metrics from services
   prometheus:
     config:
       scrape_configs:
@@ -24,18 +24,18 @@ receivers:
             - targets: ['localhost:8888']
 
 processors:
-  # Batch processor - 批量处理以提高性能
+  # Batch processor - batch processing to improve performance
   batch:
     timeout: 10s
     send_batch_size: 1024
 
-  # Memory limiter - 防止 OOM
+  # Memory limiter - prevents OOM
   memory_limiter:
     check_interval: 1s
     limit_mib: 512
     spike_limit_mib: 128
 
-  # Resource processor - 添加统一的资源属性
+  # Resource processor - adds unified resource attributes
   resource:
     attributes:
       - key: environment
@@ -45,19 +45,19 @@ processors:
         value: o11y-lab
         action: upsert
 
-  # Attributes processor - 处理和转换 attributes
+  # Attributes processor - processes and transforms attributes
   attributes:
     actions:
       - key: http.user_agent
-        action: delete  # 删除冗余信息以节省存储
+        action: delete  # Delete redundant information to save storage
 
-  # Resource detection - 自动检测资源信息
+  # Resource detection - automatically detects resource information
   resourcedetection:
     detectors: [env, system, docker]
     timeout: 5s
 
 exporters:
-  # Debug exporter - 用于调试
+  # Debug exporter - for debugging
   debug:
     verbosity: detailed
     sampling_initial: 5
@@ -75,7 +75,7 @@ exporters:
     namespace: "otel"
     const_labels:
       environment: lab
-    # 启用 exemplars 支持
+    # Enable exemplars support
     enable_open_metrics: true
     add_metric_suffixes: false
 

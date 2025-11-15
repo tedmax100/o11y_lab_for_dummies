@@ -16,7 +16,7 @@ scrape_configs:
   # OpenTelemetry Collector - application metrics with exemplars
   - job_name: 'otel-collector-metrics'
     scrape_interval: 15s
-    # 启用 OpenMetrics 格式以支持 exemplars
+    # Prometheus will automatically detect OpenMetrics format and receive exemplars
     metric_relabel_configs:
       - source_labels: [__name__]
         regex: '.*'
@@ -24,7 +24,7 @@ scrape_configs:
     static_configs:
       - targets: ['otel-collector:8889']
 
-  # Prometheus 自身的 metrics
+  # Prometheus own metrics
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
@@ -45,7 +45,7 @@ scrape_configs:
         labels:
           service: 'loki'
 
-  # 应用服务 (如果暴露 metrics endpoint)
+  # Application services (if metrics endpoint is exposed)
   - job_name: 'services'
     static_configs:
       - targets:
