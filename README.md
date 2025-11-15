@@ -93,15 +93,62 @@ cd codelabs
 
 ```bash
 # 啟動所有服務
-docker-compose up -d
+docker compose up -d
 
 # 查看日誌
-docker-compose logs -f
+docker compose logs -f
 
 # 存取服務
 # API Gateway: http://localhost:8080
 # Grafana: http://localhost:3000 (admin/admin)
 # Prometheus: http://localhost:9090
+```
+
+### 使用 Makefile 命令（更簡單）
+
+專案提供了豐富的 Makefile 命令，讓操作更簡單：
+
+```bash
+# 查看所有可用命令
+make help
+
+# 服務管理
+make start          # 啟動所有服務
+make stop           # 停止所有服務
+make restart        # 重啟所有服務
+make logs           # 查看日誌
+make status         # 查看服務狀態
+
+# K6 負載測試（使用 Docker，無需本地安裝 K6）
+make k6-help        # 查看 K6 測試命令說明
+make k6-smoke       # 煙霧測試（1分鐘，快速驗證）
+make k6-load        # 負載測試（3.5分鐘，標準性能測試）
+make k6-spike       # 尖峰測試（4分鐘，測試突發流量）
+make k6-stress      # 壓力測試（6分鐘，找出系統極限）
+
+# Pumba 混沌工程
+make chaos-help     # 查看混沌測試命令說明
+make chaos-network-delay      # 注入網路延遲
+make chaos-kill-random        # 隨機終止服務
+```
+
+**推薦的測試流程**：
+
+```bash
+# 1. 啟動服務
+make start
+
+# 2. 等待服務就緒（約30秒）
+make status
+
+# 3. 執行煙霧測試驗證系統
+make k6-smoke
+
+# 4. 執行負載測試，同時在 Grafana 觀察
+make k6-load
+
+# 5. 在負載測試運行時注入混沌（可選）
+make chaos-network-delay
 ```
 
 ## 目錄結構

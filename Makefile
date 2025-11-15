@@ -1,4 +1,5 @@
 .PHONY: help start stop restart logs clean build test \
+	k6-help k6-smoke k6-load k6-stress k6-spike k6-clean \
 	chaos-help chaos-kill-random chaos-kill-all chaos-network-delay chaos-network-loss \
 	chaos-network-corrupt chaos-stress-cpu chaos-kill-gateway chaos-delay-service-a \
 	chaos-loss-service-b chaos-stress-postgres chaos-pause-kafka chaos-microservice-chain \
@@ -16,6 +17,7 @@ help:
 	@echo "  make clean       - Clean all containers and data"
 	@echo "  make test        - Send test requests"
 	@echo "  make status      - View service status"
+	@echo "  make k6-help     - 📊 View K6 load testing commands"
 	@echo "  make chaos-help  - 🌪️  View chaos testing commands (Pumba)"
 	@echo ""
 
@@ -115,6 +117,91 @@ init-db:
 	@echo "🗄️  Initializing database..."
 	docker-compose exec postgres psql -U postgres -d o11ylab -c "SELECT version();"
 	@echo "✅ Database initialization complete"
+
+# ==================== K6 Load Testing ====================
+
+# K6 testing help
+k6-help:
+	@echo "📊 K6 Load Testing Commands:"
+	@echo ""
+	@echo "  Quick Start:"
+	@echo "  make k6-smoke        - 🔍 Smoke test (1 min, 1 VU) - Quick validation"
+	@echo "  make k6-load         - 📈 Load test (3.5 min, 5→20→50 VUs) - Standard load"
+	@echo "  make k6-spike        - ⚡ Spike test (4 min, 10→100→150 VUs) - Sudden traffic"
+	@echo "  make k6-stress       - 💪 Stress test (6 min, 10→200 VUs) - Find limits"
+	@echo ""
+	@echo "  Advanced:"
+	@echo "  make k6-load BASE_URL=http://your-host:8080  - Custom API Gateway URL"
+	@echo "  make k6-clean        - 🧹 Clean K6 test results"
+	@echo ""
+	@echo "  Test Results:"
+	@echo "  - Terminal output shows real-time metrics"
+	@echo "  - JSON reports saved to k6/*.json files"
+	@echo "  - View live metrics in Grafana (http://localhost:3000)"
+	@echo ""
+	@echo "  Recommended Order:"
+	@echo "  1️⃣  make k6-smoke   - Verify system health"
+	@echo "  2️⃣  make k6-load    - Baseline performance"
+	@echo "  3️⃣  make k6-spike   - Test resilience"
+	@echo "  4️⃣  make k6-stress  - Find bottlenecks (optional)"
+	@echo ""
+	@echo "  💡 Tip: Open Grafana Explore before running tests to watch live metrics!"
+	@echo ""
+
+# Smoke test - Quick validation
+k6-smoke:
+	@echo "🔍 Running K6 Smoke Test (1 min, 1 VU)..."
+	@echo "📌 This test validates basic system functionality"
+	@docker run --rm -i --network=host \
+		-v $(PWD)/k6:/scripts \
+		grafana/k6:latest run /scripts/smoke-test.js
+	@echo ""
+	@echo "✅ Smoke test complete! Check output above for results."
+
+# Load test - Standard performance test
+k6-load:
+	@echo "📈 Running K6 Load Test (3.5 min, 5→20→50 VUs)..."
+	@echo "📌 This test measures system performance under normal load"
+	@echo "💡 Open Grafana (http://localhost:3000) to watch live metrics"
+	@docker run --rm -i --network=host \
+		-v $(PWD)/k6:/scripts \
+		-e BASE_URL=$(or $(BASE_URL),http://localhost:8080) \
+		-e SERVICE_A_URL=$(or $(SERVICE_A_URL),http://localhost:8001) \
+		grafana/k6:latest run /scripts/load-test.js
+	@echo ""
+	@echo "✅ Load test complete! Results saved to k6/summary.json"
+
+# Stress test - Find system limits
+k6-stress:
+	@echo "💪 Running K6 Stress Test (6 min, 10→50→100→200 VUs)..."
+	@echo "📌 This test finds system performance limits and bottlenecks"
+	@echo "⚠️  WARNING: This may cause high resource usage!"
+	@echo "💡 Monitor system resources and Grafana dashboards"
+	@docker run --rm -i --network=host \
+		-v $(PWD)/k6:/scripts \
+		-e BASE_URL=$(or $(BASE_URL),http://localhost:8080) \
+		grafana/k6:latest run /scripts/stress-test.js
+	@echo ""
+	@echo "✅ Stress test complete! Results saved to k6/stress-test-results.json"
+
+# Spike test - Test sudden traffic surge
+k6-spike:
+	@echo "⚡ Running K6 Spike Test (4 min, 10→100→10→150 VUs)..."
+	@echo "📌 This test simulates sudden traffic spikes"
+	@echo "💡 Watch how the system handles and recovers from traffic surges"
+	@docker run --rm -i --network=host \
+		-v $(PWD)/k6:/scripts \
+		-e BASE_URL=$(or $(BASE_URL),http://localhost:8080) \
+		-e SERVICE_A_URL=$(or $(SERVICE_A_URL),http://localhost:8001) \
+		grafana/k6:latest run /scripts/spike-test.js
+	@echo ""
+	@echo "✅ Spike test complete! Results saved to k6/spike-test-results.json"
+
+# Clean K6 test results
+k6-clean:
+	@echo "🧹 Cleaning K6 test results..."
+	@rm -f k6/summary.json k6/stress-test-results.json k6/spike-test-results.json
+	@echo "✅ K6 test results cleaned"
 
 # ==================== Chaos Testing (Pumba) ====================
 
