@@ -1,4 +1,4 @@
-author: tedmax100
+author: 雷N
 summary: OpenTelemetry 可觀測性實驗室完整教學
 id: o11y-lab-tutorial
 categories: observability,opentelemetry,docker
@@ -19,7 +19,7 @@ Duration: 2
 - 使用 Docker Compose 快速部署微服務架構
 - 理解 Python 自動埋點（Auto Instrumentation）
 - 實踐 Python 手動埋點（Manual Instrumentation）
-- 使用 K6 生成測試流量
+- ~~使用 K6 生成測試流量~~（未來有空在詳細分享與演示）
 - 使用 Pumba 進行混沌工程（延遲注入）
 - 在 Grafana 中關聯 Logs、Metrics、Traces
 
@@ -1400,7 +1400,7 @@ docker compose down -v
 ✅ 搭建完整的可觀測性堆疊
 ✅ Docker Compose 部署微服務
 ✅ Python 自動和手動埋點
-✅ K6 負載測試
+~~[x] K6 負載測試~~
 ✅ Pumba 混沌工程
 ✅ Grafana 三大支柱關聯
 ✅ 完整的問題定位流程

@@ -155,7 +155,7 @@ chaos-kill-random:
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		gaiaadm/pumba:latest \
 		--interval 30s --random --log-level info \
-		kill --signal SIGKILL "re2:^(api-gateway|service-[a-d])$$"
+		kill --signal SIGKILL "re2:^(service-[b-d])$$"
 	@echo "✅ Pumba started, use 'make chaos-stop' to stop"
 
 # Kill all application services (loop test)
