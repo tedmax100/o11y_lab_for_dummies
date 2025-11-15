@@ -290,7 +290,7 @@ Duration: 10
 
 登入後你會看到 Grafana 主介面：
 
-![Grafana Home](assets/images/grafana-home.png)
+![Grafana Home](assets/images/0.mbp)
 
 #### 左側選單列
 
@@ -309,7 +309,6 @@ Duration: 10
    - **Loki**: 日誌資料
    - **Tempo**: Trace 資料
 
-![Data Sources](assets/images/grafana-datasources.png)
 
 ### 探索預先配置的 Dashboard
 
@@ -319,7 +318,8 @@ Duration: 10
    - **Service Performance**: 服務效能監控
    - **Distributed Tracing**: 分散式追蹤
 
-![Dashboards](assets/images/grafana-dashboards.png)
+![Dashboards](assets/images/1.png)
+![Dashboard](assets/images/2.png)
 
 Positive
 : Grafana 平台已經準備好了！接下來我們將使用 K6 生成流量。
