@@ -1,10 +1,10 @@
-# 最终可观测性配置总结
+# Final Observability Configuration Summary
 
-## 🎯 当前配置状态
+## 🎯 Current Configuration Status
 
-### ✅ Span Metrics 配置
+### ✅ Span Metrics Configuration
 
-**单一来源**: OTel Collector spanmetrics connector
+**Single Source**: OTel Collector spanmetrics connector
 
 ```yaml
 # otel-collector/config.yaml
@@ -14,15 +14,15 @@ connectors:
       explicit:
         buckets: [1ms, 5ms, 10ms, 100ms, 250ms, 500ms, 1s, 5s]
     exemplars:
-      enabled: true  # 包含 trace_id
+      enabled: true  # Includes trace_id
 ```
 
-**Metrics 名称**: `otel_traces_span_metrics_*`
-**Exemplar 标签**: `trace_id` (下划线格式)
+**Metrics Name**: `otel_traces_span_metrics_*`
+**Exemplar Label**: `trace_id` (underscore format)
 
-### ✅ Service Graphs 配置
+### ✅ Service Graphs Configuration
 
-**来源**: Tempo metrics generator
+**Source**: Tempo metrics generator
 
 ```yaml
 # grafana/tempo-config.yaml
@@ -37,51 +37,51 @@ metrics_generator:
         send_exemplars: true
 
 overrides:
-  metrics_generator_processors: [service-graphs]  # 只保留 service-graphs
+  metrics_generator_processors: [service-graphs]  # Only keep service-graphs
 ```
 
-**Metrics 名称**: `traces_service_graph_*`
+**Metrics Name**: `traces_service_graph_*`
 
-## 📊 可用的 Metrics
+## 📊 Available Metrics
 
-### 1. Span Metrics (来自 OTel Collector)
+### 1. Span Metrics (from OTel Collector)
 
-用于监控单个服务的性能：
+For monitoring individual service performance:
 
 ```promql
-# 请求速率
+# Request rate
 rate(otel_traces_span_metrics_duration_count{service_name="service-a-hybrid"}[5m])
 
-# 延迟分布 (P95)
+# Latency distribution (P95)
 histogram_quantile(0.95,
   rate(otel_traces_span_metrics_duration_bucket{service_name="service-a-hybrid"}[5m])
 )
 
-# 错误率
+# Error rate
 rate(otel_traces_span_metrics_duration_count{
   service_name="service-a-hybrid",
   status_code="STATUS_CODE_ERROR"
 }[5m])
 ```
 
-**特点**:
-- ✅ 包含 exemplars (trace_id)
-- ✅ 可点击跳转到 Tempo trace
-- ✅ 详细的维度 (span_name, span_kind, http_method, http_status_code)
-- ✅ 自定义 buckets
+**Features**:
+- ✅ Includes exemplars (trace_id)
+- ✅ Clickable to jump to Tempo trace
+- ✅ Detailed dimensions (span_name, span_kind, http_method, http_status_code)
+- ✅ Custom buckets
 
-### 2. Service Graph Metrics (来自 Tempo)
+### 2. Service Graph Metrics (from Tempo)
 
-用于监控服务间的调用关系：
+For monitoring inter-service call relationships:
 
 ```promql
-# 服务间调用次数
+# Service-to-service call count
 traces_service_graph_request_total{
   client="service-a-hybrid",
   server="service-b"
 }
 
-# 服务间调用延迟
+# Service-to-service call latency
 histogram_quantile(0.95,
   rate(traces_service_graph_request_server_seconds_bucket{
     client="service-a-hybrid",
@@ -89,20 +89,20 @@ histogram_quantile(0.95,
   }[5m])
 )
 
-# 服务间调用失败数
+# Service-to-service call failures
 traces_service_graph_request_failed_total{
   client="service-a-hybrid",
   server="service-b"
 }
 ```
 
-**特点**:
-- ✅ 显示服务依赖关系
-- ✅ Client 和 Server 视角的延迟
-- ✅ 失败请求统计
-- ✅ 自动生成服务拓扑图
+**Features**:
+- ✅ Shows service dependencies
+- ✅ Client and Server perspective latency
+- ✅ Failed request statistics
+- ✅ Auto-generated service topology
 
-## 🔗 三大支柱关联
+## 🔗 Three Pillars Correlation
 
 ### Metrics → Traces (Exemplars) ✅
 
@@ -116,10 +116,10 @@ datasources:
           datasourceUid: tempo
 ```
 
-**使用方式**:
-1. 在 Grafana 中查询 span metrics
-2. 图表显示 exemplar 点 (⚫)
-3. 点击 exemplar → 跳转到 Tempo trace
+**Usage**:
+1. Query span metrics in Grafana
+2. Chart displays exemplar points (⚫)
+3. Click exemplar → Jump to Tempo trace
 
 ### Traces → Logs ✅
 
@@ -132,10 +132,10 @@ tracesToLogsV2:
   query: '{service_name="${__span.tags["service.name"]}"} |="${__span.traceId}"'
 ```
 
-**使用方式**:
-1. 在 Tempo 中查看 trace
-2. 点击 span 旁边的 "Logs" 按钮
-3. 自动跳转到 Loki 显示相关日志
+**Usage**:
+1. View trace in Tempo
+2. Click "Logs" button next to span
+3. Auto-jump to Loki showing related logs
 
 ### Logs → Traces ✅
 
@@ -148,10 +148,10 @@ derivedFields:
     matcherType: label
 ```
 
-**使用方式**:
-1. 在 Loki 中查看日志
-2. 日志行包含 trace_id 标签
-3. 点击 trace_id → 跳转到 Tempo trace
+**Usage**:
+1. View logs in Loki
+2. Log line contains trace_id label
+3. Click trace_id → Jump to Tempo trace
 
 ### Traces → Metrics ✅
 
@@ -164,29 +164,29 @@ tracesToMetrics:
       query: 'rate(duration_count{$$__tags}[5m])'
 ```
 
-**使用方式**:
-1. 在 Tempo 中查看 trace
-2. 切换到 "Metrics" 标签
-3. 查看相关的 span metrics
+**Usage**:
+1. View trace in Tempo
+2. Switch to "Metrics" tab
+3. View related span metrics
 
-## 📈 推荐 Grafana 查询
+## 📈 Recommended Grafana Queries
 
-### Service-A 性能概览
+### Service-A Performance Overview
 
 ```promql
-# 请求速率
+# Request rate
 sum(rate(otel_traces_span_metrics_duration_count{
   service_name="service-a-hybrid",
   span_kind="SPAN_KIND_SERVER"
 }[5m])) by (span_name)
 
-# P50, P90, P95, P99 延迟
+# P50, P90, P95, P99 latency
 histogram_quantile(0.50, sum(rate(otel_traces_span_metrics_duration_bucket{
   service_name="service-a-hybrid",
   span_kind="SPAN_KIND_SERVER"
 }[5m])) by (le, span_name))
 
-# 错误率
+# Error rate
 sum(rate(otel_traces_span_metrics_duration_count{
   service_name="service-a-hybrid",
   status_code="STATUS_CODE_ERROR"
@@ -195,33 +195,33 @@ sum(rate(otel_traces_span_metrics_duration_count{
 }[5m]))
 ```
 
-### 服务依赖图
+### Service Dependency Graph
 
 ```promql
-# Service-A 的下游服务
+# Service-A downstream services
 traces_service_graph_request_total{client="service-a-hybrid"}
 
-# Service-A 的上游服务
+# Service-A upstream services
 traces_service_graph_request_total{server="service-a-hybrid"}
 
-# Service-A → Service-B 调用延迟
+# Service-A → Service-B call latency
 histogram_quantile(0.95, rate(traces_service_graph_request_server_seconds_bucket{
   client="service-a-hybrid",
   server="service-b"
 }[5m]))
 ```
 
-## 🔧 配置文件位置
+## 🔧 Configuration File Locations
 
-| 配置项 | 文件路径 |
-|--------|----------|
+| Configuration | File Path |
+|---------------|-----------|
 | OTel Collector spanmetrics | `otel-collector/config.yaml` |
 | Tempo metrics generator | `grafana/tempo-config.yaml` |
 | Grafana datasources | `grafana/datasources/datasources.yaml` |
 | Prometheus config | `grafana/prometheus.yaml` |
 | Loki config | `grafana/loki-config.yaml` |
 
-## 📝 关键配置摘要
+## 📝 Key Configuration Summary
 
 ### OTel Collector Pipelines
 
@@ -231,10 +231,10 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, resourcedetection, resource, batch]
-      exporters: [otlp/tempo, spanmetrics, debug]  # 发送到 Tempo 和 spanmetrics
+      exporters: [otlp/tempo, spanmetrics, debug]  # Send to Tempo and spanmetrics
 
     metrics:
-      receivers: [otlp, prometheus, spanmetrics]    # 从 spanmetrics 接收
+      receivers: [otlp, prometheus, spanmetrics]    # Receive from spanmetrics
       processors: [memory_limiter, resourcedetection, resource, batch]
       exporters: [prometheus, otlphttp/prometheus, debug]
 
@@ -244,16 +244,16 @@ service:
       exporters: [otlphttp/loki, debug/logs]
 ```
 
-### Prometheus Scrape 配置
+### Prometheus Scrape Configuration
 
 ```yaml
 scrape_configs:
-  # OTel Collector 内部 metrics
+  # OTel Collector internal metrics
   - job_name: 'otel-collector'
     static_configs:
       - targets: ['otel-collector:8888']
 
-  # OTel Collector 应用 metrics (包含 exemplars)
+  # OTel Collector application metrics (includes exemplars)
   - job_name: 'otel-collector-metrics'
     scrape_interval: 15s
     static_configs:
@@ -262,44 +262,44 @@ scrape_configs:
 
 ## 🎨 Grafana Service Graph
 
-Tempo 的 service-graphs 可以在 Grafana 中可视化：
+Tempo's service-graphs can be visualized in Grafana:
 
-1. **打开 Grafana**: http://localhost:3000
+1. **Open Grafana**: http://localhost:3000
 2. **Explore → Tempo**
-3. **切换到 "Service Graph" 标签**
-4. **查看服务依赖拓扑图**
+3. **Switch to "Service Graph" tab**
+4. **View service dependency topology**
 
-Service Graph 显示：
-- 🔵 服务节点
-- ➡️ 调用关系
-- 📊 请求速率
-- ⏱️ 延迟
-- ❌ 错误率
+Service Graph displays:
+- 🔵 Service nodes
+- ➡️ Call relationships
+- 📊 Request rate
+- ⏱️ Latency
+- ❌ Error rate
 
-## 🧪 验证配置
+## 🧪 Verify Configuration
 
-### 1. 验证 Span Metrics
+### 1. Verify Span Metrics
 
 ```bash
-# 查询 OTel Collector span metrics
+# Query OTel Collector span metrics
 curl -s -G 'http://localhost:9090/api/v1/query' \
   --data-urlencode 'query=otel_traces_span_metrics_duration_count{service_name="service-a-hybrid"}' \
   | python3 -m json.tool
 ```
 
-### 2. 验证 Service Graphs
+### 2. Verify Service Graphs
 
 ```bash
-# 查询 Tempo service graph metrics
+# Query Tempo service graph metrics
 curl -s -G 'http://localhost:9090/api/v1/query' \
   --data-urlencode 'query=traces_service_graph_request_total{client="service-a-hybrid"}' \
   | python3 -m json.tool
 ```
 
-### 3. 验证 Exemplars
+### 3. Verify Exemplars
 
 ```bash
-# 查询 exemplars
+# Query exemplars
 curl -s -G 'http://localhost:9090/api/v1/query_exemplars' \
   --data-urlencode 'query=otel_traces_span_metrics_duration_bucket{service_name="service-a-hybrid"}' \
   --data-urlencode 'start=2025-01-01T00:00:00Z' \
@@ -307,45 +307,45 @@ curl -s -G 'http://localhost:9090/api/v1/query_exemplars' \
   | python3 -m json.tool | grep "trace_id"
 ```
 
-## 🎉 配置优势
+## 🎉 Configuration Advantages
 
-### 为什么选择这个配置？
+### Why Choose This Configuration?
 
-1. **清晰的职责分工**:
-   - OTel Collector: 统一处理所有遥测数据 + 生成 span metrics
-   - Tempo: 存储 traces + 生成 service graphs
+1. **Clear Division of Responsibilities**:
+   - OTel Collector: Unified processing of all telemetry data + generate span metrics
+   - Tempo: Store traces + generate service graphs
 
-2. **避免重复**:
-   - 只有一个 span metrics 来源
-   - 没有重复的数据存储
+2. **Avoid Duplication**:
+   - Only one span metrics source
+   - No duplicate data storage
 
-3. **最大化功能**:
+3. **Maximize Functionality**:
    - ✅ Span metrics with exemplars (OTel Collector)
    - ✅ Service dependency graphs (Tempo)
-   - ✅ 完整的三大支柱关联
+   - ✅ Complete three pillars correlation
 
-4. **灵活性**:
-   - OTel Collector 可以自定义 buckets
-   - 可以添加更多 dimensions
-   - 易于扩展和修改
+4. **Flexibility**:
+   - OTel Collector can customize buckets
+   - Can add more dimensions
+   - Easy to extend and modify
 
-## 🚀 下一步
+## 🚀 Next Steps
 
-### 建议的 Grafana Dashboards
+### Recommended Grafana Dashboards
 
 1. **RED Metrics Dashboard** (Rate, Errors, Duration)
-   - 使用 `otel_traces_span_metrics_*`
-   - 按服务、端点、方法分组
+   - Use `otel_traces_span_metrics_*`
+   - Group by service, endpoint, method
 
 2. **Service Map Dashboard**
-   - 使用 `traces_service_graph_*`
-   - 可视化服务依赖关系
+   - Use `traces_service_graph_*`
+   - Visualize service dependencies
 
 3. **SLO Dashboard**
-   - 基于 span metrics 计算 SLI
-   - 设置 SLO 目标和告警
+   - Calculate SLI based on span metrics
+   - Set SLO targets and alerts
 
-### 推荐的告警规则
+### Recommended Alert Rules
 
 ```yaml
 # High Error Rate
@@ -368,15 +368,15 @@ curl -s -G 'http://localhost:9090/api/v1/query_exemplars' \
   for: 5m
 ```
 
-## 📚 参考文档
+## 📚 Reference Documentation
 
-项目文档：
-- `docs/HYBRID_INSTRUMENTATION_GUIDE.md` - Python 混合模式配置
-- `docs/EXEMPLARS_GUIDE.md` - Exemplars 详细说明
-- `docs/SPAN_METRICS_COMPARISON.md` - Span metrics 对比
-- `docs/FINAL_CONFIGURATION.md` - 本文档
+Project Documentation:
+- `docs/HYBRID_INSTRUMENTATION_GUIDE.md` - Python hybrid mode configuration
+- `docs/EXEMPLARS_GUIDE.md` - Exemplars detailed explanation
+- `docs/SPAN_METRICS_COMPARISON.md` - Span metrics comparison
+- `docs/FINAL_CONFIGURATION.md` - This document
 
-外部资源：
+External Resources:
 - [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/)
 - [Tempo Metrics Generator](https://grafana.com/docs/tempo/latest/metrics-generator/)
 - [Prometheus Exemplars](https://prometheus.io/docs/prometheus/latest/feature_flags/#exemplars-storage)

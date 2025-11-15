@@ -1,26 +1,26 @@
-# Span Metrics 双重生成器对比指南
+# Span Metrics Dual Generator Comparison Guide
 
-## 问题发现
+## Problem Discovery
 
-你的系统中有 **两个** span metrics 生成器在同时工作：
+Your system has **two** span metrics generators working simultaneously:
 
 1. **OTel Collector spanmetrics connector**
 2. **Tempo metrics generator**
 
-## 📊 详细对比
+## 📊 Detailed Comparison
 
-| 特性 | OTel Collector | Tempo |
-|------|----------------|-------|
-| **Metric 名称** | `otel_traces_span_metrics_*` | `traces_spanmetrics_*` |
-| **Exemplar 标签** | `trace_id` (下划线) | `traceID` (驼峰) |
-| **配置位置** | `otel-collector/config.yaml` | `grafana/tempo-config.yaml` |
-| **数据流** | Traces → Collector → Prometheus | Traces → Tempo → Prometheus |
-| **Namespace** | `otel` | (无) |
-| **额外标签** | `otel_scope_name` | `source=tempo` |
+| Feature | OTel Collector | Tempo |
+|---------|----------------|-------|
+| **Metric Name** | `otel_traces_span_metrics_*` | `traces_spanmetrics_*` |
+| **Exemplar Label** | `trace_id` (underscore) | `traceID` (camelCase) |
+| **Configuration Location** | `otel-collector/config.yaml` | `grafana/tempo-config.yaml` |
+| **Data Flow** | Traces → Collector → Prometheus | Traces → Tempo → Prometheus |
+| **Namespace** | `otel` | (none) |
+| **Additional Labels** | `otel_scope_name` | `source=tempo` |
 
-## 🔍 示例数据
+## 🔍 Example Data
 
-### OTel Collector 生成的 Metrics
+### OTel Collector Generated Metrics
 
 ```promql
 otel_traces_span_metrics_duration_bucket{
@@ -30,7 +30,7 @@ otel_traces_span_metrics_duration_bucket{
 }
 ```
 
-**Exemplar 标签**:
+**Exemplar Labels**:
 ```json
 {
   "trace_id": "0377cf00a2cea91b15ef388eb3ea620e",
@@ -38,7 +38,7 @@ otel_traces_span_metrics_duration_bucket{
 }
 ```
 
-### Tempo 生成的 Metrics
+### Tempo Generated Metrics
 
 ```promql
 traces_spanmetrics_latency_bucket{
@@ -49,14 +49,14 @@ traces_spanmetrics_latency_bucket{
 }
 ```
 
-**Exemplar 标签**:
+**Exemplar Labels**:
 ```json
 {
   "traceID": "db0b5ccf7808ff07595164fd633d01fb"
 }
 ```
 
-## ⚙️ 当前配置
+## ⚙️ Current Configuration
 
 ### Tempo Metrics Generator (tempo-config.yaml)
 
@@ -64,18 +64,18 @@ traces_spanmetrics_latency_bucket{
 metrics_generator:
   registry:
     external_labels:
-      source: tempo          # 标识来源
+      source: tempo          # Identifies source
       cluster: o11y-lab
   storage:
     path: /tmp/tempo/generator/wal
     remote_write:
       - url: http://prometheus:9090/api/v1/write
-        send_exemplars: true  # 启用 exemplars
+        send_exemplars: true  # Enable exemplars
 
 overrides:
   metrics_generator_processors:
-    - service-graphs         # 生成服务依赖图
-    - span-metrics          # 生成 span metrics
+    - service-graphs         # Generate service dependency graph
+    - span-metrics          # Generate span metrics
 ```
 
 ### OTel Collector Spanmetrics (otel-collector/config.yaml)
@@ -92,117 +92,117 @@ connectors:
 service:
   pipelines:
     traces:
-      exporters: [otlp/tempo, spanmetrics]  # 同时发送到 Tempo 和 spanmetrics
+      exporters: [otlp/tempo, spanmetrics]  # Send to both Tempo and spanmetrics
     metrics:
-      receivers: [spanmetrics]               # 从 spanmetrics 接收
+      receivers: [spanmetrics]               # Receive from spanmetrics
 ```
 
-### Grafana Datasource (datasources.yaml) - 已更新 ✅
+### Grafana Datasource (datasources.yaml) - Updated ✅
 
 ```yaml
 datasources:
   - name: Prometheus
     jsonData:
       exemplarTraceIdDestinations:
-        # 支持两种格式
-        - name: trace_id      # OTel Collector 格式
+        # Support both formats
+        - name: trace_id      # OTel Collector format
           datasourceUid: tempo
-        - name: traceID       # Tempo 格式
+        - name: traceID       # Tempo format
           datasourceUid: tempo
 ```
 
-## 🤔 应该使用哪一个？
+## 🤔 Which One Should I Use?
 
-### 选项 1: 只使用 OTel Collector (推荐) ✅
+### Option 1: OTel Collector Only (Recommended) ✅
 
-**优点**:
-- 统一的配置和管理
-- 可以在 Collector 中添加自定义处理器
-- 更灵活的 dimensions 配置
-- 支持更多自定义 buckets
-- 与其他 OTLP 数据流一致
+**Advantages**:
+- Unified configuration and management
+- Can add custom processors in Collector
+- More flexible dimensions configuration
+- Support for more custom buckets
+- Consistent with other OTLP data flows
 
-**缺点**:
-- 需要额外配置 Collector
+**Disadvantages**:
+- Requires additional Collector configuration
 
-**如何禁用 Tempo metrics generator**:
+**How to disable Tempo metrics generator**:
 
 ```yaml
 # tempo-config.yaml
-# 注释掉或删除以下部分：
+# Comment out or remove the following section:
 # metrics_generator:
 #   ...
 # overrides:
 #   metrics_generator_processors: [service-graphs, span-metrics]
 ```
 
-### 选项 2: 只使用 Tempo Metrics Generator
+### Option 2: Tempo Metrics Generator Only
 
-**优点**:
-- 配置简单（在 Tempo 中一站式）
-- 自动生成 service graph metrics
-- 减少 Collector 的负载
+**Advantages**:
+- Simple configuration (one-stop in Tempo)
+- Automatically generates service graph metrics
+- Reduces Collector load
 
-**缺点**:
-- 较少的自定义选项
-- buckets 固定
-- 不能在生成前处理数据
+**Disadvantages**:
+- Fewer customization options
+- Fixed buckets
+- Cannot process data before generation
 
-**如何禁用 OTel Collector spanmetrics**:
+**How to disable OTel Collector spanmetrics**:
 
 ```yaml
 # otel-collector/config.yaml
 service:
   pipelines:
     traces:
-      exporters: [otlp/tempo, debug]  # 移除 spanmetrics
-    # 移除或注释 metrics pipeline 中的 spanmetrics receiver
+      exporters: [otlp/tempo, debug]  # Remove spanmetrics
+    # Remove or comment out spanmetrics receiver in metrics pipeline
 ```
 
-### 选项 3: 同时使用两者 (当前配置)
+### Option 3: Use Both (Current Configuration)
 
-**优点**:
-- 可以对比两种实现
-- Tempo 的 service graphs 很有用
-- OTel 的 span metrics 更详细
+**Advantages**:
+- Can compare both implementations
+- Tempo's service graphs are useful
+- OTel's span metrics are more detailed
 
-**缺点**:
-- 重复的 metrics（占用存储空间）
-- 可能造成混淆
-- 额外的计算开销
+**Disadvantages**:
+- Duplicate metrics (storage overhead)
+- May cause confusion
+- Additional computational overhead
 
-**当前状态**: ✅ Grafana 已配置支持两种格式
+**Current Status**: ✅ Grafana configured to support both formats
 
-## 📝 推荐方案
+## 📝 Recommended Solutions
 
-### 方案 A: OTel Collector 为主，Tempo Service Graphs 为辅
+### Solution A: OTel Collector Primary, Tempo Service Graphs Secondary
 
-保留 OTel Collector 的 span metrics，但也保留 Tempo 的 service-graphs：
+Keep OTel Collector's span metrics, but also keep Tempo's service-graphs:
 
 ```yaml
 # tempo-config.yaml
 overrides:
   metrics_generator_processors:
-    - service-graphs       # 保留：生成服务依赖图
-    # - span-metrics       # 移除：使用 OTel Collector 生成
+    - service-graphs       # Keep: generates service dependency graph
+    # - span-metrics       # Remove: use OTel Collector to generate
 ```
 
-**为什么**:
-- Service graphs 是 Tempo 的特色功能
-- Span metrics 由 OTel Collector 统一管理更灵活
-- 避免重复的 span metrics
+**Why**:
+- Service graphs are Tempo's signature feature
+- Span metrics managed by OTel Collector are more flexible
+- Avoid duplicate span metrics
 
-### 方案 B: 完全使用 Tempo (简化架构)
+### Solution B: Fully Use Tempo (Simplified Architecture)
 
-如果你想简化架构：
+If you want to simplify the architecture:
 
 ```yaml
 # otel-collector/config.yaml
-# 移除 spanmetrics connector
+# Remove spanmetrics connector
 service:
   pipelines:
     traces:
-      exporters: [otlp/tempo, debug]  # 只发送到 Tempo
+      exporters: [otlp/tempo, debug]  # Only send to Tempo
 ```
 
 ```yaml
@@ -213,15 +213,15 @@ overrides:
     - span-metrics
 ```
 
-## 🔧 如何验证
+## 🔧 How to Verify
 
-### 查看 OTel Collector Metrics
+### View OTel Collector Metrics
 
 ```bash
 curl -s http://localhost:8889/metrics | grep "otel_traces_span_metrics_duration_count"
 ```
 
-### 查看 Tempo Metrics
+### View Tempo Metrics
 
 ```bash
 curl -s http://localhost:9090/api/v1/query -G \
@@ -229,7 +229,7 @@ curl -s http://localhost:9090/api/v1/query -G \
   | python3 -m json.tool
 ```
 
-### 在 Grafana 中查看
+### View in Grafana
 
 **OTel Collector metrics**:
 ```promql
@@ -241,60 +241,60 @@ rate(otel_traces_span_metrics_duration_count{service_name="service-a-hybrid"}[5m
 rate(traces_spanmetrics_latency_count{service="service-a-hybrid"}[5m])
 ```
 
-## 📊 Service Graphs (Tempo 独有)
+## 📊 Service Graphs (Tempo Exclusive)
 
-Tempo 的 service-graphs 功能生成服务间的调用关系 metrics：
+Tempo's service-graphs feature generates inter-service call relationship metrics:
 
 ```promql
-# 服务间调用次数
+# Inter-service call count
 traces_service_graph_request_total{
   client="service-a-hybrid",
   server="service-b"
 }
 
-# 服务间调用延迟
+# Inter-service call latency
 traces_service_graph_request_server_seconds_bucket{
   client="service-a-hybrid",
   server="service-b"
 }
 ```
 
-**这个功能很有用**，建议保留！
+**This feature is useful**, recommend keeping it!
 
-## 🎯 最终建议
+## 🎯 Final Recommendation
 
-**推荐配置** (方案 A):
+**Recommended Configuration** (Solution A):
 
-1. **保留 OTel Collector spanmetrics** → 主要的 span metrics
-2. **保留 Tempo service-graphs** → 服务依赖图
-3. **禁用 Tempo span-metrics** → 避免重复
+1. **Keep OTel Collector spanmetrics** → Primary span metrics
+2. **Keep Tempo service-graphs** → Service dependency graph
+3. **Disable Tempo span-metrics** → Avoid duplication
 
-### 具体操作
+### Specific Actions
 
-编辑 `grafana/tempo-config.yaml`:
+Edit `grafana/tempo-config.yaml`:
 
 ```yaml
 overrides:
   metrics_generator_processors:
-    - service-graphs    # 保留
-    # - span-metrics    # 注释掉或删除
+    - service-graphs    # Keep
+    # - span-metrics    # Comment out or remove
 ```
 
-然后重启 Tempo:
+Then restart Tempo:
 
 ```bash
 docker compose restart tempo
 ```
 
-### 好处
+### Benefits
 
-- ✅ 统一使用 OTel Collector 的 span metrics (更灵活)
-- ✅ 保留 Tempo 的 service graphs (独特功能)
-- ✅ Grafana 配置支持两种 exemplar 格式 (兼容性好)
-- ✅ 减少重复数据
-- ✅ 清晰的职责分工
+- ✅ Unified use of OTel Collector's span metrics (more flexible)
+- ✅ Keep Tempo's service graphs (unique feature)
+- ✅ Grafana configuration supports both exemplar formats (good compatibility)
+- ✅ Reduce duplicate data
+- ✅ Clear division of responsibilities
 
-## 📚 参考资料
+## 📚 Reference Materials
 
 - [Tempo Metrics Generator](https://grafana.com/docs/tempo/latest/metrics-generator/)
 - [OTel Spanmetrics Connector](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/spanmetricsconnector)

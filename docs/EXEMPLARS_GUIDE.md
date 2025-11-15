@@ -1,16 +1,16 @@
-# Exemplars 配置和问题诊断指南
+# Exemplars Configuration and Troubleshooting Guide
 
-## 什么是 Exemplars？
+## What are Exemplars?
 
-Exemplars 是 OpenMetrics 的一个功能，用于将 **metrics（指标）** 和 **traces（追踪）** 关联起来。每个 exemplar 包含：
-- **Trace ID**: 关联到具体的 trace
-- **Span ID**: 关联到具体的 span
-- **Timestamp**: 采样时间
-- **Value**: metric 的值
+Exemplars are a feature of OpenMetrics used to correlate **metrics** with **traces**. Each exemplar contains:
+- **Trace ID**: Links to a specific trace
+- **Span ID**: Links to a specific span
+- **Timestamp**: Sampling time
+- **Value**: Metric value
 
-## 当前配置状态
+## Current Configuration Status
 
-### ✅ 已正确配置
+### ✅ Correctly Configured
 
 1. **OTel Collector spanmetrics connector**:
    ```yaml
@@ -20,7 +20,7 @@ Exemplars 是 OpenMetrics 的一个功能，用于将 **metrics（指标）** �
          explicit:
            buckets: [1ms, 5ms, 10ms, 100ms, 250ms, 500ms, 1s, 5s]
        exemplars:
-         enabled: true  # ✅ 已启用
+         enabled: true  # ✅ Enabled
    ```
 
 2. **OTel Collector Prometheus exporter**:
@@ -28,22 +28,22 @@ Exemplars 是 OpenMetrics 的一个功能，用于将 **metrics（指标）** �
    exporters:
      prometheus:
        endpoint: "0.0.0.0:8889"
-       enable_open_metrics: true  # ✅ 已启用 OpenMetrics 格式
+       enable_open_metrics: true  # ✅ OpenMetrics format enabled
    ```
 
 3. **Prometheus exemplar storage**:
    ```yaml
    # docker-compose.yaml
    command:
-     - '--enable-feature=exemplar-storage'  # ✅ 已启用
+     - '--enable-feature=exemplar-storage'  # ✅ Enabled
    ```
 
-### 🔍 验证结果
+### 🔍 Verification Results
 
-#### OTel Collector Debug 输出中有 Exemplars
+#### Exemplars in OTel Collector Debug Output
 
 ```bash
-# 在 OTel Collector 日志中可以看到：
+# In OTel Collector logs you can see:
 Exemplar #0
      -> Trace ID: f8fdce18f91361f5b9da0d88969b7592
      -> Span ID: 03f192b44343aade
@@ -51,46 +51,46 @@ Exemplar #0
      -> Value: 0.000152
 ```
 
-**✅ 这证明 exemplars 确实被生成并包含了 trace_id！**
+**✅ This proves exemplars are indeed generated and contain trace_id!**
 
-## 问题诊断
+## Problem Diagnosis
 
-### 为什么在 Prometheus exporter 端点看不到 Exemplars？
+### Why can't I see Exemplars at the Prometheus exporter endpoint?
 
-**原因**: Prometheus exporter 在 **纯文本格式** 中 **不会显示 exemplars**。
+**Reason**: The Prometheus exporter **does not display exemplars** in **plain text format**.
 
-Exemplars 只在以下情况下可见：
+Exemplars are only visible in the following scenarios:
 
-1. **OTel Collector Debug exporter**: ✅ 可以看到（已验证）
-2. **Prometheus TSDB**: ✅ Exemplars 被存储（通过 scrape）
-3. **Grafana 查询**: ✅ 可以在 Grafana 中看到（通过 Prometheus 数据源）
+1. **OTel Collector Debug exporter**: ✅ Visible (verified)
+2. **Prometheus TSDB**: ✅ Exemplars are stored (via scrape)
+3. **Grafana queries**: ✅ Visible in Grafana (via Prometheus data source)
 
-### 验证 Exemplars 的方法
+### Methods to Verify Exemplars
 
-#### 方法 1: 检查 OTel Collector Debug 输出
+#### Method 1: Check OTel Collector Debug Output
 
 ```bash
 docker logs otel-collector 2>&1 | grep -B 5 -A 10 "Exemplar #0" | grep -E "Trace ID|Span ID"
 ```
 
-**预期输出**:
+**Expected output**:
 ```
 -> Trace ID: f8fdce18f91361f5b9da0d88969b7592
 -> Span ID: 03f192b44343aade
 ```
 
-#### 方法 2: 在 Grafana 中查询（推荐）
+#### Method 2: Query in Grafana (Recommended)
 
-1. 打开 Grafana: http://localhost:3000
-2. 进入 Explore
-3. 选择 Prometheus 数据源
-4. 查询:
+1. Open Grafana: http://localhost:3000
+2. Go to Explore
+3. Select Prometheus data source
+4. Query:
    ```promql
    rate(otel_traces_span_metrics_duration_count{service_name="service-a-hybrid"}[1m])
    ```
-5. 在图表上点击数据点，应该能看到 "View Trace" 链接
+5. Click on data points in the chart, you should see a "View Trace" link
 
-#### 方法 3: Prometheus API 查询 Exemplars
+#### Method 3: Prometheus API Query for Exemplars
 
 ```bash
 curl -s -G 'http://localhost:9090/api/v1/query_exemplars' \
@@ -99,7 +99,7 @@ curl -s -G 'http://localhost:9090/api/v1/query_exemplars' \
   --data-urlencode 'end=2025-12-31T23:59:59Z' | python3 -m json.tool
 ```
 
-## 配置文件总结
+## Configuration File Summary
 
 ### otel-collector/config.yaml
 
@@ -114,7 +114,7 @@ connectors:
         default: GET
       - name: http.status_code
     exemplars:
-      enabled: true  # 关键配置
+      enabled: true  # Key configuration
     dimensions_cache_size: 1000
     aggregation_temporality: "AGGREGATION_TEMPORALITY_CUMULATIVE"
 
@@ -122,17 +122,17 @@ exporters:
   prometheus:
     endpoint: "0.0.0.0:8889"
     namespace: "otel"
-    enable_open_metrics: true  # 启用 OpenMetrics 格式
+    enable_open_metrics: true  # Enable OpenMetrics format
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, resourcedetection, resource, batch]
-      exporters: [otlp/tempo, spanmetrics, debug]  # spanmetrics 作为 exporter
+      exporters: [otlp/tempo, spanmetrics, debug]  # spanmetrics as exporter
 
     metrics:
-      receivers: [otlp, prometheus, spanmetrics]  # spanmetrics 作为 receiver
+      receivers: [otlp, prometheus, spanmetrics]  # spanmetrics as receiver
       processors: [memory_limiter, resourcedetection, resource, batch]
       exporters: [prometheus, otlphttp/prometheus, debug]
 ```
@@ -144,7 +144,7 @@ prometheus:
   image: prom/prometheus:v3.7.3
   command:
     - '--config.file=/etc/prometheus/prometheus.yml'
-    - '--enable-feature=exemplar-storage'  # 必须启用
+    - '--enable-feature=exemplar-storage'  # Must be enabled
     - '--web.enable-otlp-receiver'
 ```
 
@@ -158,21 +158,21 @@ scrape_configs:
       - targets: ['otel-collector:8889']
 ```
 
-## Grafana 配置
+## Grafana Configuration
 
-### 配置 Tempo 作为 Exemplar 数据源
+### Configure Tempo as Exemplar Data Source
 
-1. 进入 Grafana: http://localhost:3000
+1. Go to Grafana: http://localhost:3000
 2. Configuration → Data Sources → Prometheus
-3. 找到 "Exemplars" 部分
-4. 配置:
-   - **Internal link**: 启用
+3. Find "Exemplars" section
+4. Configure:
+   - **Internal link**: Enable
    - **Data source**: Tempo
    - **URL Label**: `traceID`
 
-这样当你在 Prometheus metrics 图表中点击数据点时，Grafana 会自动创建一个链接到 Tempo 中对应的 trace。
+This way, when you click on data points in Prometheus metrics charts, Grafana will automatically create a link to the corresponding trace in Tempo.
 
-## 工作流程
+## Workflow
 
 ```
 Application (service-a)
@@ -181,74 +181,74 @@ OTel Collector
     ↓
 spanmetrics connector
     ├─→ Generates metrics with exemplars
-    │   (包含 trace_id 和 span_id)
+    │   (contains trace_id and span_id)
     ↓
 Prometheus exporter (port 8889)
     ↓ scrape
 Prometheus
-    ├─→ 存储 metrics
-    └─→ 存储 exemplars
+    ├─→ Store metrics
+    └─→ Store exemplars
     ↓
 Grafana
-    ├─→ 显示 metrics 图表
-    └─→ 点击数据点 → 跳转到 Tempo trace
+    ├─→ Display metrics charts
+    └─→ Click data point → Jump to Tempo trace
 ```
 
-## 常见问题
+## Common Questions
 
-### Q1: 为什么 `curl http://localhost:8889/metrics` 看不到 trace_id？
+### Q1: Why can't I see trace_id when running `curl http://localhost:8889/metrics`?
 
-**A**: 这是正常的。Prometheus 文本格式不包含 exemplars 的详细信息。Exemplars 通过 Prometheus 的 scrape 机制被采集并存储在 TSDB 中，然后在 Grafana 中查询时可见。
+**A**: This is normal. Prometheus text format does not include detailed exemplar information. Exemplars are collected and stored in TSDB through Prometheus's scrape mechanism, and become visible when queried in Grafana.
 
-### Q2: 如何确认 exemplars 真的在工作？
+### Q2: How can I confirm exemplars are really working?
 
-**A**: 最可靠的方法：
-1. 在 Grafana Explore 中查询 span metrics
-2. 查看图表上是否有小点（exemplars）
-3. 点击数据点，检查是否有 "View Trace" 按钮
+**A**: Most reliable method:
+1. Query span metrics in Grafana Explore
+2. Check if there are small dots (exemplars) on the chart
+3. Click on data points, check if there's a "View Trace" button
 
-### Q3: Exemplars 在什么情况下会生成？
+### Q3: When are exemplars generated?
 
 **A**:
-- 当有 **traces** 通过 OTel Collector 时
-- spanmetrics connector 会从这些 traces 生成 metrics
-- 同时为每个 histogram bucket 采样生成 exemplar
-- Exemplar 包含该 span 的 trace_id 和 span_id
+- When **traces** pass through OTel Collector
+- spanmetrics connector generates metrics from these traces
+- Simultaneously samples and generates exemplars for each histogram bucket
+- Exemplars contain the trace_id and span_id of that span
 
-### Q4: 为什么有些 metrics 没有 exemplars？
+### Q4: Why don't some metrics have exemplars?
 
-**A**: 可能的原因：
-- Counter metrics 不支持 exemplars（只有 histogram 支持）
-- Exemplar 采样率（默认每个 bucket 只保留最后一个）
-- Traces 和 metrics 的时间窗口不匹配
+**A**: Possible reasons:
+- Counter metrics don't support exemplars (only histograms support them)
+- Exemplar sampling rate (by default only the last one per bucket is kept)
+- Traces and metrics time windows don't match
 
-## 验证清单
+## Verification Checklist
 
-- [x] spanmetrics connector 配置中 `exemplars.enabled: true`
-- [x] Prometheus exporter 配置中 `enable_open_metrics: true`
-- [x] Prometheus 启动参数包含 `--enable-feature=exemplar-storage`
-- [x] Traces pipeline 包含 `spanmetrics` exporter
-- [x] Metrics pipeline 包含 `spanmetrics` receiver
-- [x] OTel Collector debug 日志中能看到 Exemplar 和 Trace ID
-- [ ] Grafana 中 Prometheus 数据源配置了 Tempo 作为 exemplar 链接目标
-- [ ] 在 Grafana 图表中能看到 exemplar 点并跳转到 trace
+- [x] spanmetrics connector config has `exemplars.enabled: true`
+- [x] Prometheus exporter config has `enable_open_metrics: true`
+- [x] Prometheus startup parameters include `--enable-feature=exemplar-storage`
+- [x] Traces pipeline includes `spanmetrics` exporter
+- [x] Metrics pipeline includes `spanmetrics` receiver
+- [x] OTel Collector debug logs show Exemplar and Trace ID
+- [ ] Grafana Prometheus data source configured with Tempo as exemplar link target
+- [ ] Exemplar points visible in Grafana charts and can jump to trace
 
-## 下一步
+## Next Steps
 
-1. **在 Grafana 中验证**:
+1. **Verify in Grafana**:
    ```bash
-   # 访问 Grafana
+   # Access Grafana
    open http://localhost:3000
 
-   # 查询示例
+   # Query example
    rate(otel_traces_span_metrics_duration_count{service_name="service-a-hybrid"}[5m])
    ```
 
-2. **配置 Grafana Tempo 数据源链接**（如果还没配置）
+2. **Configure Grafana Tempo data source link** (if not yet configured)
 
-3. **创建 Dashboard 展示 exemplars**
+3. **Create Dashboard to display exemplars**
 
-## 参考资料
+## References
 
 - [OpenTelemetry spanmetrics connector](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/spanmetricsconnector)
 - [Prometheus Exemplars](https://prometheus.io/docs/prometheus/latest/feature_flags/#exemplars-storage)

@@ -15,6 +15,7 @@ API Gateway → Service A → Service D
 ## 技術堆疊
 
 ### 可觀測性元件
+
 - **OpenTelemetry Collector**: 統一收集和匯出遙測資料
 - **OpenTelemetry Operator**: Kubernetes 自動注入 (auto-instrumentation)
 - **Grafana**: 統一視覺化 Dashboard
@@ -23,27 +24,31 @@ API Gateway → Service A → Service D
 - **Tempo**: 分散式追蹤儲存和查詢
 
 ### 服務元件
+
 - **API Gateway**: Python/FastAPI - 請求入口
-- **Service A**: Python/FastAPI - 自動埋點範例 (OpenTelemetry Operator)
-- **Service D**: Python/Flask - 自動埋點範例
-- **Service B**: Go + Gin - 手動埋點範例
-- **Service C**: Go + Gin - 手動埋點範例
+- **Service A**: Python/FastAPI - 混合監測範例 (OpenTelemetry Operator)
+- **Service D**: Python/Flask - 自動監測範例
+- **Service B**: Go + Gin - 手動監測範例
+- **Service C**: Go + Gin - 手動監測範例
 - **PostgreSQL**: 資料庫
 - **Kafka**: 訊息佇列
 
 ## 核心特性
 
 ### 1. Context Propagation (情境傳播)
+
 所有服務間的呼叫都會傳播 Trace Context，確保整個請求鏈路可追蹤。
 
 ### 2. 三大支柱關聯
+
 - **Trace ID** 關聯所有相關的 logs 和 spans
 - **Span ID** 精確定位日誌產生的位置
 - **Service Name** 和 **Resource Attributes** 關聯 metrics
 
-### 3. 兩種埋點方式
-- **自動埋點**: Service A/D 使用 OpenTelemetry Operator 或 SDK 自動埋點
-- **手動埋點**: Service B/C 展示如何手動新增 spans、metrics 和結構化日誌
+### 3. 兩種監測方式
+
+- **自動監測**: Service A/D 使用 OpenTelemetry Operator 或 SDK 自動監測
+- **手動監測**: Service B/C 展示如何手動新增 spans、metrics 和結構化日誌
 
 ## 📚 互動式教學
 
@@ -63,11 +68,12 @@ cd codelabs
 教學已部署到 GitHub Pages：https://tedmax100.github.io/o11y_lab_for_dummies/
 
 教學涵蓋：
+
 - ✅ 環境搭建（Docker、Python、Go、K6）
 - ✅ Grafana 平台使用
 - ✅ K6 負載測試
 - ✅ Pumba 混沌工程
-- ✅ Python 自動和手動埋點
+- ✅ Python 自動和手動監測
 - ✅ 分散式追蹤、日誌、指標關聯
 
 詳細說明請查看 [codelabs/README.md](codelabs/README.md)
@@ -77,8 +83,8 @@ cd codelabs
 ## 快速開始
 
 ### 前置要求
+
 - Docker & Docker Compose
-- Kubernetes (選用，用於 Operator 範例)
 - kubectl (選用)
 - Go 1.21+ (開發用)
 - Python 3.11+ (開發用)
@@ -98,25 +104,6 @@ docker-compose logs -f
 # Prometheus: http://localhost:9090
 ```
 
-### 使用 Kubernetes + Operator
-
-```bash
-# 1. 部署 cert-manager (OpenTelemetry Operator 相依套件)
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
-
-# 2. 部署 OpenTelemetry Operator
-kubectl apply -f k8s/operator/
-
-# 3. 部署可觀測性堆疊
-kubectl apply -f k8s/observability/
-
-# 4. 部署應用程式服務
-kubectl apply -f k8s/services/
-
-# 5. 存取 Grafana
-kubectl port-forward svc/grafana 3000:3000 -n observability
-```
-
 ## 目錄結構
 
 ```
@@ -129,24 +116,10 @@ kubectl port-forward svc/grafana 3000:3000 -n observability
 │   └── service-d/              # Service D (Python - Auto Instrument)
 ├── otel-collector/             # OpenTelemetry Collector 配置
 │   └── config.yaml
-├── k8s/                        # Kubernetes manifests
-│   ├── operator/               # OpenTelemetry Operator 部署
-│   ├── services/               # 應用程式服務部署
-│   └── observability/          # 可觀測性堆疊部署
 ├── grafana/                    # Grafana 配置
 │   ├── datasources/            # 資料來源配置
 │   ├── dashboards/             # Dashboard JSON
 │   └── provisioning/           # 自動配置
-├── codelabs/                   # 📚 互動式教學 (Google Codelabs 格式)
-│   ├── tutorials/              # Markdown 格式教學原始檔案
-│   ├── generated/              # 生成的 HTML 教學
-│   ├── serve.sh                # 啟動教學伺服器
-│   ├── QUICKSTART.md           # 快速開始指南
-│   ├── DEPLOYMENT.md           # GitHub Pages 部署指南
-│   └── README.md               # 教學文件
-├── .github/
-│   └── workflows/
-│       └── deploy-codelabs.yml # 自動部署 Codelabs 到 GitHub Pages
 ├── docker-compose.yaml         # Docker Compose 配置
 └── README.md                   # 本文件
 ```
@@ -154,22 +127,29 @@ kubectl port-forward svc/grafana 3000:3000 -n observability
 ## 實驗場景
 
 ### 場景 1: 追蹤完整請求鏈路
+
 ```bash
 curl http://localhost:8080/api/process
 ```
+
 在 Grafana 中查看：
+
 1. Tempo: 查看完整的 trace
 2. Loki: 透過 trace_id 篩選相關日誌
 3. Prometheus: 查看各服務的 metrics
 
 ### 場景 2: 日誌關聯追蹤
+
 在 Grafana Explore 中：
+
 ```
 {service_name="service-a"} | json | trace_id="xxx"
 ```
 
 ### 場景 3: Metrics 告警關聯
+
 當 Service A 延遲過高時：
+
 1. Prometheus 觸發告警
 2. 透過 service_name 查找 traces
 3. 透過 trace_id 查找相關 logs
@@ -177,36 +157,46 @@ curl http://localhost:8080/api/process
 ## 學習要點
 
 ### 1. Context Propagation
+
 - 查看各服務如何透過 HTTP Headers 傳播 trace context
 - 理解 W3C Trace Context 標準
 
-### 2. 自動埋點 vs 手動埋點
-- Service A/D: 零程式碼侵入的自動埋點
-- Service B/C: 精細控制的手動埋點
+### 2. 自動監測 vs 手動監測
+
+- Service A/D: 零程式碼侵入的自動監測
+- Service B/C: 按業務所需，精細控制的手動監測
 
 ### 3. 結構化日誌
+
 - 所有日誌都包含 trace_id、span_id、service_name
 - 使用 JSON 格式便於解析和查詢
 
 ### 4. Semantic Conventions
+
 - 遵循 OpenTelemetry 語義約定
 - 統一的 attribute 命名
 
 ## 常見問題
 
 ### Q: 為什麼需要 OpenTelemetry Collector?
+
 A: Collector 作為中間層可以：
+
 - 統一資料收集和匯出
 - 減少服務對後端系統的相依性
 - 提供資料處理和採樣能力
 
 ### Q: Auto-instrument 和 Manual instrument 如何選擇?
+
 A:
+
 - Auto-instrument: 快速開始，覆蓋常見框架
 - Manual instrument: 業務邏輯埋點，自訂 metrics
 
 ### Q: 如何確保 logs/traces/metrics 關聯?
+
 A: 關鍵在於：
+
 1. 統一的 Resource Attributes (service.name, etc.)
 2. 在日誌中注入 trace_id 和 span_id
 3. 使用同一個 OpenTelemetry SDK/Agent
