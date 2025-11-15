@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# OpenTelemetry Observability Lab 启动脚本
+# OpenTelemetry Observability Lab startup script
 
 set -e
 
@@ -9,63 +9,63 @@ echo "  OpenTelemetry Observability Lab"
 echo "========================================="
 echo ""
 
-# 检查 Docker 和 Docker Compose
+# Check Docker and Docker Compose
 if ! command -v docker &> /dev/null; then
-    echo "❌ Docker 未安装，请先安装 Docker"
+    echo "❌ Docker not installed, please install Docker first"
     exit 1
 fi
 
 if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
-    echo "❌ Docker Compose 未安装，请先安装 Docker Compose"
+    echo "❌ Docker Compose not installed, please install Docker Compose first"
     exit 1
 fi
 
-echo "✅ Docker 和 Docker Compose 已安装"
+echo "✅ Docker and Docker Compose are installed"
 echo ""
 
-# 检查是否有正在运行的容器
+# Check for running containers
 if [ "$(docker ps -q -f name=o11y)" ]; then
-    echo "⚠️  检测到正在运行的容器，正在停止..."
+    echo "⚠️  Detected running containers, stopping..."
     docker-compose down
     echo ""
 fi
 
-# 构建和启动服务
-echo "🏗️  构建服务镜像..."
+# Build and start services
+echo "🏗️  Building service images..."
 docker-compose build
 
 echo ""
-echo "🚀 启动所有服务..."
+echo "🚀 Starting all services..."
 docker-compose up -d
 
 echo ""
-echo "⏳ 等待服务启动..."
+echo "⏳ Waiting for services to start..."
 sleep 10
 
-# 检查服务状态
+# Check service status
 echo ""
-echo "📊 服务状态:"
+echo "📊 Service Status:"
 docker-compose ps
 
 echo ""
 echo "========================================="
-echo "  启动完成！"
+echo "  Startup Complete!"
 echo "========================================="
 echo ""
-echo "📍 访问地址:"
+echo "📍 Access URLs:"
 echo "  - API Gateway:  http://localhost:8080"
 echo "  - Grafana:      http://localhost:3000 (admin/admin)"
 echo "  - Prometheus:   http://localhost:9090"
 echo "  - Tempo:        http://localhost:3200"
 echo "  - Loki:         http://localhost:3100"
 echo ""
-echo "🧪 测试请求:"
+echo "🧪 Test Request:"
 echo "  curl http://localhost:8080/api/process"
 echo ""
-echo "📝 查看日志:"
+echo "📝 View Logs:"
 echo "  docker-compose logs -f"
 echo ""
-echo "🛑 停止服务:"
+echo "🛑 Stop Services:"
 echo "  docker-compose down"
 echo ""
 echo "========================================="
