@@ -357,7 +357,7 @@ docker compose logs -f
 
 ```
 
-## Observability Architecture
+### Observability Architecture
 
 ```
 
