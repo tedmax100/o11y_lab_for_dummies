@@ -3,7 +3,9 @@
 	chaos-help chaos-kill-random chaos-kill-all chaos-network-delay chaos-network-loss \
 	chaos-network-corrupt chaos-stress-cpu chaos-kill-gateway chaos-delay-service-a \
 	chaos-loss-service-b chaos-stress-postgres chaos-pause-kafka chaos-microservice-chain \
-	chaos-database-outage chaos-network-partition chaos-stop chaos-clean chaos-status chaos-logs
+	chaos-database-outage chaos-network-partition \
+	chaos-503-errors chaos-504-errors chaos-500-errors chaos-cascading-errors \
+	chaos-stop chaos-clean chaos-status chaos-logs
 
 # Default target
 help:
@@ -153,7 +155,8 @@ k6-smoke:
 	@echo "🔍 Running K6 Smoke Test (1 min, 1 VU)..."
 	@echo "📌 This test validates basic system functionality"
 	@docker run --rm -i --network=host \
-		-v $(PWD)/k6:/scripts \
+		-v $(PWD)/k6:/scripts:ro \
+		-u $(shell id -u):$(shell id -g) \
 		grafana/k6:latest run /scripts/smoke-test.js
 	@echo ""
 	@echo "✅ Smoke test complete! Check output above for results."
@@ -164,12 +167,13 @@ k6-load:
 	@echo "📌 This test measures system performance under normal load"
 	@echo "💡 Open Grafana (http://localhost:3000) to watch live metrics"
 	@docker run --rm -i --network=host \
-		-v $(PWD)/k6:/scripts \
+		-v $(PWD)/k6:/scripts:ro \
+		-u $(shell id -u):$(shell id -g) \
 		-e BASE_URL=$(or $(BASE_URL),http://localhost:8080) \
 		-e SERVICE_A_URL=$(or $(SERVICE_A_URL),http://localhost:8001) \
 		grafana/k6:latest run /scripts/load-test.js
 	@echo ""
-	@echo "✅ Load test complete! Results saved to k6/summary.json"
+	@echo "✅ Load test complete! Check output above for results."
 
 # Stress test - Find system limits
 k6-stress:
@@ -178,11 +182,12 @@ k6-stress:
 	@echo "⚠️  WARNING: This may cause high resource usage!"
 	@echo "💡 Monitor system resources and Grafana dashboards"
 	@docker run --rm -i --network=host \
-		-v $(PWD)/k6:/scripts \
+		-v $(PWD)/k6:/scripts:ro \
+		-u $(shell id -u):$(shell id -g) \
 		-e BASE_URL=$(or $(BASE_URL),http://localhost:8080) \
 		grafana/k6:latest run /scripts/stress-test.js
 	@echo ""
-	@echo "✅ Stress test complete! Results saved to k6/stress-test-results.json"
+	@echo "✅ Stress test complete! Check output above for results."
 
 # Spike test - Test sudden traffic surge
 k6-spike:
@@ -190,12 +195,13 @@ k6-spike:
 	@echo "📌 This test simulates sudden traffic spikes"
 	@echo "💡 Watch how the system handles and recovers from traffic surges"
 	@docker run --rm -i --network=host \
-		-v $(PWD)/k6:/scripts \
+		-v $(PWD)/k6:/scripts:ro \
+		-u $(shell id -u):$(shell id -g) \
 		-e BASE_URL=$(or $(BASE_URL),http://localhost:8080) \
 		-e SERVICE_A_URL=$(or $(SERVICE_A_URL),http://localhost:8001) \
 		grafana/k6:latest run /scripts/spike-test.js
 	@echo ""
-	@echo "✅ Spike test complete! Results saved to k6/spike-test-results.json"
+	@echo "✅ Spike test complete! Check output above for results."
 
 # Clean K6 test results
 k6-clean:
@@ -228,6 +234,12 @@ chaos-help:
 	@echo "  make chaos-microservice-chain - Simulate microservice chain failure"
 	@echo "  make chaos-database-outage    - Simulate database outage"
 	@echo "  make chaos-network-partition  - Simulate network partition"
+	@echo ""
+	@echo "  HTTP Error Simulation (for Error Rate Monitoring):"
+	@echo "  make chaos-503-errors        - Generate 503 errors (kill services)"
+	@echo "  make chaos-504-errors        - Generate 504 errors (extreme delay)"
+	@echo "  make chaos-500-errors        - Generate 500 errors (database failure)"
+	@echo "  make chaos-cascading-errors  - Generate cascading errors"
 	@echo ""
 	@echo "  Management Commands:"
 	@echo "  make chaos-stop              - Stop all running Pumba containers"
@@ -421,13 +433,92 @@ chaos-network-partition:
 		loss --percent 90 service-b
 	@echo "✅ Network partition scenario started"
 
+# ==================== HTTP Error Simulation ====================
+
+# Generate 503 Service Unavailable errors by killing services repeatedly
+chaos-503-errors:
+	@echo "💥 Simulating 503 Service Unavailable Errors"
+	@echo "📌 Killing Service D every 15 seconds for 5 minutes"
+	@echo "💡 This will cause API Gateway to return 503 when calling Service A → Service D"
+	@docker rm -f pumba-503-errors 2>/dev/null || true
+	docker run -d --name pumba-503-errors \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		gaiaadm/pumba:latest \
+		--interval 15s --log-level info \
+		kill --signal SIGKILL service-d
+	@echo "✅ 503 error simulation started (5 minutes)"
+	@echo "📊 Monitor Error Rate panel in Grafana to see 503 errors"
+	@echo "🛑 Stop with: make chaos-stop"
+
+# Generate 504 Gateway Timeout errors with extreme delay
+chaos-504-errors:
+	@echo "⏱️  Simulating 504 Gateway Timeout Errors"
+	@echo "📌 Adding 35 second delay to Service A for 5 minutes"
+	@echo "💡 This will cause API Gateway to timeout and return 504"
+	@docker rm -f pumba-504-errors 2>/dev/null || true
+	docker run -d --name pumba-504-errors \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		gaiaadm/pumba:latest \
+		--log-level info \
+		netem --duration 5m --tc-image ghcr.io/alexei-led/pumba-alpine-nettools:latest \
+		delay --time 35000 service-a
+	@echo "✅ 504 error simulation started (5 minutes)"
+	@echo "📊 Monitor Error Rate panel in Grafana to see timeout errors"
+	@echo "🛑 Stop with: make chaos-stop"
+
+# Generate 500 Internal Server Error by killing database
+chaos-500-errors:
+	@echo "🗄️  Simulating 500 Internal Server Errors"
+	@echo "📌 Pausing PostgreSQL database for 30 seconds repeatedly"
+	@echo "💡 This will cause Service A database queries to fail → 500 errors"
+	@docker rm -f pumba-500-errors 2>/dev/null || true
+	docker run -d --name pumba-500-errors \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		gaiaadm/pumba:latest \
+		--interval 45s --log-level info \
+		pause --duration 30s postgres
+	@echo "✅ 500 error simulation started"
+	@echo "📊 Monitor Error Rate panel in Grafana to see database-related 500 errors"
+	@echo "🛑 Stop with: make chaos-stop"
+
+# Generate cascading errors across multiple services
+chaos-cascading-errors:
+	@echo "🌊 Simulating Cascading Errors (Mixed 500/503/504)"
+	@echo "📌 Multiple chaos injections:"
+	@echo "   - Service D: 70% packet loss (causes intermittent failures)"
+	@echo "   - Service B: High delay (causes timeouts)"
+	@echo "   - PostgreSQL: CPU stress (causes slow queries → errors)"
+	@docker rm -f pumba-cascade-1 pumba-cascade-2 pumba-cascade-3 2>/dev/null || true
+	@docker run -d --name pumba-cascade-1 \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		gaiaadm/pumba:latest \
+		netem --duration 5m --tc-image ghcr.io/alexei-led/pumba-alpine-nettools:latest \
+		loss --percent 70 service-d
+	@docker run -d --name pumba-cascade-2 \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		gaiaadm/pumba:latest \
+		netem --duration 5m --tc-image ghcr.io/alexei-led/pumba-alpine-nettools:latest \
+		delay --time 5000 --jitter 2000 service-b
+	@docker run -d --name pumba-cascade-3 \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		gaiaadm/pumba:latest \
+		stress --duration 5m \
+		--stressors "--cpu 2 --timeout 300s" postgres
+	@echo "✅ Cascading error simulation started (5 minutes)"
+	@echo "📊 Monitor Error Rate panel - you should see mixed error types"
+	@echo "🛑 Stop with: make chaos-stop"
+
 # ==================== Management Commands ====================
 
-# Stop all Pumba containers
+# Stop all Pumba containers and restart killed services
 chaos-stop:
 	@echo "🛑 Stopping all running Pumba containers..."
 	@docker ps --filter "name=pumba-*" -q | xargs -r docker stop
 	@echo "✅ All Pumba containers stopped"
+	@echo ""
+	@echo "🔄 Restarting any killed services..."
+	@docker-compose restart service-a service-b service-c service-d
+	@echo "✅ All services restarted"
 
 # Clean all Pumba containers
 chaos-clean: chaos-stop

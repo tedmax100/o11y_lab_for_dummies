@@ -22,7 +22,6 @@ from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 
-# 配置日志
 logging.basicConfig(
     level=logging.INFO,
     format='{"time":"%(asctime)s", "level":"%(levelname)s", "service":"api-gateway", "trace_id":"%(otelTraceID)s", "span_id":"%(otelSpanID)s", "message":"%(message)s"}'
@@ -33,7 +32,6 @@ logger = logging.getLogger(__name__)
 SERVICE_A_URL = os.getenv("SERVICE_A_URL", "http://service-a:8001")
 OTEL_COLLECTOR_ENDPOINT = os.getenv("OTEL_COLLECTOR_ENDPOINT", "http://otel-collector:4317")
 
-# 创建 Resource
 resource = Resource(attributes={
     SERVICE_NAME: "api-gateway",
     SERVICE_VERSION: "1.0.0",
@@ -61,27 +59,20 @@ logger_provider.add_log_record_processor(
     BatchLogRecordProcessor(OTLPLogExporter(endpoint=OTEL_COLLECTOR_ENDPOINT, insecure=True))
 )
 
-# 添加 OTLP logging handler
 handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
 logging.getLogger().addHandler(handler)
 
-# 自动注入 trace context 到日志
 LoggingInstrumentor().instrument(set_logging_format=True)
 
-# 创建 FastAPI app
 app = FastAPI(title="API Gateway", version="1.0.0")
 
-# 自动埋点 FastAPI
 FastAPIInstrumentor.instrument_app(app)
 
-# 自动埋点 HTTPX client
 HTTPXClientInstrumentor().instrument()
 
-# 创建 tracer 和 meter
 tracer = trace.get_tracer(__name__)
 meter = metrics.get_meter(__name__)
 
-# 创建自定义 metrics
 request_counter = meter.create_counter(
     name="gateway_requests_total",
     description="Total number of requests received by gateway",
@@ -96,19 +87,17 @@ request_duration = meter.create_histogram(
 
 @app.get("/health")
 async def health():
-    """健康检查端点"""
+    """Health check endpoint"""
     logger.info("Health check called")
     return {"status": "healthy", "service": "api-gateway"}
 
 @app.get("/api/process")
 async def process_request():
     """
-    处理请求的主要端点
-    调用 Service A，Service A 会继续调用其他服务
+    Main API endpoint that processes requests by calling Service A
     """
     logger.info("Received process request at gateway")
 
-    # 增加请求计数
     request_counter.add(1, {"endpoint": "/api/process", "method": "GET"})
 
     with tracer.start_as_current_span("gateway.process_request") as span:
@@ -116,7 +105,6 @@ async def process_request():
         span.set_attribute("gateway.version", "1.0.0")
 
         try:
-            # 调用 Service A
             logger.info(f"Calling Service A at {SERVICE_A_URL}/process")
 
             async with httpx.AsyncClient() as client:
@@ -157,7 +145,7 @@ async def process_request():
 
 @app.get("/api/info")
 async def get_info():
-    """获取网关信息"""
+    """Get service info and backend endpoints"""
     logger.info("Info endpoint called")
     return {
         "service": "api-gateway",

@@ -47,17 +47,21 @@ datasources:
         filterByTraceID: true
         lokiSearch: true
         customQuery: true
-        query: '{service_name="$${__span.tags["service.name"]}"} |="$${__span.traceId}"'
+        query: '{service_name="$${__span.tags["service.name"]}"} | trace_id="$${__span.traceId}"'
       tracesToMetrics:
         datasourceUid: prometheus
-        tags: [{ key: 'service.name', value: 'service' }]
+        tags: [{ key: 'service.name', value: 'service_name' }, { key: 'span.name', value: 'span_name' }]
         queries:
           - name: 'Request Rate'
-            query: 'rate(duration_count{$$__tags}[5m])'
-          - name: 'Request Duration'
-            query: 'histogram_quantile(0.9, rate(duration_bucket{$$__tags}[5m]))'
+            query: 'rate(otel_traces_span_metrics_calls{$$__tags}[5m])'
+          - name: 'Request Duration (p95)'
+            query: 'histogram_quantile(0.95, rate(otel_traces_span_metrics_duration_bucket{$$__tags}[5m]))'
+          - name: 'Request Duration (p50)'
+            query: 'histogram_quantile(0.50, rate(otel_traces_span_metrics_duration_bucket{$$__tags}[5m]))'
       serviceMap:
         datasourceUid: prometheus
+        # Tempo 的 service graph metrics
+        # 會使用 traces_service_graph_request_total 等指標
       search:
         hide: false
       nodeGraph:

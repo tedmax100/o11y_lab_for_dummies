@@ -46,11 +46,14 @@ scrape_configs:
           service: 'loki'
 
   # Application services (if metrics endpoint is exposed)
-  - job_name: 'services'
-    static_configs:
-      - targets:
-          - 'api-gateway:8080'
-          - 'service-a:8001'
-          - 'service-b:8002'
-          - 'service-c:8003'
-          - 'service-d:8004'
+  # ⚠️  DISABLED: These services don't expose /metrics endpoint
+  # They send metrics via OTLP to otel-collector
+  # Use job 'otel-collector-metrics' instead
+  # - job_name: 'services'
+  #   static_configs:
+  #     - targets:
+  #         - 'api-gateway:8080'
+  #         - 'service-a:8001'
+  #         - 'service-b:8002'
+  #         - 'service-c:8003'
+  #         - 'service-d:8004'
