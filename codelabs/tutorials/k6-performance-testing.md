@@ -485,10 +485,16 @@ Negative
 
 在傳統壓測工具（包括 k6 使用 `vus: 10` 或 JMeter 預設 Thread Group）中，虛擬用戶的執行邏輯本質是閉環的：
 
-$$\text{RPS} = \frac{\text{VU}}{\text{Response Time} + \text{Sleep}}$$
+```text
+                   VU (虛擬用戶數)
+RPS (吞吐量) = ────────────────────────────
+                Response Time (延遲) + Sleep
+```
 
-- 當後端服務響應飛快 (50ms) 時，10 個 VU 每秒可以打出高達 $10 / 0.05 = 200\text{ RPS}$。
-- 當後端資料庫死鎖、回應延遲飆升至 5 秒時，10 個 VU 全部被卡住！實際發出的請求頻率驟降至 $10 / 5 = 2\text{ RPS}$！
+- **正常狀態**：當後端服務響應飛快（`50ms = 0.05s`、`Sleep = 0`）時，10 個 VU 每秒可打出：  
+  `10 / 0.05s = 200 RPS`
+- **故障卡頓**：當後端資料庫死鎖、回應延遲飆升至 `5s` 時，10 個 VU 全部被卡死等待，實際發出頻率驟降至：  
+  `10 / 5s = 2 RPS`
 
 > **致命荒謬之處**：當被測系統越脆弱、卡頓越嚴重時，閉環測試工具反而**自動給被測系統大幅放水減壓**！這直接導致採樣點嚴重偏向系統正常時的請求，將真實的長尾延遲 (Tail Latency) 徹底隱匿！
 
@@ -504,28 +510,32 @@ $$\text{RPS} = \frac{\text{VU}}{\text{Response Time} + \text{Sleep}}$$
 
 要在開放模型中精準設定資源配置，必須運用排隊理論的黃金定理——**利特爾法則**：
 
-$$L = \lambda \times W$$
+```text
+L = λ × W
 
-- **$L$（Concurrency / 並行量）**：系統內同時存在的並行請求數（對應 k6 所需配置的 VU 數量）。
-- **$\lambda$（Arrival Rate / 抵達率）**：單位時間內抵達系統的請求速率（目標 RPS）。
-- **$W$（Latency / 平均停留時間）**：每個請求在系統中從發起到回應的平均耗時（秒）。
+並行量 (VU) = 抵達率 (RPS) × 平均停留時間 (Latency 秒數)
+```
+
+- **`L`（Concurrency / 並行量）**：系統內同時存在的並行請求數（對應 k6 所需配置的 VU 數量）。
+- **`λ`（Arrival Rate / 抵達率）**：單位時間內抵達系統的請求速率（目標 RPS）。
+- **`W`（Latency / 平均停留時間）**：每個請求在系統中從發起到回應的平均耗時（秒）。
 
 #### 三大生產級精算案例
 
 ##### 案例 1：輕量快取查詢 API (Cache-Hit Reads)
-- 目標抵達率 $\lambda = 500\text{ RPS}$，預期平均延遲 $W = 20\text{ ms} = 0.02\text{ 秒}$。
-- 基準所需並行量：$L = 500 \times 0.02 = 10\text{ VUs}$。
+- 目標抵達率：`λ = 500 RPS`，預期平均延遲：`W = 20ms = 0.02 秒`。
+- 基準所需並行量：`L = 500 × 0.02 = 10 VUs`。
 - **k6 參數配置**：`preAllocatedVUs: 10`，彈性緩衝 `maxVUs: 30`。
 
 ##### 案例 2：重度電商下單 API (Database Transactions)
-- 目標抵達率 $\lambda = 200\text{ RPS}$，預期平均延遲 $W = 250\text{ ms} = 0.25\text{ 秒}$。
-- 基準所需並行量：$L = 200 \times 0.25 = 50\text{ VUs}$。
+- 目標抵達率：`λ = 200 RPS`，預期平均延遲：`W = 250ms = 0.25 秒`。
+- 基準所需並行量：`L = 200 × 0.25 = 50 VUs`。
 - **k6 參數配置**：`preAllocatedVUs: 50`，彈性緩衝 `maxVUs: 150`。
 
 ##### 案例 3：長尾延遲突波防線 (Tail Latency Buffer)
-- 假設在案例 2 的下單 API 中，一旦發生資料庫鎖競爭，P99 延遲飆升至 $1.5\text{ 秒}$：
-- 極端所需並行量：$L_{spike} = 200 \times 1.5 = 300\text{ VUs}$！
-- 若你的 `maxVUs` 只配置了 100，k6 的 VU 池將被瞬間耗盡，導致無法維持 200 RPS，進而產生 `dropped_iterations`。因此面對長尾延遲，`maxVUs` 應預留 $3\sim 5$ 倍於常態的容量空間。
+- 假設在案例 2 的下單 API 中，一旦發生資料庫鎖競爭，P99 延遲飆升至 `1.5 秒`：
+- 極端所需並行量：`L_spike = 200 × 1.5 = 300 VUs`！
+- 若你的 `maxVUs` 只配置了 100，k6 的 VU 池將被瞬間耗盡，導致無法維持 200 RPS，進而產生 `dropped_iterations`。因此面對長尾延遲，`maxVUs` 應預留 3 ~ 5 倍於常態的容量空間。
 
 #### k6 開放模型執行器配置範例
 
@@ -791,7 +801,7 @@ k6 run -e MODEL=open k6/demos/ch2_closed_vs_open_model.js
 
 > **👀 觀察重點**：
 > 目標強制鎖定為 **20 RPS** (`constant-arrival-rate`)。
-> 依據利特爾法則 $L = 20 \times 1\text{s} = 20\text{ VUs}$，k6 自動動態拉升並行 VU 數量至 20~25 個，堅定維持每秒 20 次請求的抵達率！總請求數達到 300 筆，精準重現真實世界的排隊衝擊！
+> 依據利特爾法則 `L = 20 × 1s = 20 VUs`，k6 自動動態拉升並行 VU 數量至 20~25 個，堅定維持每秒 20 次請求的抵達率！總請求數達到 300 筆，精準重現真實世界的排隊衝擊！
 
 #### 實作 2：刻意誘發 `dropped_iterations` 容量告警
 
@@ -1058,11 +1068,11 @@ k6 原生整合 Playwright-like 語法的瀏覽器自動化引擎，能夠在協
 
 | 指標 | 全名 | 核心意義 | 業界良好標準 |
 | :--- | :--- | :--- | :--- |
-| **LCP** | Largest Contentful Paint | 最大內容繪製時間（主視覺何時呈現） | $\le 2.5\text{s}$ |
-| **FCP** | First Contentful Paint | 首次內容繪製時間（白屏時間結束） | $\le 1.8\text{s}$ |
-| **INP** | Interaction to Next Paint | 互動到下次繪製延遲（點擊響應流暢度） | $\le 200\text{ms}$ |
-| **TTFB** | Time to First Byte | 伺服器首位元組時間（後端與網路基礎開銷） | $\le 800\text{ms}$ |
-| **CLS** | Cumulative Layout Shift | 累計版面配置位移（視覺穩定度） | $\le 0.1$ |
+| **LCP** | Largest Contentful Paint | 最大內容繪製時間（主視覺何時呈現） | ≤ 2.5s |
+| **FCP** | First Contentful Paint | 首次內容繪製時間（白屏時間結束） | ≤ 1.8s |
+| **INP** | Interaction to Next Paint | 互動到下次繪製延遲（點擊響應流暢度） | ≤ 200ms |
+| **TTFB** | Time to First Byte | 伺服器首位元組時間（後端與網路基礎開銷） | ≤ 800ms |
+| **CLS** | Cumulative Layout Shift | 累計版面配置位移（視覺穩定度） | ≤ 0.1 |
 
 Negative
 : **資源釋放軍規警告**：操作瀏覽器時，務必將 `await page.close()` 放在 `finally` 區塊中！若腳本在執行途中異常拋出錯誤而略過關閉步驟，伺服器背景將堆積大量未釋放的 Chromium 殭屍行程，迅速吃光主機記憶體與 CPU。

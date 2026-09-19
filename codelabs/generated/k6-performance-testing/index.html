@@ -465,10 +465,13 @@ export function teardown(data) {
 </code></pre>
 <h3 is-upgraded>閉環模型 (Closed Loop Model) 的數學缺陷</h3>
 <p>在傳統壓測工具（包括 k6 使用 <code>vus: 10</code> 或 JMeter 預設 Thread Group）中，虛擬用戶的執行邏輯本質是閉環的：</p>
-<p>$$\text{RPS} = \frac{\text{VU}}{\text{Response Time} + \text{Sleep}}$$</p>
+<pre><code language="language-text" class="language-text">                   VU (虛擬用戶數)
+RPS (吞吐量) = ────────────────────────────
+                Response Time (延遲) + Sleep
+</code></pre>
 <ul>
-<li>當後端服務響應飛快 (50ms) 時，10 個 VU 每秒可以打出高達 $10 / 0.05 = 200\text{ RPS}$。</li>
-<li>當後端資料庫死鎖、回應延遲飆升至 5 秒時，10 個 VU 全部被卡住！實際發出的請求頻率驟降至 $10 / 5 = 2\text{ RPS}$！</li>
+<li><strong>正常狀態</strong>：當後端服務響應飛快（<code>50ms = 0.05s</code>、<code>Sleep = 0</code>）時，10 個 VU 每秒可打出：<br><code>10 / 0.05s = 200 RPS</code></li>
+<li><strong>故障卡頓</strong>：當後端資料庫死鎖、回應延遲飆升至 <code>5s</code> 時，10 個 VU 全部被卡死等待，實際發出頻率驟降至：<br><code>10 / 5s = 2 RPS</code></li>
 </ul>
 <p><strong>致命荒謬之處</strong>：當被測系統越脆弱、卡頓越嚴重時，閉環測試工具反而<strong>自動給被測系統大幅放水減壓</strong>！這直接導致採樣點嚴重偏向系統正常時的請求，將真實的長尾延遲 (Tail Latency) 徹底隱匿！</p>
 <h2 is-upgraded>開放模型實戰與利特爾法則 (Little&#39;s Law) 數學精算</h2>
@@ -476,30 +479,33 @@ export function teardown(data) {
 <p>無論後端處理有多慢，排程器都會像真實世界的使用者一樣，精準按照設定的 RPS 持續發起請求。當後端變慢導致請求排隊時，k6 會自動調用額外的並發 VU 來維持目標 RPS。</p>
 <h3 is-upgraded>利特爾法則 (Little&#39;s Law) 精算公式</h3>
 <p>要在開放模型中精準設定資源配置，必須運用排隊理論的黃金定理——<strong>利特爾法則</strong>：</p>
-<p>$$L = \lambda \times W$$</p>
+<pre><code language="language-text" class="language-text">L = λ × W
+
+並行量 (VU) = 抵達率 (RPS) × 平均停留時間 (Latency 秒數)
+</code></pre>
 <ul>
-<li><strong>$L$（Concurrency / 並行量）</strong>：系統內同時存在的並行請求數（對應 k6 所需配置的 VU 數量）。</li>
-<li><strong>$\lambda$（Arrival Rate / 抵達率）</strong>：單位時間內抵達系統的請求速率（目標 RPS）。</li>
-<li><strong>$W$（Latency / 平均停留時間）</strong>：每個請求在系統中從發起到回應的平均耗時（秒）。</li>
+<li><strong><code>L</code></strong><strong>（Concurrency / 並行量）</strong>：系統內同時存在的並行請求數（對應 k6 所需配置的 VU 數量）。</li>
+<li><strong><code>λ</code></strong><strong>（Arrival Rate / 抵達率）</strong>：單位時間內抵達系統的請求速率（目標 RPS）。</li>
+<li><strong><code>W</code></strong><strong>（Latency / 平均停留時間）</strong>：每個請求在系統中從發起到回應的平均耗時（秒）。</li>
 </ul>
 <h3 is-upgraded>三大生產級精算案例</h3>
 <h4 is-upgraded>案例 1：輕量快取查詢 API (Cache-Hit Reads)</h4>
 <ul>
-<li>目標抵達率 $\lambda = 500\text{ RPS}$，預期平均延遲 $W = 20\text{ ms} = 0.02\text{ 秒}$。</li>
-<li>基準所需並行量：$L = 500 \times 0.02 = 10\text{ VUs}$。</li>
+<li>目標抵達率：<code>λ = 500 RPS</code>，預期平均延遲：<code>W = 20ms = 0.02 秒</code>。</li>
+<li>基準所需並行量：<code>L = 500 × 0.02 = 10 VUs</code>。</li>
 <li><strong>k6 參數配置</strong>：<code>preAllocatedVUs: 10</code>，彈性緩衝 <code>maxVUs: 30</code>。</li>
 </ul>
 <h4 is-upgraded>案例 2：重度電商下單 API (Database Transactions)</h4>
 <ul>
-<li>目標抵達率 $\lambda = 200\text{ RPS}$，預期平均延遲 $W = 250\text{ ms} = 0.25\text{ 秒}$。</li>
-<li>基準所需並行量：$L = 200 \times 0.25 = 50\text{ VUs}$。</li>
+<li>目標抵達率：<code>λ = 200 RPS</code>，預期平均延遲：<code>W = 250ms = 0.25 秒</code>。</li>
+<li>基準所需並行量：<code>L = 200 × 0.25 = 50 VUs</code>。</li>
 <li><strong>k6 參數配置</strong>：<code>preAllocatedVUs: 50</code>，彈性緩衝 <code>maxVUs: 150</code>。</li>
 </ul>
 <h4 is-upgraded>案例 3：長尾延遲突波防線 (Tail Latency Buffer)</h4>
 <ul>
-<li>假設在案例 2 的下單 API 中，一旦發生資料庫鎖競爭，P99 延遲飆升至 $1.5\text{ 秒}$：</li>
-<li>極端所需並行量：$L_{spike} = 200 \times 1.5 = 300\text{ VUs}$！</li>
-<li>若你的 <code>maxVUs</code> 只配置了 100，k6 的 VU 池將被瞬間耗盡，導致無法維持 200 RPS，進而產生 <code>dropped_iterations</code>。因此面對長尾延遲，<code>maxVUs</code> 應預留 $3\sim 5$ 倍於常態的容量空間。</li>
+<li>假設在案例 2 的下單 API 中，一旦發生資料庫鎖競爭，P99 延遲飆升至 <code>1.5 秒</code>：</li>
+<li>極端所需並行量：<code>L_spike = 200 × 1.5 = 300 VUs</code>！</li>
+<li>若你的 <code>maxVUs</code> 只配置了 100，k6 的 VU 池將被瞬間耗盡，導致無法維持 200 RPS，進而產生 <code>dropped_iterations</code>。因此面對長尾延遲，<code>maxVUs</code> 應預留 3 ~ 5 倍於常態的容量空間。</li>
 </ul>
 <h3 is-upgraded>k6 開放模型執行器配置範例</h3>
 <pre><code language="language-javascript" class="language-javascript">export const options = {
@@ -728,7 +734,7 @@ const testUsers = new SharedArray(&#39;users_pool&#39;, function () {
 <h4 is-upgraded>步驟 1-B：執行開放模型 (觀察 Little&#39;s Law 自動調派)</h4>
 <pre><code language="language-bash" class="language-bash">k6 run -e MODEL=open k6/demos/ch2_closed_vs_open_model.js
 </code></pre>
-<p><strong>👀 觀察重點</strong>： 目標強制鎖定為 <strong>20 RPS</strong> (<code>constant-arrival-rate</code>)。 依據利特爾法則 $L = 20 \times 1\text{s} = 20\text{ VUs}$，k6 自動動態拉升並行 VU 數量至 20~25 個，堅定維持每秒 20 次請求的抵達率！總請求數達到 300 筆，精準重現真實世界的排隊衝擊！</p>
+<p><strong>👀 觀察重點</strong>： 目標強制鎖定為 <strong>20 RPS</strong> (<code>constant-arrival-rate</code>)。 依據利特爾法則 <code>L = 20 × 1s = 20 VUs</code>，k6 自動動態拉升並行 VU 數量至 20~25 個，堅定維持每秒 20 次請求的抵達率！總請求數達到 300 筆，精準重現真實世界的排隊衝擊！</p>
 <h3 is-upgraded>實作 2：刻意誘發 <code>dropped_iterations</code> 容量告警</h3>
 <p>修改或以命令列調整 <code>maxVUs</code> 為極小值，觀察 k6 的過載防線：</p>
 <pre><code language="language-bash" class="language-bash">k6 run -e MODEL=open -e TARGET_URL=https://httpbin.test.k6.io/delay/2 k6/demos/ch2_closed_vs_open_model.js
@@ -945,27 +951,27 @@ export default function (data) {
 <tr><td colspan="1" rowspan="1"><p><strong>LCP</strong></p>
 </td><td colspan="1" rowspan="1"><p>Largest Contentful Paint</p>
 </td><td colspan="1" rowspan="1"><p>最大內容繪製時間（主視覺何時呈現）</p>
-</td><td colspan="1" rowspan="1"><p>$\le 2.5\text{s}$</p>
+</td><td colspan="1" rowspan="1"><p>≤ 2.5s</p>
 </td></tr>
 <tr><td colspan="1" rowspan="1"><p><strong>FCP</strong></p>
 </td><td colspan="1" rowspan="1"><p>First Contentful Paint</p>
 </td><td colspan="1" rowspan="1"><p>首次內容繪製時間（白屏時間結束）</p>
-</td><td colspan="1" rowspan="1"><p>$\le 1.8\text{s}$</p>
+</td><td colspan="1" rowspan="1"><p>≤ 1.8s</p>
 </td></tr>
 <tr><td colspan="1" rowspan="1"><p><strong>INP</strong></p>
 </td><td colspan="1" rowspan="1"><p>Interaction to Next Paint</p>
 </td><td colspan="1" rowspan="1"><p>互動到下次繪製延遲（點擊響應流暢度）</p>
-</td><td colspan="1" rowspan="1"><p>$\le 200\text{ms}$</p>
+</td><td colspan="1" rowspan="1"><p>≤ 200ms</p>
 </td></tr>
 <tr><td colspan="1" rowspan="1"><p><strong>TTFB</strong></p>
 </td><td colspan="1" rowspan="1"><p>Time to First Byte</p>
 </td><td colspan="1" rowspan="1"><p>伺服器首位元組時間（後端與網路基礎開銷）</p>
-</td><td colspan="1" rowspan="1"><p>$\le 800\text{ms}$</p>
+</td><td colspan="1" rowspan="1"><p>≤ 800ms</p>
 </td></tr>
 <tr><td colspan="1" rowspan="1"><p><strong>CLS</strong></p>
 </td><td colspan="1" rowspan="1"><p>Cumulative Layout Shift</p>
 </td><td colspan="1" rowspan="1"><p>累計版面配置位移（視覺穩定度）</p>
-</td><td colspan="1" rowspan="1"><p>$\le 0.1$</p>
+</td><td colspan="1" rowspan="1"><p>≤ 0.1</p>
 </td></tr>
 </table>
 <p>Negative : <strong>資源釋放軍規警告</strong>：操作瀏覽器時，務必將 <code>await page.close()</code> 放在 <code>finally</code> 區塊中！若腳本在執行途中異常拋出錯誤而略過關閉步驟，伺服器背景將堆積大量未釋放的 Chromium 殭屍行程，迅速吃光主機記憶體與 CPU。</p>
