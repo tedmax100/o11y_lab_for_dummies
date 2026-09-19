@@ -1556,6 +1556,7 @@ export function handleSummary(data) {
 </td><td colspan="1" rowspan="1"><p>將高頻壓測時序串流即時寫入 TimescaleDB、Kafka 或 Datadog</p>
 </td></tr>
 </table>
+<p>Positive : <strong>講師實戰手記：手把手從零開發 Web3 OTP 插件<br></strong> : 想深入了解如何親手用 Go 語言撰寫一個 xk6 擴充插件嗎？推薦研讀講師專欄文章：<a href="https://ganhua.wang/grafana-xk6" target="_blank">Grafana xk6: 手把手從開發 k6 插件程式到編譯出 k6 插件</a>。文章詳細拆解了 Go-to-JS 橋接的 <code>RootModule</code> 與 <code>ModuleInstance</code> 生命週期，並以 Web3 身份驗證為例，實作高併發動態生成一次性密碼 (OTP) 與簽名的自訂模組！</p>
 <h2 is-upgraded>xk6 Docker 確定性編譯實戰 (Deterministic Build)</h2>
 <p>要在本地編譯 xk6 擴充套件，傳統上需要安裝特定版本的 Go 編譯環境、配置 GOPATH、處理 CGO 與本機依賴，極容易因為環境差異導致「在我的電腦可以跑，在 CI/CD 卻編譯失敗」的窘境。</p>
 <p>最佳實踐是使用官方提供的 Docker 映像檔 <strong><code>grafana/xk6</code></strong> 進行<strong>確定性編譯 (Deterministic Build)</strong>。</p>
@@ -1670,6 +1671,38 @@ k6 run k6/demos/ch5_dashboard_and_html_summary.js
 </code></pre>
 成功在 Grafana 觀測到帶有版本標籤的壓測指標串流！</li>
 </ol>
+<h2 is-upgraded>推薦延伸閱讀：講師深度實戰專欄 (Author&#39;s Deep-Dive Articles)</h2>
+<p>為了讓大家在現代進階壓測、外掛生態系開發與前端混合壓測上持續精進，強烈推薦研讀講師親自撰寫的 k6 系列深度實戰專欄：</p>
+<h3 is-upgraded>1. 模組擴充：<a href="https://ganhua.wang/grafana-xk6" target="_blank">Grafana xk6: 手把手從開發 k6 插件程式到編譯出 k6 插件</a></h3>
+<ul>
+<li><strong>核心價值</strong>：當原生 k6 不支援特定私有協定或加密簽名演算法時，教你如何用 Go 語言量身打造客製化擴充插件。</li>
+<li><strong>精彩重點</strong>： <ul>
+<li><strong>Go-to-JS 模組架構</strong>：深入剖析 <code>RootModule</code>、<code>ModuleInstance</code> 與 <code>modules.Register</code> 註冊機制的設計原理。</li>
+<li><strong>Web3 OTP 實戰案例</strong>：以 Web3 動態身份驗證為背景，手把手實作 <code>k6/x/otp</code> 擴充套件，在壓測過程中高併發生成動態金鑰與一次性密碼。</li>
+<li><strong>容器化確定性編譯</strong>：完整演示如何利用 <code>grafana/xk6</code> Docker 容器執行確定性編譯，產出可在不同 Linux 環境穩定運行的客製化 k6 二進位檔。</li>
+</ul>
+</li>
+</ul>
+<h3 is-upgraded>2. 前端混壓：<a href="https://ganhua.wang/grafana-k6-browser" target="_blank">Grafana k6 瀏覽器測試 (k6-browser)</a></h3>
+<ul>
+<li><strong>核心價值</strong>：從協議層壓測跨足真實瀏覽器體驗測試，掌握現代前端 Core Web Vitals 與 SPA 動態渲染瓶頸。</li>
+<li><strong>精彩重點</strong>： <ul>
+<li><strong>Playwright 相容生態</strong>：解析 k6 browser 如何借鑑 Playwright API 設計，使用熟悉的 <code>chromium.launch()</code>、<code>page.goto()</code> 與 <code>page.locator()</code> 快速上手。</li>
+<li><strong>隔離上下文架構</strong>：使用 <code>BrowserContext</code> 在單一瀏覽器處理程序中實現完全獨立的 Cookie、Session 與 LocalStorage 隔離，大幅降低多用戶模擬的記憶體開銷。</li>
+<li><strong>真實電商場景演練</strong>：以 OpenTelemetry Demo 購物車為例，示範商品瀏覽、加入購物車、表單填寫與結帳的全鏈路自動化測試，並透過截圖 (Screenshot) 保存錯誤現場。</li>
+</ul>
+</li>
+</ul>
+<h3 is-upgraded>3. 全鏈路閉環：<a href="https://ganhua.wang/getting-started-with-grafana-k6-hands-on-practice" target="_blank">Getting Started with Grafana k6: Hands-on Practice</a></h3>
+<ul>
+<li><strong>核心價值</strong>：結合微服務可觀測性標準（OpenTelemetry Demo）與 CI/CD 流水線的工程化全鏈路實踐。</li>
+<li><strong>精彩重點</strong>： <ul>
+<li><strong>結構化測試腳本</strong>：運用 <code>k6/http</code>、<code>check</code> 與 <code>group</code> 模組化組織壓測事務，清晰呈現業務場景階層。</li>
+<li><strong>可觀測性串流對齊</strong>：示範如何將壓測指標對接 OpenTelemetry Collector，實現 Metrics、Traces 與 Logs 的跨維度關聯分析。</li>
+<li><strong>GitLab CI 自動化門禁</strong>：將 k6 壓測無縫整合至 GitLab CI 流水線中，以 Exit Code 自動守護主幹代碼發版品質。</li>
+</ul>
+</li>
+</ul>
 <h2 is-upgraded>Chapter 5 核心心智模型與架構師避坑指南</h2>
 <ol type="1">
 <li><strong>數據不落地，壓測無意義</strong>： <ul>
@@ -1709,6 +1742,12 @@ k6 run k6/demos/ch5_dashboard_and_html_summary.js
 <li><strong>實機演示腳本全集</strong>：<a href="https://github.com/tedmax100/o11y_lab_for_dummies/tree/main/k6/demos" target="_blank"><code>k6/demos/</code></a></li>
 <li><strong>全系列簡報 PPTX</strong>：<a href="https://github.com/tedmax100/o11y_lab_for_dummies/tree/main/k6/slides" target="_blank"><code>k6/slides/</code></a></li>
 <li><strong>錄課口播逐字稿</strong>：<a href="https://github.com/tedmax100/o11y_lab_for_dummies/tree/main/k6/slides/transcripts" target="_blank"><code>k6/slides/transcripts/</code></a></li>
+<li><strong>講師深度實戰專欄 (推薦必讀)</strong>： <ul>
+<li><a href="https://ganhua.wang/grafana-xk6" target="_blank">Grafana xk6: 手把手從開發 k6 插件程式到編譯出 k6 插件</a></li>
+<li><a href="https://ganhua.wang/grafana-k6-browser" target="_blank">Grafana k6 瀏覽器測試 (k6-browser)</a></li>
+<li><a href="https://ganhua.wang/getting-started-with-grafana-k6-hands-on-practice" target="_blank">Getting Started with Grafana k6: Hands-on Practice</a></li>
+</ul>
+</li>
 </ul>
 
 

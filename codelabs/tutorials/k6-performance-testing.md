@@ -1709,6 +1709,10 @@ xk6 的底層設計極其精妙：
 | **JS Extensions (協定與中間件擴充)** | `xk6-kafka`<br>`xk6-sql`<br>`xk6-redis`<br>`xk6-amqp` | 在 JavaScript 中擴充全新全域物件與通訊協定 | 直接壓測 Kafka、PostgreSQL、MySQL、Redis 等底層中間件 |
 | **Output Extensions (時序指標匯出擴充)** | `xk6-output-timescaledb`<br>`xk6-output-kafka`<br>`xk6-output-influxdb` | 攔截 k6 產生的每一筆指標並即時轉發 | 將高頻壓測時序串流即時寫入 TimescaleDB、Kafka 或 Datadog |
 
+Positive
+: **講師實戰手記：手把手從零開發 Web3 OTP 插件**  
+: 想深入了解如何親手用 Go 語言撰寫一個 xk6 擴充插件嗎？推薦研讀講師專欄文章：[Grafana xk6: 手把手從開發 k6 插件程式到編譯出 k6 插件](https://ganhua.wang/grafana-xk6)。文章詳細拆解了 Go-to-JS 橋接的 `RootModule` 與 `ModuleInstance` 生命週期，並以 Web3 身份驗證為例，實作高併發動態生成一次性密碼 (OTP) 與簽名的自訂模組！
+
 ---
 
 ### xk6 Docker 確定性編譯實戰 (Deterministic Build)
@@ -1873,6 +1877,33 @@ k6 run k6/demos/ch5_dashboard_and_html_summary.js
 
 ---
 
+### 推薦延伸閱讀：講師深度實戰專欄 (Author's Deep-Dive Articles)
+
+為了讓大家在現代進階壓測、外掛生態系開發與前端混合壓測上持續精進，強烈推薦研讀講師親自撰寫的 k6 系列深度實戰專欄：
+
+#### 1. 模組擴充：[Grafana xk6: 手把手從開發 k6 插件程式到編譯出 k6 插件](https://ganhua.wang/grafana-xk6)
+- **核心價值**：當原生 k6 不支援特定私有協定或加密簽名演算法時，教你如何用 Go 語言量身打造客製化擴充插件。
+- **精彩重點**：
+  - **Go-to-JS 模組架構**：深入剖析 `RootModule`、`ModuleInstance` 與 `modules.Register` 註冊機制的設計原理。
+  - **Web3 OTP 實戰案例**：以 Web3 動態身份驗證為背景，手把手實作 `k6/x/otp` 擴充套件，在壓測過程中高併發生成動態金鑰與一次性密碼。
+  - **容器化確定性編譯**：完整演示如何利用 `grafana/xk6` Docker 容器執行確定性編譯，產出可在不同 Linux 環境穩定運行的客製化 k6 二進位檔。
+
+#### 2. 前端混壓：[Grafana k6 瀏覽器測試 (k6-browser)](https://ganhua.wang/grafana-k6-browser)
+- **核心價值**：從協議層壓測跨足真實瀏覽器體驗測試，掌握現代前端 Core Web Vitals 與 SPA 動態渲染瓶頸。
+- **精彩重點**：
+  - **Playwright 相容生態**：解析 k6 browser 如何借鑑 Playwright API 設計，使用熟悉的 `chromium.launch()`、`page.goto()` 與 `page.locator()` 快速上手。
+  - **隔離上下文架構**：使用 `BrowserContext` 在單一瀏覽器處理程序中實現完全獨立的 Cookie、Session 與 LocalStorage 隔離，大幅降低多用戶模擬的記憶體開銷。
+  - **真實電商場景演練**：以 OpenTelemetry Demo 購物車為例，示範商品瀏覽、加入購物車、表單填寫與結帳的全鏈路自動化測試，並透過截圖 (Screenshot) 保存錯誤現場。
+
+#### 3. 全鏈路閉環：[Getting Started with Grafana k6: Hands-on Practice](https://ganhua.wang/getting-started-with-grafana-k6-hands-on-practice)
+- **核心價值**：結合微服務可觀測性標準（OpenTelemetry Demo）與 CI/CD 流水線的工程化全鏈路實踐。
+- **精彩重點**：
+  - **結構化測試腳本**：運用 `k6/http`、`check` 與 `group` 模組化組織壓測事務，清晰呈現業務場景階層。
+  - **可觀測性串流對齊**：示範如何將壓測指標對接 OpenTelemetry Collector，實現 Metrics、Traces 與 Logs 的跨維度關聯分析。
+  - **GitLab CI 自動化門禁**：將 k6 壓測無縫整合至 GitLab CI 流水線中，以 Exit Code 自動守護主幹代碼發版品質。
+
+---
+
 ### Chapter 5 核心心智模型與架構師避坑指南
 
 1. **數據不落地，壓測無意義**：
@@ -1905,3 +1936,7 @@ Duration: 5
 - **實機演示腳本全集**：[`k6/demos/`](https://github.com/tedmax100/o11y_lab_for_dummies/tree/main/k6/demos)
 - **全系列簡報 PPTX**：[`k6/slides/`](https://github.com/tedmax100/o11y_lab_for_dummies/tree/main/k6/slides)
 - **錄課口播逐字稿**：[`k6/slides/transcripts/`](https://github.com/tedmax100/o11y_lab_for_dummies/tree/main/k6/slides/transcripts)
+- **講師深度實戰專欄 (推薦必讀)**：
+  - [Grafana xk6: 手把手從開發 k6 插件程式到編譯出 k6 插件](https://ganhua.wang/grafana-xk6)
+  - [Grafana k6 瀏覽器測試 (k6-browser)](https://ganhua.wang/grafana-k6-browser)
+  - [Getting Started with Grafana k6: Hands-on Practice](https://ganhua.wang/getting-started-with-grafana-k6-hands-on-practice)
