@@ -45,7 +45,7 @@ Duration: 3
   - 現代 Chromium 核心瀏覽器（Google Chrome / Chromium）
 
 Positive
-: 本專案的所有配套演示腳本均已收錄於專案的 `k6/demos/` 目錄中，並通過本機環境完整實測！
+: 本專案的所有配套演示腳本均已收錄於專案的 [`k6/demos/`](https://github.com/tedmax100/o11y_lab_for_dummies/tree/main/k6/demos) 目錄中，並通過本機環境完整實測！
 
 ---
 

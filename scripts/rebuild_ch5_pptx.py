@@ -562,6 +562,7 @@ def build_slide11(prs, bg_path, blank):
         r_pill.font.size = Pt(8.5)
         r_pill.font.bold = True
         r_pill.font.color.rgb = RGBColor(102, 252, 241)
+        pill.click_action.hyperlink.address = "https://github.com/tedmax100/o11y_lab_for_dummies/tree/main/k6/demos"
             
     add_codelab_banner(s11)
 

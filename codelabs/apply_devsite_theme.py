@@ -221,6 +221,18 @@ css_addition = """
   color: #1a73e8 !important;
   padding: 2px 6px;
   border-radius: 4px;
+.codelab-callout a {
+  color: #1a73e8 !important;
+  text-decoration: underline !important;
+  font-weight: 600 !important;
+}
+.codelab-callout a:hover {
+  color: #1557b0 !important;
+}
+.codelab-callout a code {
+  color: #1a73e8 !important;
+  background-color: rgba(26, 115, 232, 0.12) !important;
+  text-decoration: underline !important;
 }
 
 /* Also style native blockquotes */
@@ -439,20 +451,27 @@ js_addition = """
 })();
 """
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+repo_root = os.path.dirname(script_dir)
+
 targets = [
-    ("codelabs/claat-public/codelab-elements.css", css_addition, "Google DevSite Modern Code Block"),
-    ("codelabs/generated/claat-public/codelab-elements.css", css_addition, "Google DevSite Modern Code Block"),
-    ("codelabs/claat-public/codelab-elements.js", js_addition, "Google DevSite Modern Code Block"),
-    ("codelabs/generated/claat-public/codelab-elements.js", js_addition, "Google DevSite Modern Code Block")
+    (os.path.join(repo_root, "codelabs/claat-public/codelab-elements.css"), css_addition, "Google DevSite Modern Code Block"),
+    (os.path.join(repo_root, "codelabs/generated/claat-public/codelab-elements.css"), css_addition, "Google DevSite Modern Code Block"),
+    (os.path.join(repo_root, "codelabs/claat-public/codelab-elements.js"), js_addition, "Google DevSite Modern Code Block"),
+    (os.path.join(repo_root, "codelabs/generated/claat-public/codelab-elements.js"), js_addition, "Google DevSite Modern Code Block")
 ]
 
 for file_path, addition, marker in targets:
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
-        if marker not in content:
-            with open(file_path, "a", encoding="utf-8") as f:
-                f.write("\n\n" + addition)
-            print(f"Appended extension to {file_path}")
-        else:
-            print(f"Already present in {file_path}")
+        if marker in content:
+            idx = content.find(marker)
+            comment_start = content.rfind("/*", 0, idx)
+            if comment_start != -1:
+                content = content[:comment_start].rstrip()
+            else:
+                content = content[:idx].rstrip()
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content + "\n\n" + addition)
+        print(f"Updated extension in {file_path}")
