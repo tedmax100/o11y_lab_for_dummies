@@ -20,10 +20,11 @@
  */
 
 import http from 'k6/http';
-import { check, sleep } from 'k6';
+import { check, group, sleep } from 'k6';
 import { Counter, Gauge, Rate, Trend } from 'k6/metrics';
 
 const FAIL_SLO = __ENV.FAIL_SLO === 'true';
+const ABORT_TEST = __ENV.ABORT_TEST === 'true';
 
 // ----------------------------------------------------
 // 1. 定義 4 大自訂業務指標
@@ -35,7 +36,7 @@ const customDbTrend = new Trend('custom_db_processing_duration');
 
 export const options = {
   vus: 3,
-  iterations: 6,
+  iterations: ABORT_TEST ? 20 : 6,
 
   // ----------------------------------------------------
   // 2. 品質門禁 (Quality Gates / Thresholds)
@@ -50,12 +51,16 @@ export const options = {
       FAIL_SLO ? 'p(95)<1' : 'p(95)<1500',
     ],
 
-    // 自訂指標門禁
+    // 依據交易分組 (Group) 獨立隔離 SLO
+    'http_req_duration{group:::01_核心結帳交易}': ['p(95)<1000'],
+    'http_req_duration{group:::02_背景報表查詢}': ['p(95)<3000'],
+
+    // 自訂業務指標門禁 (支援 abortOnFail 熔斷機制)
     'business_transaction_success': [
       {
         threshold: 'rate>=0.95',
         abortOnFail: true,       // 熔斷機制：一旦失敗立即腰斬終止測試！
-        delayAbortEval: '5s',    // 緩衝 5 秒再開始評估熔斷，避免冷啟動誤判
+        delayAbortEval: ABORT_TEST ? '0s' : '5s', // 若 ABORT_TEST 為 true 則立即評估觸發熔斷
       },
     ],
     'custom_db_processing_duration': ['p(90)<500'],
@@ -63,29 +68,42 @@ export const options = {
 };
 
 export default function () {
-  // 記錄 Gauge 狀態
+  // 記錄 Gauge 瞬時狀態
   activeVUGauge.add(__VU);
 
-  // 發送請求並打上標籤
-  const res = http.get('https://test.k6.io/contacts.php', {
-    tags: { api_type: 'critical', feature: 'checkout' },
+  // Group 1: 核心交易流程 (打上 critical 標籤)
+  group('01_核心結帳交易', () => {
+    const res = http.get('https://test.k6.io/contacts.php', {
+      tags: { api_type: 'critical', feature: 'checkout' },
+    });
+
+    const ok = check(res, {
+      '核心端點狀態碼為 200': (r) => r.status === 200,
+    });
+
+    if (ok && !ABORT_TEST) {
+      orderCount.add(1);
+      businessSuccessRate.add(1);
+    } else {
+      // 若模擬 ABORT_TEST 故障，注入大量業務失敗觸發熔斷！
+      businessSuccessRate.add(0);
+    }
   });
 
-  // 模擬自訂 Trend (如解析後端標頭或內部計時)
-  const simulatedDbTime = Math.random() * 80 + 20; // 20ms ~ 100ms
+  // Group 2: 背景統計流程 (打上 background 標籤)
+  group('02_背景報表查詢', () => {
+    const res = http.get('https://test.k6.io/news.php', {
+      tags: { api_type: 'background', feature: 'report' },
+    });
+
+    check(res, {
+      '報表端點狀態碼為 200': (r) => r.status === 200,
+    });
+  });
+
+  // 模擬自訂 Trend (如資料庫內部查詢耗時 20ms ~ 100ms)
+  const simulatedDbTime = Math.random() * 80 + 20;
   customDbTrend.add(simulatedDbTime);
-
-  // 業務檢核與自訂指標推進
-  const ok = check(res, {
-    '狀態碼為 200': (r) => r.status === 200,
-  });
-
-  if (ok) {
-    orderCount.add(1);
-    businessSuccessRate.add(1);
-  } else {
-    businessSuccessRate.add(0);
-  }
 
   sleep(0.3);
 }

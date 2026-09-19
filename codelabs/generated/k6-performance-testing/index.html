@@ -1311,27 +1311,40 @@ performance_gate:
     - k6 run k6/demos/ch3_quality_gates_exit99.js
   # 當 k6 回傳 99 時，GitLab CI 預設判定 Job Failed，Deploy 階段將被自動取消！
 </code></pre>
-<h2 is-upgraded>手把手實作演練：驗證品質門禁與 Exit Code 99</h2>
-<p>現在切換到終端機，親身體會自動化門禁的裁決威力。</p>
-<h3 is-upgraded>實作 1：驗證通過情境（Exit Code 0）</h3>
-<p>執行腳本並將 <code>FAIL_SLO</code> 環境變數設為 <code>false</code>：</p>
+<h2 is-upgraded>手把手實作演練：驗證品質門禁、標籤分組與熔斷機制 (Quality Gates &amp; Circuit Breaker)</h2>
+<p class="image-container"><img alt="k6 Chapter 3 品質門禁、標籤分組與熔斷動態輪播" src="img/be37877345eaf666.gif"></p>
+<p>現在切換到終端機，親身體會自動化門禁的裁決威力、標籤分組的精準隔離效果，以及 <code>abortOnFail</code> 熔斷急停的防護機制：</p>
+<h3 is-upgraded>實作 1：驗證通過情境與標籤分組效果（Exit Code 0）</h3>
+<p>執行腳本並將 <code>FAIL_SLO</code> 設為 <code>false</code>，觀察四大自訂指標、Tagging 與 Group 的度量輸出：</p>
 <pre><code language="language-bash" class="language-bash">k6 run -e FAIL_SLO=false k6/demos/ch3_quality_gates_exit99.js ; echo &#34;CI Exit Code: $?&#34;
 </code></pre>
+<p class="image-container"><img alt="DEMO 1: 標籤分組隔離與 SLO 驗證通過成果" src="img/b8730d5e69d9b746.png"></p>
 <p><strong>👀 觀察重點</strong>：</p>
 <ol type="1">
-<li>終端機下方 <code>THRESHOLDS</code> 區塊全數打上綠色勾勾 <code>✓</code>。</li>
-<li>4 大自訂指標（<code>orders_submitted_total</code>、<code>active_workers_gauge</code>、<code>business_transaction_success</code>、<code>custom_db_processing_duration</code>）整齊列出統計數字。</li>
-<li>最後一行印出 <code>CI Exit Code: 0</code>，代表門禁通過，CI/CD 管線一路放行！</li>
+<li><strong>標籤與分組隔離 (Tagging &amp; Groups)</strong>：終端機清楚呈現 <code>http_req_duration{api_type:critical}</code> 以及 <code>{group:::01_核心結帳交易}</code>、<code>{group:::02_背景報表查詢}</code>，實現微服務端點的精確 SLO 分級治理。</li>
+<li><strong>四大自訂指標 (Custom Metrics)</strong>：<code>active_workers_gauge</code> (Gauge 瞬時水位)、<code>orders_submitted_total</code> (Counter 累計)、<code>business_transaction_success</code> (Rate 成功率)、<code>custom_db_processing_duration</code> (Trend 統計趨勢) 完整呈現。</li>
+<li><strong>門禁放行</strong>：所有 Thresholds 打上綠色勾勾 <code>✓</code>，命令輸出結尾回傳 <code>CI Exit Code: 0</code>，代表管線驗證通過！</li>
 </ol>
-<h3 is-upgraded>實作 2：模擬門檻違規與 CI/CD 卡關（Exit Code 99）</h3>
-<p>將 <code>FAIL_SLO</code> 設為 <code>true</code>，刻意將關鍵端點的 P95 延遲門檻縮緊至不可能達成的 <code>1ms</code>：</p>
+<h3 is-upgraded>實作 2：模擬關鍵門檻違規與 CI/CD 卡關（Exit Code 99）</h3>
+<p>將 <code>FAIL_SLO</code> 設為 <code>true</code>，刻意將關鍵核心端點的 P95 延遲門檻縮緊至不可能達成的 <code>1ms</code>：</p>
 <pre><code language="language-bash" class="language-bash">k6 run -e FAIL_SLO=true k6/demos/ch3_quality_gates_exit99.js ; echo &#34;CI Exit Code: $?&#34;
 </code></pre>
+<p class="image-container"><img alt="DEMO 2: 標籤精準門禁違規與 Exit Code 99 卡關成果" src="img/49a3166fcba0485d.png"></p>
 <p><strong>👀 觀察重點</strong>：</p>
 <ol type="1">
-<li>終端機中出現醒目的紅色叉叉 <code>✗ 'p(95)<1' p(95)=...ms</code>。</li>
-<li><strong>最關鍵的一行</strong>：命令輸出結尾明確印出 <code>CI Exit Code: 99</code>！</li>
-<li>這正是 CI/CD 伺服器識別效能衰退、自動中止部署並發送警報的唯一憑證。</li>
+<li><strong>精準隔離避免全域誤報</strong>：只有打上 <code>api_type:critical</code> 標籤的核心端點出現紅色叉叉 <code>✗ 'p(95)<1'</code>，而 <code>background</code> 背景報表端點依然維持綠色通過，證明標籤過濾能精確定位違規端點。</li>
+<li><strong>CI 卡關憑證</strong>：k6 輸出 <code>thresholds on metrics 'http_req_duration{api_type:critical}' have been crossed</code>，並在結尾回傳 <strong><code>CI Exit Code: 99</code></strong>！自動阻斷流水線部署。</li>
+</ol>
+<h3 is-upgraded>實作 3：模擬熔斷止損急停機制（abortOnFail: true）</h3>
+<p>將 <code>ABORT_TEST</code> 設為 <code>true</code> 模擬後端突然大面積崩潰，觀察 <code>abortOnFail: true</code> 如何在毫秒間腰斬測試以止損：</p>
+<pre><code language="language-bash" class="language-bash">k6 run -e ABORT_TEST=true k6/demos/ch3_quality_gates_exit99.js ; echo &#34;CI Exit Code: $?&#34;
+</code></pre>
+<p class="image-container"><img alt="DEMO 3: 熔斷急停 abortOnFail 止損成果" src="img/6be0d2bdcb55f9a1.png"></p>
+<p><strong>👀 觀察重點</strong>：</p>
+<ol type="1">
+<li><strong>測試提早腰斬退出</strong>：原本預計跑 20 次迭代，但在僅完成 30%（第 6 次迭代、運行僅 2.0 秒）時，k6 偵測到業務成功率低於 95%，<strong>立即強制熔斷所有 VU</strong>，停止測試！</li>
+<li><strong>終端機錯誤通報</strong>：明確輸出 <code>at least one has abortOnFail enabled, stopping test prematurely</code>。</li>
+<li><strong>止損效益</strong>：在真實長達數小時的壓測中，此機制能立即省下數十萬次無效雲端調用與伺服器日誌塞爆風險，並回傳 <code>CI Exit Code: 99</code>。</li>
 </ol>
 <h2 is-upgraded>Chapter 3 核心心智模型與 SRE 避坑指南</h2>
 <ol type="1">

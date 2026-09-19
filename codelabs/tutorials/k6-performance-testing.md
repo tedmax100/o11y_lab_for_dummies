@@ -1364,35 +1364,55 @@ performance_gate:
 
 ---
 
-### 手把手實作演練：驗證品質門禁與 Exit Code 99
+### 手把手實作演練：驗證品質門禁、標籤分組與熔斷機制 (Quality Gates & Circuit Breaker)
 
-現在切換到終端機，親身體會自動化門禁的裁決威力。
+![k6 Chapter 3 品質門禁、標籤分組與熔斷動態輪播](assets/images/k6-ch3-quality-gates.gif)
 
-#### 實作 1：驗證通過情境（Exit Code 0）
+現在切換到終端機，親身體會自動化門禁的裁決威力、標籤分組的精準隔離效果，以及 `abortOnFail` 熔斷急停的防護機制：
 
-執行腳本並將 `FAIL_SLO` 環境變數設為 `false`：
+#### 實作 1：驗證通過情境與標籤分組效果（Exit Code 0）
+
+執行腳本並將 `FAIL_SLO` 設為 `false`，觀察四大自訂指標、Tagging 與 Group 的度量輸出：
 
 ```bash
 k6 run -e FAIL_SLO=false k6/demos/ch3_quality_gates_exit99.js ; echo "CI Exit Code: $?"
 ```
 
+![DEMO 1: 標籤分組隔離與 SLO 驗證通過成果](assets/images/k6-ch3-cmd1-pass.png)
+
 > **👀 觀察重點**：
-> 1. 終端機下方 `THRESHOLDS` 區塊全數打上綠色勾勾 `✓`。
-> 2. 4 大自訂指標（`orders_submitted_total`、`active_workers_gauge`、`business_transaction_success`、`custom_db_processing_duration`）整齊列出統計數字。
-> 3. 最後一行印出 `CI Exit Code: 0`，代表門禁通過，CI/CD 管線一路放行！
+> 1. **標籤與分組隔離 (Tagging & Groups)**：終端機清楚呈現 `http_req_duration{api_type:critical}` 以及 `{group:::01_核心結帳交易}`、`{group:::02_背景報表查詢}`，實現微服務端點的精確 SLO 分級治理。
+> 2. **四大自訂指標 (Custom Metrics)**：`active_workers_gauge` (Gauge 瞬時水位)、`orders_submitted_total` (Counter 累計)、`business_transaction_success` (Rate 成功率)、`custom_db_processing_duration` (Trend 統計趨勢) 完整呈現。
+> 3. **門禁放行**：所有 Thresholds 打上綠色勾勾 `✓`，命令輸出結尾回傳 `CI Exit Code: 0`，代表管線驗證通過！
 
-#### 實作 2：模擬門檻違規與 CI/CD 卡關（Exit Code 99）
+#### 實作 2：模擬關鍵門檻違規與 CI/CD 卡關（Exit Code 99）
 
-將 `FAIL_SLO` 設為 `true`，刻意將關鍵端點的 P95 延遲門檻縮緊至不可能達成的 `1ms`：
+將 `FAIL_SLO` 設為 `true`，刻意將關鍵核心端點的 P95 延遲門檻縮緊至不可能達成的 `1ms`：
 
 ```bash
 k6 run -e FAIL_SLO=true k6/demos/ch3_quality_gates_exit99.js ; echo "CI Exit Code: $?"
 ```
 
+![DEMO 2: 標籤精準門禁違規與 Exit Code 99 卡關成果](assets/images/k6-ch3-cmd2-fail-exit99.png)
+
 > **👀 觀察重點**：
-> 1. 終端機中出現醒目的紅色叉叉 `✗ 'p(95)<1' p(95)=...ms`。
-> 2. **最關鍵的一行**：命令輸出結尾明確印出 `CI Exit Code: 99`！
-> 3. 這正是 CI/CD 伺服器識別效能衰退、自動中止部署並發送警報的唯一憑證。
+> 1. **精準隔離避免全域誤報**：只有打上 `api_type:critical` 標籤的核心端點出現紅色叉叉 `✗ 'p(95)<1'`，而 `background` 背景報表端點依然維持綠色通過，證明標籤過濾能精確定位違規端點。
+> 2. **CI 卡關憑證**：k6 輸出 `thresholds on metrics 'http_req_duration{api_type:critical}' have been crossed`，並在結尾回傳 **`CI Exit Code: 99`**！自動阻斷流水線部署。
+
+#### 實作 3：模擬熔斷止損急停機制（abortOnFail: true）
+
+將 `ABORT_TEST` 設為 `true` 模擬後端突然大面積崩潰，觀察 `abortOnFail: true` 如何在毫秒間腰斬測試以止損：
+
+```bash
+k6 run -e ABORT_TEST=true k6/demos/ch3_quality_gates_exit99.js ; echo "CI Exit Code: $?"
+```
+
+![DEMO 3: 熔斷急停 abortOnFail 止損成果](assets/images/k6-ch3-cmd3-abort-on-fail.png)
+
+> **👀 觀察重點**：
+> 1. **測試提早腰斬退出**：原本預計跑 20 次迭代，但在僅完成 30%（第 6 次迭代、運行僅 2.0 秒）時，k6 偵測到業務成功率低於 95%，**立即強制熔斷所有 VU**，停止測試！
+> 2. **終端機錯誤通報**：明確輸出 `at least one has abortOnFail enabled, stopping test prematurely`。
+> 3. **止損效益**：在真實長達數小時的壓測中，此機制能立即省下數十萬次無效雲端調用與伺服器日誌塞爆風險，並回傳 `CI Exit Code: 99`。
 
 ---
 
