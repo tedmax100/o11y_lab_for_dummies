@@ -370,25 +370,44 @@ Positive
 - **check() 是軟斷言**：與單元測試中斷執行的 `assert` 不同，k6 的 `check()` 失敗時**不會停止測試**，而是記錄成功率。這確保了在大規模壓測中能精確統計出 99.9% 成功率，而非因偶發錯誤中途夭折。
 - **避免高基數維度爆炸 (High Cardinality)**：嚴禁寫出 `http.get('/api/users/' + userId)`。當萬人併發產生數萬個不同 URL 時，Prometheus/Grafana 會因時序暴增而 OOM 崩潰！正確寫法是使用模板標籤函式：``http.url`https://api.example.com/users/${userId}` ``，指標將自動聚合在同一名稱下。
 
-### 實作演練：執行第一支生命週期測試
+### 實作演練：執行第一支生命週期測試與 CLI Options 實戰
 
-![k6 CLI 終端實機執行展示](assets/images/k6-demo.gif)
+![k6 CLI 終端實機執行展示 (3 大情境動態輪播)](assets/images/k6-ch1-cli-options.gif)
 
-打開終端機，執行專案準備好的演示腳本：
+打開終端機，依序執行專案為您準備好的 3 組實戰指令，親身體驗生命週期、CLI 覆蓋與通訊除錯：
+
+#### 步驟 1：依照腳本內預設 Options 執行 (vus: 2, iterations: 4)
+
+體驗 k6 標準四階段生命週期的執行次序（Init ➔ Setup ➔ VU Code ➔ Teardown）與 100% 宣告式斷言：
 
 ```bash
-# 1. 依照腳本內預設 Options 執行 (vus: 2, iterations: 4)
 k6 run k6/demos/ch1_lifecycle_and_checks.js
+```
 
-# 2. 實踐 CLI 覆蓋技巧：動態改為 10 個 VU 執行 30 秒
+![DEMO 1: 腳本預設生命週期執行成果](assets/images/k6-ch1-cmd1-lifecycle.png)
+
+#### 步驟 2：實踐 CLI 覆蓋技巧：動態改為 10 個 VU 執行 30 秒
+
+透過 CLI 旗標瞬間覆蓋程式碼內部設定，同時調度 10 條 Goroutine 協程發動並行負載加壓：
+
+```bash
 k6 run --vus 10 --duration 30s k6/demos/ch1_lifecycle_and_checks.js
+```
 
-# 3. 搭配 HTTP 除錯旗標觀察底層通訊 Header 與 Body (單一 VU 冒煙模式)
+![DEMO 2: CLI Options 覆蓋實戰成果](assets/images/k6-ch1-cmd2-override.png)
+
+#### 步驟 3：搭配 HTTP 除錯旗標觀察底層通訊 Header 與 Body (單一 VU 冒煙模式)
+
+加上 `--http-debug` 旗標透視底層 HTTP Request（包含 Mock JWT Token）與 200 OK Response 封包細節：
+
+```bash
 k6 run --vus 1 --iterations 1 --http-debug k6/demos/ch1_lifecycle_and_checks.js
 ```
 
+![DEMO 3: HTTP 除錯封包透視成果](assets/images/k6-ch1-cmd3-httpdebug.png)
+
 Positive
-: 觀察終端機輸出，確認 Init、Setup、VU Code 與 Teardown 的執行順序！體驗 CLI 參數如何即時覆蓋腳本預設值。
+: **實踐心得**：觀察終端機輸出，確認 Init、Setup、VU Code 與 Teardown 的執行順序！體驗 CLI 參數如何即時覆蓋腳本預設值，以及 `--http-debug` 如何在毫秒間抓出通訊異常。
 
 ---
 
