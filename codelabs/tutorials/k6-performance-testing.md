@@ -64,9 +64,8 @@ Duration: 15
 
 **Grafana k6** 的核心哲學是 **Testing as Code**：以純粹的 JavaScript/ES6 撰寫測試，享有現代模組化、Linter、自動補全與版本控制優勢。
 
-- 🌐 **k6 官方網站 (Official Site)**：[https://k6.io](https://k6.io)（Grafana Labs 官方首頁）
+- 🌐 **k6 官方網站 (Official Site)**：[https://grafana.com/docs/k6/latest/](https://grafana.com/docs/k6/latest/)（Grafana k6 官方網站與完整文件中心）
 - 🐙 **GitHub 官方儲存庫 (Source Code)**：[https://github.com/grafana/k6](https://github.com/grafana/k6)（開源社群超過 25k+ Stars、純 Go 打造的高效能測試核心）
-- 📖 **官方文件中心 (Documentation)**：[https://grafana.com/docs/k6/latest/](https://grafana.com/docs/k6/latest/)（API 與模組完整參考手冊）
 
 ![k6 Testing as Code 核心架構與全鏈路閉環工作流](assets/images/grafana-k6-arch.png)
 
@@ -1942,9 +1941,8 @@ Duration: 5
 
 ### 延伸資源與原始碼清單
 
-- **Grafana k6 官方網站**：[https://k6.io](https://k6.io) (Grafana Labs)
+- **Grafana k6 官方網站**：[https://grafana.com/docs/k6/latest/](https://grafana.com/docs/k6/latest/) (Grafana Labs)
 - **Grafana k6 官方 GitHub**：[https://github.com/grafana/k6](https://github.com/grafana/k6)
-- **Grafana k6 官方文件中心**：[https://grafana.com/docs/k6/latest/](https://grafana.com/docs/k6/latest/)
 - **專案原始碼**：[`o11y_lab_for_dummies`](https://github.com/tedmax100/o11y_lab_for_dummies)
 - **實機演示腳本全集**：[`k6/demos/`](https://github.com/tedmax100/o11y_lab_for_dummies/tree/main/k6/demos)
 - **全系列簡報 PPTX**：[`k6/slides/`](https://github.com/tedmax100/o11y_lab_for_dummies/tree/main/k6/slides)
