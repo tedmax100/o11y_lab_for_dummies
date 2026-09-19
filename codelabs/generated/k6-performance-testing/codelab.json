@@ -3,12 +3,12 @@
   "format": "html",
   "prefix": "..",
   "mainga": "UA-49880327-14",
-  "updated": "2026-09-19T13:11:58+08:00",
+  "updated": "2026-09-19T16:43:50+08:00",
   "id": "k6-performance-testing",
-  "duration": 108,
+  "duration": 113,
   "title": "現代化效能測試實戰：Grafana k6 與雲原生可觀測性",
   "summary": "Grafana k6 現代化效能測試與雲原生可觀測性實戰教學",
-  "source": "tutorials/k6-performance-testing.md",
+  "source": "codelabs/tutorials/k6-performance-testing.md",
   "theme": "",
   "status": [
     "published"

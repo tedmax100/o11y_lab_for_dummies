@@ -440,10 +440,10 @@ js_addition = """
 """
 
 targets = [
-    ("codelabs/claat-public/codelab-elements.css", css_addition, "/* Google DevSite Modern Code Block */"),
-    ("codelabs/generated/claat-public/codelab-elements.css", css_addition, "/* Google DevSite Modern Code Block */"),
-    ("codelabs/claat-public/codelab-elements.js", js_addition, "/* Google DevSite Modern Code Block */"),
-    ("codelabs/generated/claat-public/codelab-elements.js", js_addition, "/* Google DevSite Modern Code Block */")
+    ("codelabs/claat-public/codelab-elements.css", css_addition, "Google DevSite Modern Code Block"),
+    ("codelabs/generated/claat-public/codelab-elements.css", css_addition, "Google DevSite Modern Code Block"),
+    ("codelabs/claat-public/codelab-elements.js", js_addition, "Google DevSite Modern Code Block"),
+    ("codelabs/generated/claat-public/codelab-elements.js", js_addition, "Google DevSite Modern Code Block")
 ]
 
 for file_path, addition, marker in targets:

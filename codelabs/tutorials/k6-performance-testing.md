@@ -266,81 +266,577 @@ Positive
 ---
 
 ## Chapter 2: 科學化流量建模與協調性漏測破解
-Duration: 20
+Duration: 25
 
-### 五大經典壓測模式
+### 流量建模核心哲學：拒絕「盲測」
 
-在盲目加壓前，必須先依據業務場景科學化定義流量波形：
+在現代效能工程中，最危險的迷思就是「**隨便開 100 個 VU，跑跑看系統會不會死**」。這種毫無章法的盲測存在三重致命缺陷：
+1. **無法反映真實使用者行為**：真實世界的使用者並不會在同一個時間步調一致地發起請求，更不會在伺服器卡頓時集體暫停等待。
+2. **掩蓋架構瓶頸**：盲目加壓只會引發無效的連線堆疊或本機埠耗盡，無法精確定位瓶頸究竟是在資料庫連線池、執行緒排隊、還是記憶體垃圾回收 (GC)。
+3. **產出誤導性的 SLA 結論**：未經流量特徵調校的數據無法指導生產環境的 Kubernetes HPA（水平自動擴展）設定與容量規劃。
 
-1. **Smoke Test (冒煙測試)**：1~2 VU，極短時間（1m），驗證 API 路由、鑑權與腳本邏輯通暢。
-2. **Load Test (常規負載測試)**：平緩爬升 (Ramp-up) $\rightarrow$ 尖峰高原期 (Plateau) $\rightarrow$ 平緩降速 (Ramp-down)，驗證日常峰值下的 SLA/SLO。
-3. **Stress Test (壓力極限測試)**：階梯式持續加壓衝破安全水位，尋找系統崩潰點 (Breaking Point)。
-4. **Spike Test (突發尖峰測試)**：流量在數十秒內暴衝數十倍，考驗 Kubernetes HPA 自動擴展與自癒彈性。
-5. **Soak Test (浸泡耐久測試)**：在基準負載下長跑數小時，揪出緩慢發生的 Memory Leak 與連線池枯竭。
+真正的**科學化流量建模 (Scientific Traffic Modeling)** 必須緊扣三大核心維度：
+- **併發用戶數 (Virtual Users, VU)** vs **請求抵達率 (Arrival Rate, RPS)** 的本質解耦。
+- **思考時間 (Think Time)** 與 **使用者會話週期 (User Session Lifecycle)** 的擬真分佈。
+- **流量波形 (Traffic Waveforms)**：依據業務節奏設計階梯爬坡、穩態高原、突發尖峰與耐久浸泡。
 
-### 協調性漏測 (Coordinated Omission) 致命盲點
+---
 
-由效能專家 Gil Tene 提出的 **Coordinated Omission** 是傳統壓測最大的數據謊言：
+### 五大經典壓測模式深度技術解剖
+
+在撰寫 k6 測試前，必須先依據業務場景嚴格定義流量波形。以下解構業界最關鍵的五大經典壓測模式：
+
+#### 1. Smoke Testing（冒煙測試 / 腳本驗證）
+
+- **業務目標**：極小負載下的功能性「健康校驗」。通常在壓測腳本剛寫完、或微服務新版本部署至 Staging 環境時執行，確認 API 路由、鑑權 Token、資料庫連線通暢無阻。
+- **流量特徵**：1~2 個 VU，測試時長 30 秒至 1 分鐘。
+- **配置範例**：
+
+```javascript
+export const options = {
+  vus: 1,
+  duration: '1m',
+  thresholds: {
+    'http_req_failed': ['rate==0'], // 冒煙測試嚴禁出現任何錯誤
+    'checks': ['rate==1.0'],        // 所有業務斷言必須百分之百通過
+  },
+};
+```
+
+#### 2. Load Testing（常規負載測試 / 階梯波形）
+
+- **業務目標**：評估系統在預期的日常峰值流量下的吞吐量、平均延遲與 P95/P99 表現，驗證是否符合業務 SLA/SLO。
+- **流量波形**：經典三段式波形：
+  1. **預熱緩升 (Ramp-up)**：讓快取預熱、連線池逐步建立，避免冷啟動擊穿。
+  2. **尖峰高原期 (Plateau / Steady State)**：維持高負載持續觀察系統資源是否穩定。
+  3. **平緩降速 (Ramp-down)**：驗證連線資源、GC、執行緒池是否能優雅釋放與回收。
+
+```
+VU
+ ^          ┌───────────────┐ (高原穩態 Plateau)
+ |         /                 \
+ |        /                   \
+ |       /                     \
+ |      / (爬坡 Ramp-up)        \ (降載 Ramp-down)
+ 0 ────┴─────────────────────────┴────> Time
+```
+
+- **配置範例**：
+
+```javascript
+export const options = {
+  stages: [
+    { duration: '3m', target: 50 },  // 3 分鐘內平緩爬升至 50 VUs
+    { duration: '10m', target: 50 }, // 在 50 VUs 高原期維持 10 分鐘，觀察穩態
+    { duration: '3m', target: 0 },   // 3 分鐘內平緩降載至 0，驗證資源釋放
+  ],
+  thresholds: {
+    'http_req_duration': ['p(95)<1500'], // 95% 請求延遲必須在 1.5 秒以內
+    'http_req_failed': ['rate<0.01'],    // 錯誤率必須低於 1%
+  },
+};
+```
+
+#### 3. Stress Testing（極限壓力測試 / 斷裂點探尋）
+
+- **業務目標**：衝破安全水位，以漸進式階梯持續加壓，直到系統出現吞吐量下降、延遲陡增或錯誤率飆高的「拐點 (Knee Point)」。其目的不是驗證及格，而是找出「**系統極限承載力在哪裡**」以及「**系統在崩潰時能否優雅降級**」。
+- **流量波形**：階梯式攀升 (Step-up Ladder)，步步進逼極限。
+
+```
+VU
+ ^                  ┌───────┐
+ |              ┌───┘       └───┐
+ |          ┌───┘               └───┐
+ |      ┌───┘                       └───┐
+ 0 ─────┴───────────────────────────────┴────> Time
+```
+
+- **配置範例**：
+
+```javascript
+export const options = {
+  stages: [
+    { duration: '2m', target: 50 },   // 第一階：50 VUs
+    { duration: '3m', target: 50 },
+    { duration: '2m', target: 100 },  // 第二階：加壓至 100 VUs
+    { duration: '3m', target: 100 },
+    { duration: '2m', target: 200 },  // 第三階：衝刺至 200 VUs
+    { duration: '3m', target: 200 },
+    { duration: '2m', target: 300 },  // 第四階：極限 300 VUs (尋找崩潰點)
+    { duration: '3m', target: 300 },
+    { duration: '3m', target: 0 },    // 冷卻收尾
+  ],
+  thresholds: {
+    // 壓力測試允許較寬鬆的門檻，但需捕捉崩潰拐點
+    'http_req_failed': ['rate<0.05'], 
+  },
+};
+```
+
+#### 4. Spike Testing（突發尖峰測試 / 閃崩衝擊）
+
+- **業務目標**：模擬極端瞬時暴衝流量（例如限量球鞋開搶、全站推播促銷、地震即時速報），考驗微服務架構的「抗震力」與「彈性自癒能力 (Self-Healing)」。重點觀察：
+  - Kubernetes HPA 水平擴展的反應延遲（從監控警報到 Pod Ready 是否太慢）。
+  - Redis 快取與資料庫連線池是否瞬間被連鎖擊穿 (Thundering Herd)。
+  - 消息隊列 (Kafka/RabbitMQ) 能否成功蓄洪緩衝。
+- **流量波形**：垂直衝天型 (Vertical Surge)，數十秒內激增 10x ~ 50x，短暫停留後急降，再觀察自癒期。
+
+```
+VU
+ ^          ┌┐ (瞬間暴衝 Spike)
+ |          ||
+ |          ||
+ |      ────┘└─── (自癒觀察期 Recovery)
+ 0 ───────────────────────────────> Time
+```
+
+- **配置範例**：
+
+```javascript
+export const options = {
+  stages: [
+    { duration: '30s', target: 10 },   // 基準低負載
+    { duration: '10s', target: 200 },  // 10 秒內瞬間暴增 20 倍至 200 VUs！
+    { duration: '1m', target: 200 },   // 高壓衝擊維持 1 分鐘
+    { duration: '10s', target: 10 },   // 10 秒內急降回基準 10 VUs
+    { duration: '2m', target: 10 },    // 自癒觀察期：確認系統是否恢復正常響應
+    { duration: '10s', target: 0 },
+  ],
+};
+```
+
+#### 5. Soak Testing（浸泡耐久測試 / 耐力長跑）
+
+- **業務目標**：在系統安全水位（約 70%~80% 負載）下長跑數小時至數十小時，專門揪出短時間壓測看不出來的「**四大隱形殺手**」：
+  1. **記憶體洩漏 (Memory Leak)**：底層全域變數、快取未設置 TTL 或 Event Listener 未解綁，長時間運行導致 JVM/V8 堆疊溢位 (OOM)。
+  2. **連線池洩漏 (Connection Pool Exhaustion)**：資料庫 Query 或 HTTP Client 連線未顯式關閉，累積數小時後池化連線耗盡。
+  3. **日誌與磁碟爆滿 (Disk Full)**：無上限日誌堆積填滿 Pod 磁碟空間引發 Evicted。
+  4. **認證憑證失效 (Token Expiration)**：JWT/OAuth Token 長期運行未刷新，引發大面積 401 故障。
+- **配置範例**：
+
+```javascript
+export const options = {
+  stages: [
+    { duration: '5m', target: 40 },    // 預熱
+    { duration: '4h', target: 40 },    // 長跑 4 小時（生產級常跑 8~24 小時）
+    { duration: '5m', target: 0 },     // 收尾
+  ],
+  thresholds: {
+    'http_req_failed': ['rate<0.005'], // 長跑期間錯誤率必須嚴格小於 0.5%
+    'http_req_duration': ['p(99)<2000'],
+  },
+};
+```
+
+#### 五大模式決策矩陣 (Traffic Pattern Decision Matrix)
+
+| 模式名稱 | 併發量級 (VU) | 測試時長 | 核心測試目標 | CI/CD 觸發時機 | 典型失敗徵兆 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Smoke (冒煙)** | 1 ~ 2 VU | 30s ~ 1m | 腳本與 API 路由連通性 | 每次 Git Push / PR 構建 | 404/401、斷言失效率 > 0% |
+| **Load (常規負載)** | 預估尖峰 100% | 15m ~ 30m | 驗證常態峰值 SLA/SLO | 每週 Release / 發版前審核 | P95 延遲超標、Thread 阻塞 |
+| **Stress (極限壓力)** | 預估尖峰 150%~300% | 20m ~ 45m | 探尋崩潰拐點與防禦降級 | 重大版本升級 / 季度容量評估 | RPS 倒退、500 Internal Error |
+| **Spike (突發尖峰)** | 瞬間暴衝 5x~20x | 3m ~ 5m | 檢驗 HPA 彈性擴展與快取抗震 | 促銷活動前夕 / 大促架構演練 | HPA 擴展滯後、快取擊穿崩潰 |
+| **Soak (浸泡耐久)** | 安全水位 70%~80% | 2h ~ 24h | 揪出記憶體洩漏與連線池枯竭 | 週末排程 / 上線前最後耐久驗證 | 記憶體階梯上升、DB Connection Timeout |
+
+---
+
+### 徹底破解「協調性漏測 (Coordinated Omission)」致命數據謊言
+
+由 Azul Systems 創辦人兼著名效能大師 **Gil Tene** 提出的 **Coordinated Omission（協調性漏測）**，被公認為效能工程歷史上最致命、最普遍的數據盲點！
+
+#### 什麼是協調性漏測？
 
 Negative
-: **閉環模型 (Closed Loop Model - vus: 10)**：虛擬用戶必須等待前一個請求回應才能發送下一個。當後端資料庫卡頓 5 秒時，10 個 VU 全部被卡住，5 秒內發出的請求數暴跌至個位數！測試工具誤以為「平均延遲不高」，卻完全忽略了外部真實使用者在此時正在瘋狂排隊等待的慘劇！
+: 當受測系統發生延遲或卡頓時，測試工具「**無意中與受測系統同謀協調**」，自動延遲發送後續請求，導致測試報告中統計到的延遲數據「看似平穩正常」，實際上卻完全掩蓋了使用者端真實發生的災難性排隊延遲！
 
-### 開放模型實戰與利特爾法則 (Little's Law)
+#### 收費站車禍心智模型 (The Tollbooth Analogy)
 
-**開放模型 (Open Model)** 將抵達率 (Arrival Rate) 與 VU 解耦，強制維持每秒發出既定數量的請求：
+想像一座高速公路收費站，平時**每秒通行 1 輛車**，平均耗時 1 秒：
+
+```
+【正常通行】
+車流: ───[車3]───[車2]───[車1]───> [收費站 (耗時 1s)] ───> 通行順暢 (平均延遲 1s, RPS = 1)
+```
+
+突然，收費閘道當機**卡死整整 100 秒**：
+
+```
+【情況 A：傳統閉環模型 (Closed Loop Model)】
+車流: ──────────────[車1 卡住 100s]───> [收費站 (故障卡死)]
+(測試工具規定：必須等「車1」通過後，才允許出發下一輛「車2」！)
+結果：在整整 100 秒的故障期間，全系統只發送了 1 次請求。
+測試報表顯示：「總共 1 筆請求，延遲 100s，平均 RPS 接近 0。」
+看似只有一個人受到影響！
+```
+
+```
+【情況 B：真實世界與開放模型 (Open Model)】
+車流: ───[車100]──[車99]...[車3]──[車2]──[車1 卡住 100s]───> [收費站 (故障卡死)]
+真實世界的使用者根本不知道前方卡死，後續車輛每秒以固定頻率（Arrival Rate）持續抵達！
+第 1 輛車：等待 100 秒。
+第 2 輛車：等待 99 秒。
+第 3 輛車：等待 98 秒。
+...
+第 100 輛車：等待 1 秒。
+結果：100 個人全被堵在路上！真實的總累積等待時間高達 5,050 秒，平均排隊延遲高達 50.5 秒！
+```
+
+#### 閉環模型 (Closed Loop Model) 的數學缺陷
+
+在傳統壓測工具（包括 k6 使用 `vus: 10` 或 JMeter 預設 Thread Group）中，虛擬用戶的執行邏輯本質是閉環的：
+
+$$\text{RPS} = \frac{\text{VU}}{\text{Response Time} + \text{Sleep}}$$
+
+- 當後端服務響應飛快 (50ms) 時，10 個 VU 每秒可以打出高達 $10 / 0.05 = 200\text{ RPS}$。
+- 當後端資料庫死鎖、回應延遲飆升至 5 秒時，10 個 VU 全部被卡住！實際發出的請求頻率驟降至 $10 / 5 = 2\text{ RPS}$！
+
+> **致命荒謬之處**：當被測系統越脆弱、卡頓越嚴重時，閉環測試工具反而**自動給被測系統大幅放水減壓**！這直接導致採樣點嚴重偏向系統正常時的請求，將真實的長尾延遲 (Tail Latency) 徹底隱匿！
+
+---
+
+### 開放模型實戰與利特爾法則 (Little's Law) 數學精算
+
+為了解決協調性漏測，k6 推出了**開放模型 (Open Model / Arrival Rate Executors)**。開放模型將「**請求抵達率 (Arrival Rate)**」與「**虛擬用戶數 (VU)**」徹底解耦！
+
+無論後端處理有多慢，排程器都會像真實世界的使用者一樣，精準按照設定的 RPS 持續發起請求。當後端變慢導致請求排隊時，k6 會自動調用額外的並發 VU 來維持目標 RPS。
+
+#### 利特爾法則 (Little's Law) 精算公式
+
+要在開放模型中精準設定資源配置，必須運用排隊理論的黃金定理——**利特爾法則**：
+
+$$L = \lambda \times W$$
+
+- **$L$（Concurrency / 並行量）**：系統內同時存在的並行請求數（對應 k6 所需配置的 VU 數量）。
+- **$\lambda$（Arrival Rate / 抵達率）**：單位時間內抵達系統的請求速率（目標 RPS）。
+- **$W$（Latency / 平均停留時間）**：每個請求在系統中從發起到回應的平均耗時（秒）。
+
+#### 三大生產級精算案例
+
+##### 案例 1：輕量快取查詢 API (Cache-Hit Reads)
+- 目標抵達率 $\lambda = 500\text{ RPS}$，預期平均延遲 $W = 20\text{ ms} = 0.02\text{ 秒}$。
+- 基準所需並行量：$L = 500 \times 0.02 = 10\text{ VUs}$。
+- **k6 參數配置**：`preAllocatedVUs: 10`，彈性緩衝 `maxVUs: 30`。
+
+##### 案例 2：重度電商下單 API (Database Transactions)
+- 目標抵達率 $\lambda = 200\text{ RPS}$，預期平均延遲 $W = 250\text{ ms} = 0.25\text{ 秒}$。
+- 基準所需並行量：$L = 200 \times 0.25 = 50\text{ VUs}$。
+- **k6 參數配置**：`preAllocatedVUs: 50`，彈性緩衝 `maxVUs: 150`。
+
+##### 案例 3：長尾延遲突波防線 (Tail Latency Buffer)
+- 假設在案例 2 的下單 API 中，一旦發生資料庫鎖競爭，P99 延遲飆升至 $1.5\text{ 秒}$：
+- 極端所需並行量：$L_{spike} = 200 \times 1.5 = 300\text{ VUs}$！
+- 若你的 `maxVUs` 只配置了 100，k6 的 VU 池將被瞬間耗盡，導致無法維持 200 RPS，進而產生 `dropped_iterations`。因此面對長尾延遲，`maxVUs` 應預留 $3\sim 5$ 倍於常態的容量空間。
+
+#### k6 開放模型執行器配置範例
 
 ```javascript
 export const options = {
   scenarios: {
-    open_model_traffic: {
+    // 恆定抵達率開放模型 (Constant Arrival Rate)
+    constant_rate_test: {
       executor: 'constant-arrival-rate',
-      rate: 100,             // 每秒鎖定 100 次迭代 (100 RPS)
+      rate: 200,             // 強制鎖定：每秒發送 200 次迭代 (200 RPS)
+      timeUnit: '1s',        // rate 的時間基準
+      duration: '5m',        // 測試時長
+      preAllocatedVUs: 50,   // 根據 Little's Law 精算的基準併發用戶池 (L = 200 * 0.25s)
+      maxVUs: 300,           // 遭遇尾端延遲飆高時的最大動態擴展緩衝池
+    },
+    // 漸增抵達率開放模型 (Ramping Arrival Rate)
+    ramping_rate_test: {
+      executor: 'ramping-arrival-rate',
+      startRate: 50,
       timeUnit: '1s',
-      duration: '5m',
-      preAllocatedVUs: 20,   // 依據利特爾法則精算的基準並發
-      maxVUs: 150,           // 面對延遲突波時的動態緩衝池
+      preAllocatedVUs: 50,
+      maxVUs: 400,
+      stages: [
+        { duration: '2m', target: 100 }, // 2 分鐘內將抵達率由 50 RPS 提升至 100 RPS
+        { duration: '5m', target: 100 }, // 維持 100 RPS 高原
+        { duration: '2m', target: 300 }, // 加壓至 300 RPS 考驗極限
+        { duration: '3m', target: 300 },
+        { duration: '2m', target: 0 },   // 降載冷卻
+      ],
     },
   },
 };
 ```
 
-#### 利特爾法則精算公式
+---
 
-$$L = \lambda \times W$$
+### 關鍵過載指標：`dropped_iterations` 底層機制與實戰防線
 
-- $L$：系統內並行量 (所需 VU 數)
-- $\lambda$：請求抵達率 (目標 RPS)
-- $W$：平均回應時間 (Latency，秒)
+在使用開放模型（`constant-arrival-rate` 或 `ramping-arrival-rate`）時，終端機輸出中有一個極其關鍵的指標：**`dropped_iterations`**。
 
-**精算範例**：目標 200 RPS，預期回應時間 100ms (0.1s)：  
-$$L = 200 \times 0.1 = 20\text{ VUs}$$  
-若極端延遲飆高至 1s，則需要 $200 \times 1 = 200\text{ VUs}$。因此設定 `preAllocatedVUs: 20`，`maxVUs: 250`。
+#### 為什麼會發生 `dropped_iterations`？
 
-### SharedArray 記憶體拯救神技
+排程器嚴格按照設定的 `rate` 計時發起新迭代。但如果受測服務嚴重變慢，導致所有已分配的 VU（包含 `preAllocatedVUs` 以及動態擴展的 `maxVUs`）**全部處於連線等待中、無一可用**，此時排程器別無選擇，只能**強制拋棄該次迭代發送**！
 
-在萬人併發測試中，若在全域使用普通 JS 陣列載入 50MB 測試資料，k6 為每個獨立的 VU 虛擬機都會複製一份，1,000 個 VU 會消耗 50GB 記憶體，直接引發 OOM Crash！
+```
+[排程器: 嘀嗒! 該發送 Request #501] 
+       │
+       ▼
+[檢查 VU 池] ──> (preAllocatedVUs 已用完) ──> (maxVUs 50/50 全部被卡死在等待後端 DB 回應)
+       │
+       ▼
+❌ 無可用 VU！被迫拋棄！──> dropped_iterations 計數 +1！
+```
+
+#### 根因二分診斷法 (Two-Branch Troubleshooting)
+
+當壓測報告出現 `dropped_iterations > 0` 時，請遵循以下決策樹進行排查：
+
+```
+                     dropped_iterations > 0
+                               │
+       ┌───────────────────────┴───────────────────────┐
+       ▼                                               ▼
+【分支 A：受測後端崩潰】                       【分支 B：壓測機資源配置失衡】
+特徵：http_req_duration 延遲暴增、             特徵：後端延遲完全正常 (<50ms)，
+      504 Gateway Timeout 或連線重置。              但 dropped_iterations 仍然增加。
+根因：後端伺服器 CPU/DB 飽和，連線堆積，        根因：maxVUs 設太小，無法支撐目標 RPS；
+      VU 耗盡是後端故障引發的連鎖反應。             或壓測主機本身 CPU 100%/記憶體耗盡。
+解法：優化後端瓶頸、加大 DB 連線池。           解法：依據 Little's Law 調高 maxVUs。
+```
+
+Positive
+: **CI/CD 自動防線宣告**：在生產級腳本中，務必將 `dropped_iterations` 納入 Thresholds，嚴格要求零丟失：
+```javascript
+thresholds: {
+  'dropped_iterations': ['count==0'], // 一旦有任何迭代被丟棄，自動裁定壓測失敗！
+}
+```
+
+---
+
+### 多場景複合調度 (Multi-Scenario Orchestration)
+
+真實生產環境中，使用者從不是只存取單一 API。一個成熟的電商系統流量由多種異質操作混合而成：
+- 80% 輕量操作：商品列表與首頁瀏覽 (Browsing Traffic)
+- 15% 搜尋操作：商品關鍵字檢索 (Search Traffic)
+- 5% 交易操作：購物車與結帳下單 (Checkout Traffic)
+
+k6 允許在單一腳本中宣告多個獨立運作的 `scenarios`，每個情境可配置不同的執行器、時間軸與目標函數：
+
+```javascript
+import http from 'k6/http';
+import { sleep } from 'k6';
+
+export const options = {
+  scenarios: {
+    // 情境 1：平穩的商品瀏覽背景流量 (80% 流量)
+    browse_products: {
+      executor: 'constant-arrival-rate',
+      rate: 80,
+      timeUnit: '1s',
+      duration: '5m',
+      preAllocatedVUs: 20,
+      maxVUs: 50,
+      exec: 'browseWorkflow', // 指定執行函數
+      tags: { traffic_type: 'browse' },
+    },
+
+    // 情境 2：階梯式搜尋流量 (15% 流量)
+    search_queries: {
+      executor: 'ramping-arrival-rate',
+      startRate: 5,
+      timeUnit: '1s',
+      preAllocatedVUs: 10,
+      maxVUs: 30,
+      stages: [
+        { duration: '1m', target: 15 },
+        { duration: '3m', target: 15 },
+        { duration: '1m', target: 0 },
+      ],
+      exec: 'searchWorkflow',
+      tags: { traffic_type: 'search' },
+    },
+
+    // 情境 3：延遲 2 分鐘後介入的限時搶購結帳流量 (5% 流量)
+    flash_sale_checkout: {
+      executor: 'constant-arrival-rate',
+      rate: 5,
+      timeUnit: '1s',
+      startTime: '2m',        // 延後 2 分鐘啟動，模擬搶購開跑
+      duration: '3m',
+      preAllocatedVUs: 15,
+      maxVUs: 50,
+      exec: 'checkoutWorkflow',
+      tags: { traffic_type: 'checkout' },
+    },
+  },
+  thresholds: {
+    'http_req_duration{traffic_type:checkout}': ['p(95)<2000'], // 結帳端點特別門禁
+    'http_req_duration{traffic_type:browse}': ['p(95)<300'],
+  },
+};
+
+export function browseWorkflow() {
+  http.get('https://test.k6.io/products');
+}
+
+export function searchWorkflow() {
+  http.get('https://test.k6.io/search?q=phone');
+}
+
+export function checkoutWorkflow() {
+  http.post('https://test.k6.io/checkout', JSON.stringify({ item_id: 101 }), {
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+```
+
+---
+
+### `SharedArray` 記憶體拯救神技深度解析
+
+#### k6 執行緒架構與記憶體爆炸陷阱
+
+k6 為了在多核心 CPU 上榨乾極限壓測效能，底層採用了獨特的執行緒隔離模型：**每個虛擬用戶 (VU) 都是一個完全獨立隔離的 Goja JavaScript 虛擬機 (Runtime)**。
+
+這種架構杜絕了多執行緒爭搶與全域鎖，但帶來了一個嚴重的內存陷阱：
+- 若你在腳本頂層以標準 JavaScript 方式載入一份 50MB 的測試資料（例如 `JSON.parse(open('./users.json'))`）：
+- **每個 VU 實例化時，都會深拷貝一份該物件到自己的 JS Heap 中！**
+
+```
+【傳統 Array 記憶體雪崩】
+VU 1  (JS Runtime) ──> 獨立拷貝 50MB
+VU 2  (JS Runtime) ──> 獨立拷貝 50MB
+...
+VU 1000 (JS Runtime) ──> 獨立拷貝 50MB ───> 總記憶體消耗 50GB！直接引發 OOM Crash！
+```
+
+#### 記憶體消耗極端對照表
+
+| 資料集檔案大小 | 100 VU | 1,000 VU | 5,000 VU | 10,000 VU |
+| :--- | :--- | :--- | :--- | :--- |
+| **10 MB (傳統 Array)** | 1 GB | 10 GB | 50 GB *(OOM)* | 100 GB *(崩潰)* |
+| **50 MB (傳統 Array)** | 5 GB | 50 GB *(OOM)* | 250 GB *(崩潰)* | 500 GB *(不可能執行)* |
+| **50 MB (SharedArray)** | **~60 MB** | **~65 MB** | **~80 MB** | **~100 MB (節省 99.8%)** |
+
+#### `SharedArray` 唯讀記憶體映射架構
+
+`k6/data` 模組提供的 **`SharedArray`** 是解決該問題的終極神技：
+- **底層原理**：回呼建構函數只在 **Init 階段**由主線程執行一次。資料集在 Go 語言層面被保存為一份共享切片 (Go Slice)。
+- **各 VU 存取方式**：各 VU 的 JavaScript Runtime 僅持有該共享切片的唯讀虛擬指針與 Proxy 視圖。
+- **不可變性保障**：SharedArray 天生唯讀，嚴禁任何 VU 修改元素內容，從架構層面確保執行緒安全與零記憶體拷貝！
 
 ```javascript
 import { SharedArray } from 'k6/data';
 
-// 唯讀共享記憶體：10,000 筆資料在記憶體中永遠只有一份！
-const users = new SharedArray('users_dataset', function () {
+// 全域唯讀共享記憶體：無論開 10 個還是 10,000 個 VU，記憶體只佔用一份！
+const testUsers = new SharedArray('users_pool', function () {
+  console.log('[SharedArray] 正在由主線程載入測試帳號...');
   return JSON.parse(open('./large_users.json'));
 });
 ```
 
-### 實作演練：驗證開放模型與 SharedArray
+#### 三大實戰資料提取模式
+
+在 VU Code 中存取 `SharedArray` 時，推薦以下三種分發策略：
+
+##### 策略 1：輪詢循環提取 (Round-Robin with Iteration & VU)
+確保不同 VU 與迭代均勻分佈資料：
+```javascript
+export default function () {
+  const index = (__VU * 1000 + __ITER) % testUsers.length;
+  const user = testUsers[index];
+  // 使用 user 進行登入或呼叫 API...
+}
+```
+
+##### 策略 2：隨機均勻抽樣 (Random Sampling)
+模擬真實世界隨機用戶訪問：
+```javascript
+export default function () {
+  const randomIndex = Math.floor(Math.random() * testUsers.length);
+  const user = testUsers[randomIndex];
+}
+```
+
+##### 策略 3：VU 專屬分片 (VU Data Sharding / Non-overlapping)
+每個 VU 只處理專屬的資料區間，完全避免並行測試中資料重複使用衝突：
+```javascript
+export default function () {
+  const chunkSize = Math.floor(testUsers.length / 10); // 假設有 10 個 VU
+  const startIndex = (__VU - 1) * chunkSize;
+  const userIndex = startIndex + (__ITER % chunkSize);
+  const user = testUsers[userIndex];
+}
+```
+
+---
+
+### 手把手實作演練：科學流量建模驗證
+
+現在讓我們進入終端機，親自實操驗證閉環模型、開放模型與 `SharedArray` 的效能表現。
+
+#### 實作 1：閉環模型 vs 開放模型生死對決
+
+在專案中已內建實戰對比腳本 `k6/demos/ch2_closed_vs_open_model.js`，該腳本測試一個強制延遲 1 秒的端點。
+
+##### 步驟 1-A：執行閉環模型 (觀察協調性漏測)
 
 ```bash
-# 1. 執行閉環模型 (延遲拖垮 RPS)
 k6 run -e MODEL=closed k6/demos/ch2_closed_vs_open_model.js
+```
 
-# 2. 執行開放模型 (自動調派 VU 守住目標 RPS)
+> **👀 觀察重點**：
+> 配置為 5 個 VU 執行 15 秒。由於每個請求延遲 1 秒，5 個 VU 只能輪流等待。
+> 終端機顯示的實際吞吐量僅有 **~4.9 RPS**，發出總請求數僅約 75 筆。閉環模型在延遲面前主動放水！
+
+##### 步驟 1-B：執行開放模型 (觀察 Little's Law 自動調派)
+
+```bash
 k6 run -e MODEL=open k6/demos/ch2_closed_vs_open_model.js
+```
 
-# 3. 驗證 SharedArray 極速低記憶體載入
+> **👀 觀察重點**：
+> 目標強制鎖定為 **20 RPS** (`constant-arrival-rate`)。
+> 依據利特爾法則 $L = 20 \times 1\text{s} = 20\text{ VUs}$，k6 自動動態拉升並行 VU 數量至 20~25 個，堅定維持每秒 20 次請求的抵達率！總請求數達到 300 筆，精準重現真實世界的排隊衝擊！
+
+#### 實作 2：刻意誘發 `dropped_iterations` 容量告警
+
+修改或以命令列調整 `maxVUs` 為極小值，觀察 k6 的過載防線：
+
+```bash
+k6 run -e MODEL=open -e TARGET_URL=https://httpbin.test.k6.io/delay/2 k6/demos/ch2_closed_vs_open_model.js
+```
+
+> **👀 觀察重點**：
+> 當延遲攀升至 2 秒且 `maxVUs` 不足以支撐目標抵達率時，終端機摘要將出現鮮紅的 `dropped_iterations` 計數，且門禁判定為失敗！這正是現代 CI/CD 阻擋效能衰退的關鍵憑據。
+
+#### 實作 3：驗證 SharedArray 萬筆資料極速載入
+
+```bash
 k6 run k6/demos/ch2_shared_array.js
 ```
+
+> **👀 觀察重點**：
+> 觀察控制台輸出 `[SharedArray] 正在初始化 10,000 筆測試帳號至唯讀共享記憶體中...` 僅在 Init 階段出現**一次**。
+> 5 個 VU 快速完成了 10 次迭代，記憶體佔用毫無膨脹，所有資料讀取斷言 100% 通過！
+
+#### 實作 4：運行專案自帶的負載測試與尖峰測試
+
+```bash
+# 執行標準三階段負載測試
+k6 run k6/load-test.js
+
+# 執行突發尖峰測試
+k6 run k6/spike-test.js
+```
+
+---
+
+### Chapter 2 核心心智模型與避坑指南
+
+1. **區分 VU 與 RPS**：
+   - 如果你的測試目標是「驗證系統能否承受 500 名使用者同時在線閒晃」，請使用基於 VU 的模型（閉環模型 + Think Time）。
+   - 如果你的測試目標是「驗證 API 能否支撐每秒 500 筆訂單湧入 (500 RPS)」，請務必使用基於抵達率的**開放模型**！
+2. **永遠在開放模型中設定門禁 `dropped_iterations: ['count==0']`**：
+   - 任何非零的 `dropped_iterations` 都是壓測無效或系統崩潰的明確信號。
+3. **海量測試資料唯有 `SharedArray`**：
+   - 超過 1,000 筆的使用者資料或 CSV 參數化檔案，一律禁止在全域使用普通 Array，強制改用 `k6/data` 的 `SharedArray`。
+4. **開放模型中勿在 VU 程式碼使用 `sleep()` 控制流量**：
+   - 開放模型的請求頻率由排程器的 `rate` 嚴格控制。在 VU 代碼中加入 `sleep()` 只會白白拉長該 VU 的佔用時間，浪費 `maxVUs` 容量！
 
 ---
 
