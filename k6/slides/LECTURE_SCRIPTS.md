@@ -426,7 +426,8 @@
 * **🎤 口播逐字稿**：
   > 「在 k6 最新版本中，`k6/browser` 已經原生內建！  
   > 語法非常親切，跟 Playwright 高度相仿。我們宣告 `browser: { type: 'chromium' }`，接著用 `const page = await browser.newPage()` 建立分頁，並透過 `page.locator()` 定位元素並觸發點擊。  
-  > 請大家務必看好第 38 行：**所有瀏覽器操作必須包在 try...finally 區塊中，並在 finally 呼叫 await page.close()！** 如果漏掉這行，測試結束後伺服器會殘留大量的孤兒 Chrome 殭屍行程，直到伺服器崩潰為止！」
+  > 請大家務必看好第 38 行：**所有瀏覽器操作必須包在 try...finally 區塊中，並在 finally 呼叫 await page.close()！** 如果漏掉這行，測試結束後伺服器會殘留大量的孤兒 Chrome 殭屍行程，直到伺服器崩潰為止！  
+  > 如果想深入了解電商完整購物流程、BrowserContext 多帳號隔離與自動截圖除錯，推薦研讀我在專欄寫的長文《Grafana k6 瀏覽器測試》（`ganhua.wang/grafana-k6-browser`），裡面有手把手的完整教學！」
 
 ---
 
@@ -478,8 +479,8 @@
 ---
 
 # Chapter 5: k6 Observability and Modular Architecture
-**建議錄製時長**：15 ~ 20 分鐘  
-**章節主旨**：串聯 Grafana 可觀測性宇宙，運用 Web Dashboard、Prometheus Remote Write 與 Git Commit Tag 解除數據孤島，並掌握 xk6 擴充套件編譯架構。
+**建議錄製時長**：18 ~ 22 分鐘 (共 11 頁投影片)  
+**章節主旨**：串聯 Grafana 可觀測性宇宙，運用 Web Dashboard、Prometheus Remote Write 與 Git Commit Tag 解除數據孤島，並掌握 xk6 擴充套件編譯架構與講師深度專欄。
 
 ---
 
@@ -513,12 +514,13 @@
 ---
 
 ### Slide 4: xk6 擴充機制解剖 (Go-to-JS Bridge)
-* **視覺焦點**：xk6 核心架構圖，Go Native Code 透過 Bridge 暴露為 JavaScript 模組。
+* **視覺焦點**：xk6 齒輪引擎架構圖，Go Native Code 透過 Bridge 暴露為 JavaScript 模組；左下角高亮講師專欄卡片。
 * **心智模型**：k6 本質是個 Go 編譯器，xk6 允許將任意 Go 語言生態庫打包成 k6 的 JS 模組。
 * **🎤 口播逐字稿**：
   > 「k6 的原生功能已經很強，但如果你想直接對 Kafka 發送消息、想直接連 PostgreSQL 做 SQL 壓測、或是想打 gRPC 串流呢？  
   > 這就要提到 k6 的黑科技：**xk6 (eXtensible k6)**。  
-  > xk6 的架構非常巧妙，它允許社群用 Go 語言撰寫擴充模組，底層透過 Go-to-JS Bridge 自動把 Go 函式暴露給前端的 JavaScript 腳本調用。你擁有了 JavaScript 的開發敏捷度，同時享有 Go 的原生執行效能！」
+  > xk6 的架構非常巧妙，它允許社群用 Go 語言撰寫擴充模組，底層透過 Go-to-JS Bridge 自動把 Go 函式暴露給前端的 JavaScript 腳本調用。你擁有了 JavaScript 的開發敏捷度，同時享有 Go 的原生執行效能！  
+  > 如果想看生產級 Go 擴充插件實戰，推薦研讀我在專欄寫的《Grafana xk6: 手把手從開發 k6 插件程式到編譯出 k6 插件》（`ganhua.wang/grafana-xk6`），以 Web3 OTP 動態金鑰為例實作 `RootModule` 與 `modules.Register`！」
 
 ---
 
@@ -578,8 +580,20 @@
 
 ---
 
-### Slide 10: 隨堂練習指引 (Hands-on Practice)
-* **視覺焦點**：Ch5 實作指引任務。
+### Slide 10: 推薦延伸閱讀 (Author's Deep-Dive Articles)
+* **視覺焦點**：三大專欄卡片（xk6 插件開發、k6-browser 前端混壓、OTel CI/CD 全鏈路實戰）。
+* **心智模型**：課程建立體系框架，講師專欄深入前線自訂實戰，雙軌並進。
+* **🎤 口播逐字稿**：
+  > 「在進入最後隨堂動手做前，我特別為大家推薦我親自撰寫的三篇 k6 系列深度實戰專欄，作為大家的課後進階密技：  
+  > 1. **《Grafana xk6: 手把手從開發 k6 插件程式到編譯出 k6 插件》**：深入 Go-to-JS Bridge，以 Web3 OTP 動態金鑰為例手把手開發擴充插件與 Docker 編譯；  
+  > 2. **《Grafana k6 瀏覽器測試》**：解析 Playwright 相容語法、BrowserContext 隔離架構，並以電商購物車示範 Web Vitals 採集與自動截圖；  
+  > 3. **《Getting Started with Grafana k6: Hands-on Practice》**：教大家用 group 與 check 組織語意化腳本，並直連 OpenTelemetry Collector 與 GitLab CI 門禁。  
+  > 投影片上的卡片均可直接點擊開啟，強烈建議大家做完 Lab 後精讀這三篇專欄！」
+
+---
+
+### Slide 11: 隨堂練習指引 (Hands-on Practice)
+* **視覺焦點**：Ch5 實作指引任務與全系列結業致詞。
 * **🎤 口播逐字稿**：
   > 「最後的隨堂任務，請大家按照指引：  
   > 第一，啟動本機 Docker Compose Lab；  

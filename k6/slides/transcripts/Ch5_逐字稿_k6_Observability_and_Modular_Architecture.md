@@ -12,10 +12,10 @@
 ---
 
 ## 🎬 錄製前準備檢核清單 (Pre-recording Checklist)
-- [ ] 簡報切換至 Chapter 5 封面（確認順序：Takeaway Checklist 已移至第 9 頁作為總結）。
+- [ ] 簡報切換至 Chapter 5 封面（共 11 頁投影片，確認順序：Takeaway Checklist 在第 9 頁，延伸閱讀在第 10 頁，隨堂練習在第 11 頁）。
 - [ ] 瀏覽器預先開啟 Grafana 登入頁面：`http://localhost:3000`（若 Docker Compose 已啟動）。
 - [ ] 終端機預先測試指令：`K6_WEB_DASHBOARD=true k6 run k6/demos/ch5_dashboard_and_html_summary.js`。
-- [ ] 講述提示：突顯 Slide 8「雙十字準星對齊 CPU CFS Throttling」為全課高潮點。
+- [ ] 講述提示：突顯 Slide 8「雙十字準星對齊 CPU CFS Throttling」為全課高潮點，並在 Slide 10 隆重引薦講師技術專欄。
 
 ---
 
@@ -77,8 +77,8 @@
 
 ### 【Slide 4 (原S5): xk6 擴充機制解剖：Go-to-JS Bridge】 (預估時間: 06:00 - 08:30)
 
-* **畫面焦點**：xk6 齒輪引擎架構圖，展示 Go Native 程式碼如何跨越 Bridge，映射為前端 JavaScript 可調用的模組。
-* **螢幕動作**：【動作：指引 Go 底層到 JS 的橋接流程】。
+* **畫面焦點**：xk6 齒輪引擎架構圖，展示 Go Native 程式碼如何跨越 Bridge，映射為前端 JavaScript 可調用的模組；左下方特別標註講師實戰專欄卡片。
+* **螢幕動作**：【動作：指引 Go 底層到 JS 的橋接流程，並點出左下方專欄卡片】。
 
 **【口播逐字稿】**：
 > 「k6 的原生 HTTP 與 Browser 功能已經非常完整，但真實的企業架構往往更加複雜：  
@@ -87,7 +87,9 @@
 > 這就要引出 k6 生態系中最具擴展性的黑科技——**xk6 (eXtensible k6)**。  
 > 大家請看這張架構解剖圖：  
 > k6 的本質是一個用 Go 語言編寫的模組化引擎。Grafana 官方設計了一套 **Go-to-JS Bridge** 橋接架構。任何人都可以使用 Go 語言編寫底層模組，調用 Go 生態圈中無數個高效能的第三方庫；編譯時，xk6 會自動將這些 Go 的資料結構與方法，映射成 k6 JavaScript 腳本可以直接 `import` 的模組！  
-> 這代表你既能享受 JavaScript 的動態與快速迭代，又能同時擁有 Go 語言的原生底層速度與網路通訊能力！」
+> 這代表你既能享受 JavaScript 的動態與快速迭代，又能同時擁有 Go 語言的原生底層速度與網路通訊能力！  
+> 
+> 大家看投影片左下角我特別標註的技術手記：如果大家想看一個真正生產級的 Go 擴充插件完整開發案例，推薦閱讀我在專欄寫的《Grafana xk6: 手把手從開發 k6 插件程式到編譯出 k6 插件》（`ganhua.wang/grafana-xk6`）。文章以 Web3 動態身份驗證為例，手把手帶大家實作 `RootModule`、`ModuleInstance` 與 `modules.Register`，開發出能高併發動態生成 OTP 一次性金鑰密碼的自訂模組，非常值得大家課後實作！」
 
 ---
 
@@ -186,7 +188,32 @@
 
 ---
 
-### 【Slide 10: 隨堂練習指引與全系列結語】 (預估時間: 19:15 - 21:00)
+### 【Slide 10: 推薦延伸閱讀 — 講師深度實戰專欄 (Author's Deep-Dive Articles)】 (預估時間: 19:15 - 21:45)
+
+* **畫面焦點**：展示三大主題專欄卡片（xk6 模組擴充、前端混壓測試、全鏈路閉環），搭配專屬色彩邊框、關鍵亮點與專欄連結按鈕。
+* **螢幕動作**：【動作：逐一指引三張技術卡片，以沉穩專業口吻介紹每篇文章解決的進階架構痛點】。
+
+**【口播逐字稿】**：
+> 「在進入最後的實操動手做之前，我特別為大家準備了這頁**『講師深度實戰專欄』**！  
+> 這三篇文章是我在業界實戰與社群貢獻中，針對 k6 進階自訂與端到端前線戰場親手撰寫的深度解析。它們與本系列課程相輔相成，非常適合作為大家課後的進階秘笈：  
+> 
+> 第一篇，**模組擴充篇**：  
+> 《Grafana xk6: 手把手從開發 k6 插件程式到編譯出 k6 插件》（`ganhua.wang/grafana-xk6`）。  
+> 當官方內建的 HTTP、gRPC 無法滿足你公司的特殊需求（例如自訂的加密簽名演算法、Web3 身份驗證、或私有二進位通訊協定）時，這篇文章手把手帶你用 Go 語言寫出 `k6/x/otp` 插件，從模組架構、註冊生命週期到 Docker 確定性編譯，全面解鎖 xk6 的終極客製化潛能！  
+> 
+> 第二篇，**前端混壓篇**：  
+> 《Grafana k6 瀏覽器測試》（`ganhua.wang/grafana-k6-browser`）。  
+> 這篇文章深度探討我們在第四章學過的 `k6/browser`。它全面拆解了 Playwright 相容 API、展示如何利用 `BrowserContext` 在單一進程實現多用戶獨立 Session 與 Cookie 隔離，並以 OpenTelemetry Demo 購物車為例，完整走過加入購物車、表單送出、Web Vitals 採集與自動截圖保存錯誤現場的全流程！  
+> 
+> 第三篇，**全鏈路閉環篇**：  
+> 《Getting Started with Grafana k6: Hands-on Practice》（`ganhua.wang/getting-started-with-grafana-k6-hands-on-practice`）。  
+> 這篇文章從工程落地視角，教你如何用 `group` 與 `check` 撰寫結構化腳本，並示範如何將壓測指標對接 OpenTelemetry Collector，與微服務的分散式追蹤、日誌三位一體無縫整合，甚至無縫嵌入 GitLab CI 流水線建立自動化品質防線。  
+> 
+> 投影片上的卡片都可以直接點擊連結，大家在做完本章隨堂練習後，務必抽空將這三篇精讀一遍，保證能讓你的效能工程戰力再升級一個維度！」
+
+---
+
+### 【Slide 11: 隨堂練習指引與全系列結語】 (預估時間: 21:45 - 23:30)
 
 * **畫面焦點**：Ch5 實作任務清單（啟動 Docker Lab、執行 Prometheus 推播腳本、開啟 Grafana 查看自訂 Commit Tag）。
 * **螢幕動作**：【動作：展示終端機腳本，向學員做深情而有力的結業致詞】。
