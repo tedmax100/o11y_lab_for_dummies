@@ -258,9 +258,9 @@ function Sc(a){var b=0;if(a.hasAttribute("selected")){if(b=parseInt(a.getAttribu
 (c.transform="translate3d(110%, 0, 0)",d.transform="translate3d(-110%, 0, 0)"):(c.transform="translate3d(-110%, 0, 0)",d.transform="translate3d(110%, 0, 0)");var g=[{ka:"transform",duration:.5,ea:0,timing:"cubic-bezier(0.4, 0, 0.2, 1)"}];a.D=new V(e,.5,c,{transform:"translate3d(0, 0, 0)"},g);a.F=new V(f,.5,{transform:"translate3d(0, 0, 0)"},d,g);Jc(a.D);Jc(a.F);vb(a.O,a.D,function(){e.setAttribute("selected","");e.removeAttribute("animating")});vb(a.O,a.F,function(){f.removeAttribute("selected")})}a.h=
 b;a.w&&a.A&&a.I&&(0===b?a.A.setAttribute("disappear",""):a.A.removeAttribute("disappear"),b===a.c.length-1?(a.w.setAttribute("hidden",""),a.I.removeAttribute("hidden"),Z(a,"google-codelab-action",{category:"codelab",action:"complete",label:a.s})):(a.w.removeAttribute("hidden"),a.I.setAttribute("hidden","")));a.f&&a.f.querySelectorAll("li").forEach(function(a,c){c<=b?a.setAttribute("completed",""):a.removeAttribute("completed");c===b?a.setAttribute("selected",""):a.removeAttribute("selected")});Xc(a);
 a.hasAttribute("dsh")||a.ca("#"+b,!0);a.M&&a.m.set("progress_"+a.M,String(a.h))}}else a.setAttribute("selected",b)}function Zc(a){var b=a.getAttribute("feedback-link"),c=a.c.map(function(a){return a.getAttribute("label")});Lc(a.f,vc,{steps:c,fa:b});(b=a.f.querySelector("#codelab-feedback"))&&H(a.i,b,"click",function(a){"userfeedback"in window&&(window.userfeedback.api.startFeedback({productId:"5143948"}),a.preventDefault())})}
-function $c(){var a=(new URL(document.location.toString())).searchParams.get("index");if(!a)return"/";a=a.replace(/[^a-z0-9\-]+/ig,"");if(!a||""===a.trim())return"/";"index"===a&&(a="");return(new URL(a,document.location.origin)).pathname}function Z(a,b,c){c=void 0===c?{}:c;b=new CustomEvent(b,{detail:c,bubbles:!0});a.dispatchEvent(b)}
+function $c(elem){var el=elem||document.querySelector("google-codelab");var home=el&&(el.getAttribute("home-url")||el.getAttribute("homeurl"));if(home)return home;var loc=document.location;var a=(new URL(loc.toString())).searchParams.get("index");if(a){a=a.replace(/[^a-z0-9\-]+/ig,"");if(a&&""!==a.trim()){"index"===a&&(a="");return(new URL(a,loc.origin)).pathname}}var p=(new URL(loc.toString())).pathname.split("/").filter(Boolean);if(p.length>0&&p[p.length-1].endsWith(".html"))p.pop();if(p.length>0)p.pop();return"/"+(p.length?p.join("/")+"/":"")}function Z(a,b,c){c=void 0===c?{}:c;b=new CustomEvent(b,{detail:c,bubbles:!0});a.dispatchEvent(b)}
 function Wc(a){Z(a,"google-codelab-pageview",{page:location.pathname+"#"+a.h,title:a.c[a.h].getAttribute("label")});window.requestAnimationFrame(function(){document.body.removeAttribute("unresolved");Z(a,"google-codelab-action",{category:"codelab",action:"ready"})})}
-function Qc(a){a.c=Array.from(a.querySelectorAll("google-codelab-step"));Lc(a,sc,{ga:$c()});a.f=a.querySelector("#drawer");a.l=a.querySelector("#codelab-title");a.ba=a.querySelector("#steps");a.H=a.querySelector("#controls");a.A=a.querySelector("#controls #previous-step");a.w=a.querySelector("#controls #next-step");a.I=a.querySelector("#controls #done");a.c.forEach(function(b){a.ba.appendChild(b)});Yc(a);Zc(a);a.N=a.querySelectorAll(".codelab-time-container");if(document.location.hash){var b=parseInt(document.location.hash.substring(1),
+function Qc(a){a.c=Array.from(a.querySelectorAll("google-codelab-step"));Lc(a,sc,{ga:$c(a)});a.f=a.querySelector("#drawer");a.l=a.querySelector("#codelab-title");a.ba=a.querySelector("#steps");a.H=a.querySelector("#controls");a.A=a.querySelector("#controls #previous-step");a.w=a.querySelector("#controls #next-step");a.I=a.querySelector("#controls #done");a.c.forEach(function(b){a.ba.appendChild(b)});Yc(a);Zc(a);a.N=a.querySelectorAll(".codelab-time-container");if(document.location.hash){var b=parseInt(document.location.hash.substring(1),
 10);!isNaN(b)&&b&&a.setAttribute("selected",document.location.hash.substring(1))}a.M=a.getAttribute("id");(b=a.m.get("progress_"+a.M))&&"0"!==b&&(a.$=!0,a.setAttribute("selected",b));a.X=!0}aa.Object.defineProperties(W.prototype,{eventHandler:{configurable:!0,enumerable:!0,get:function(){return this.i}},steps:{configurable:!0,enumerable:!0,get:function(){return this.c}}});aa.Object.defineProperties(W,{observedAttributes:{configurable:!0,enumerable:!0,get:function(){return"title codelab-title environment category feedback-link selected last-updated no-toolbar no-arrows anayltics-ready".split(" ")}}});try{window.customElements.define("google-codelab",W)}catch(a){console.warn("googlecodelabs.Codelab",a)};}).call(this);
 
 
@@ -434,6 +434,48 @@ function Qc(a){a.c=Array.from(a.querySelectorAll("google-codelab-step"));Lc(a,sc
     });
   }
 
+  function getHomeUrl() {
+    const codelab = document.querySelector('google-codelab');
+    const explicitHome = codelab && (codelab.getAttribute('home-url') || codelab.getAttribute('homeurl'));
+    if (explicitHome) return explicitHome;
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    if (pathParts.length > 0 && pathParts[pathParts.length - 1].endsWith('.html')) {
+      pathParts.pop();
+    }
+    if (pathParts.length > 0) {
+      pathParts.pop();
+    }
+    return '/' + (pathParts.length ? pathParts.join('/') + '/' : '');
+  }
+
+  function fixBackLink() {
+    const homeUrl = getHomeUrl();
+    const arrowBack = document.querySelector('#codelab-nav-buttons #arrow-back');
+    if (arrowBack) {
+      const currentHref = arrowBack.getAttribute('href');
+      if (!currentHref || currentHref === '/' || currentHref === '#' || currentHref === '') {
+        arrowBack.setAttribute('href', homeUrl);
+      }
+      if (!arrowBack.getAttribute('data-home-fixed')) {
+        arrowBack.setAttribute('data-home-fixed', 'true');
+        arrowBack.addEventListener('click', (e) => {
+          const href = arrowBack.getAttribute('href');
+          if (!href || href === '/') {
+            e.preventDefault();
+            window.location.href = homeUrl;
+          }
+        });
+      }
+    }
+    const doneBtn = document.querySelector('#controls #done');
+    if (doneBtn) {
+      const currentHref = doneBtn.getAttribute('href');
+      if (!currentHref || currentHref === '/' || currentHref === '#' || currentHref === '') {
+        doneBtn.setAttribute('href', homeUrl);
+      }
+    }
+  }
+
   function injectBranding() {
     const codelab = document.querySelector('google-codelab');
     if (!codelab) return;
@@ -452,11 +494,13 @@ function Qc(a){a.c=Array.from(a.querySelectorAll("google-codelab-step"));Lc(a,sc
   }
 
   function init() {
+    fixBackLink();
     injectBranding();
     enhanceCodeBlocks();
     enhanceCallouts();
 
     const observer = new MutationObserver(() => {
+      fixBackLink();
       injectBranding();
       enhanceCodeBlocks();
       enhanceCallouts();

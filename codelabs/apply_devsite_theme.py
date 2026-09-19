@@ -426,6 +426,48 @@ js_addition = """
     });
   }
 
+  function getHomeUrl() {
+    const codelab = document.querySelector('google-codelab');
+    const explicitHome = codelab && (codelab.getAttribute('home-url') || codelab.getAttribute('homeurl'));
+    if (explicitHome) return explicitHome;
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    if (pathParts.length > 0 && pathParts[pathParts.length - 1].endsWith('.html')) {
+      pathParts.pop();
+    }
+    if (pathParts.length > 0) {
+      pathParts.pop();
+    }
+    return '/' + (pathParts.length ? pathParts.join('/') + '/' : '');
+  }
+
+  function fixBackLink() {
+    const homeUrl = getHomeUrl();
+    const arrowBack = document.querySelector('#codelab-nav-buttons #arrow-back');
+    if (arrowBack) {
+      const currentHref = arrowBack.getAttribute('href');
+      if (!currentHref || currentHref === '/' || currentHref === '#' || currentHref === '') {
+        arrowBack.setAttribute('href', homeUrl);
+      }
+      if (!arrowBack.getAttribute('data-home-fixed')) {
+        arrowBack.setAttribute('data-home-fixed', 'true');
+        arrowBack.addEventListener('click', (e) => {
+          const href = arrowBack.getAttribute('href');
+          if (!href || href === '/') {
+            e.preventDefault();
+            window.location.href = homeUrl;
+          }
+        });
+      }
+    }
+    const doneBtn = document.querySelector('#controls #done');
+    if (doneBtn) {
+      const currentHref = doneBtn.getAttribute('href');
+      if (!currentHref || currentHref === '/' || currentHref === '#' || currentHref === '') {
+        doneBtn.setAttribute('href', homeUrl);
+      }
+    }
+  }
+
   function injectBranding() {
     const codelab = document.querySelector('google-codelab');
     if (!codelab) return;
@@ -444,11 +486,13 @@ js_addition = """
   }
 
   function init() {
+    fixBackLink();
     injectBranding();
     enhanceCodeBlocks();
     enhanceCallouts();
 
     const observer = new MutationObserver(() => {
+      fixBackLink();
       injectBranding();
       enhanceCodeBlocks();
       enhanceCallouts();
@@ -491,6 +535,28 @@ for file_path, addition, marker in targets:
                 content = content[:comment_start].rstrip()
             else:
                 content = content[:idx].rstrip()
+
+        if file_path.endswith(".js"):
+            # Ensure $c() in base codelab-elements.js dynamically resolves home url instead of hardcoded "/"
+            if "function $c()" in content:
+                idx_start = content.find("function $c()")
+                idx_z = content.find("function Z(a,b,c){", idx_start)
+                if idx_start != -1 and idx_z != -1:
+                    patched_fn = (
+                        'function $c(elem){var el=elem||document.querySelector("google-codelab");'
+                        'var home=el&&(el.getAttribute("home-url")||el.getAttribute("homeurl"));'
+                        'if(home)return home;'
+                        'var loc=document.location;'
+                        'var a=(new URL(loc.toString())).searchParams.get("index");'
+                        'if(a){a=a.replace(/[^a-z0-9\\-]+/ig,"");if(a&&""!==a.trim()){"index"===a&&(a="");return(new URL(a,loc.origin)).pathname}}'
+                        'var p=(new URL(loc.toString())).pathname.split("/").filter(Boolean);'
+                        'if(p.length>0&&p[p.length-1].endsWith(".html"))p.pop();'
+                        'if(p.length>0)p.pop();'
+                        'return"/"+(p.length?p.join("/")+"/":"")}'
+                    )
+                    content = content[:idx_start] + patched_fn + content[idx_z:]
+            content = content.replace('Lc(a,sc,{ga:$c()});', 'Lc(a,sc,{ga:$c(a)});')
+
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(content + "\n\n" + addition)
         print(f"Updated extension in {file_path}")
