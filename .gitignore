@@ -77,3 +77,6 @@ postgres-data/
 # Kubernetes secrets (if any)
 k8s/**/secrets.yaml
 k8s/**/*secret*.yaml
+
+# Presentation Backups
+k6/slides_backup/

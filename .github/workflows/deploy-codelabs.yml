@@ -39,8 +39,12 @@ jobs:
       - name: Generate HTML from Markdown
         run: |
           cd codelabs
-          # 生成所有教程
-          ./claat export -o generated tutorials/*.md
+          # 确保本地静态资源存在
+          mkdir -p generated/claat-public
+          cp -r claat-public/* generated/claat-public/ 2>/dev/null || true
+          # 生成所有教程 (使用 -prefix ".." 引用本地静态資源，徹底避免 Google CDN 403 / ORB 攔截)
+          ./claat export -prefix ".." -o generated tutorials/*.md
+          python3 apply_devsite_theme.py
 
           # 验证生成
           ls -la generated/

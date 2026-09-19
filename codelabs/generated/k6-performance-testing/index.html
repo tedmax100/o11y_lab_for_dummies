@@ -1,0 +1,678 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>現代化效能測試實戰：Grafana k6 與雲原生可觀測性</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="../claat-public/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="k6-performance-testing"
+                  title="現代化效能測試實戰：Grafana k6 與雲原生可觀測性"
+                  environment="web"
+                  feedback-link="https://github.com/tedmax100/o11y_lab_for_dummies/issues/new?template=codelabs-feedback.md&amp;labels=codelabs,documentation">
+    
+      <google-codelab-step label="課程簡介與導讀" duration="3">
+        <h2 is-upgraded>歡迎來到 Grafana k6 效能工程實戰！</h2>
+<p>在雲原生、微服務與 CI/CD 高速迭代的時代，傳統的效能測試往往面臨龐大瓶頸：笨重的 GUI 介面、難以維護的 XML 配置、昂貴的虛擬用戶資源開銷，以及與現代監控系統的嚴重脫節。</p>
+<p>本教學為全系列 <strong>5 大章節線上課程</strong>的完整互動式實作指引，帶領你從零打造現代化、代碼化（Testing as Code）的企業級效能防線。</p>
+<pre><code>[Chapter 1: 核心哲學] ──&gt; [Chapter 2: 流量建模] ──&gt; [Chapter 3: 品質門禁] ──&gt; [Chapter 4: 混合壓測] ──&gt; [Chapter 5: 可觀測性閉環]
+  - Test as Code           - 5大流量模式             - RED Method              - HAR 錄製轉譯            - 原生 Web Dashboard
+  - Goroutine 架構         - 協調性漏測              - P95/P99 尾端延遲        - 401 死資料陷阱          - HTML 靜態報告 (Port=-1)
+  - 4階段生命週期          - 開放模型 (Little&#39;s Law) - 4大自訂指標             - k6/browser Chromium     - xk6 Docker 確定性編譯
+  - Group &amp; Check          - SharedArray 記憶體優化  - Exit Code 99 卡關       - 99:1 全鏈路黃金架構     - Prometheus Remote Write
+  - http.url 防指標爆炸    - dropped_iterations 告警 - abortOnFail 熔斷        - Flight Pre-check        - CPU CFS Throttling 對齊
+</code></pre>
+<h2 is-upgraded>你將學到什麼</h2>
+<ul>
+<li><strong>Testing as Code</strong>：告別 XML 點擊操作，使用標準 ES6 JavaScript 撰寫高維護性的測試腳本。</li>
+<li><strong>Go 語言並發威力</strong>：理解 Goroutine 如何在單機上以極低記憶體驅動數萬並發用戶。</li>
+<li><strong>科學化流量建模</strong>：破解「協調性漏測 (Coordinated Omission)」盲點，運用利特爾法則（Little&#39;s Law）配置開放模型。</li>
+<li><strong>精準品質門禁 (Quality Gates)</strong>：設定 P95/P99 尾端延遲 SLO，以 <strong>Exit Code 99</strong> 在 CI/CD 中自動阻斷不良發布。</li>
+<li><strong>全鏈路混合壓測 (Hybrid Testing)</strong>：打造 <strong>99:1 黃金配比</strong>，兼顧後端高壓與前端 Core Web Vitals (LCP/FID/CLS) 真實渲染體驗。</li>
+<li><strong>可觀測性閉環</strong>：接入 Prometheus Remote Write 與 Grafana，實現 API 延遲突波與 Kubernetes CPU CFS Throttling 雙時間軸對齊除錯。</li>
+</ul>
+<h2 is-upgraded>實驗環境要求</h2>
+<ul>
+<li><strong>作業系統</strong>：Linux、macOS 或 Windows (WSL2)</li>
+<li><strong>硬體建議</strong>：至少 4 核心 CPU、8GB RAM</li>
+<li><strong>必要工具</strong>： <ul>
+<li><code>k6</code> CLI (v0.46.0+ 或更新版本)</li>
+<li><code>Docker</code> 與 <code>Docker Compose</code></li>
+<li>現代 Chromium 核心瀏覽器（Google Chrome / Chromium）</li>
+</ul>
+</li>
+</ul>
+<p>Positive : 本專案的所有配套演示腳本均已收錄於專案的 <code>k6/demos/</code> 目錄中，並通過本機環境完整實測！</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Chapter 1: k6 核心哲學與腳本基礎手把手" duration="15">
+        <h2 is-upgraded>傳統壓測痛點 vs Testing as Code</h2>
+<p>在過去十年間，Apache JMeter 是效能測試的代名詞。然而在現代 DevOps 與 GitOps 體系下，傳統工具帶來了三大致命痛點：</p>
+<ol type="1">
+<li><strong>配置維護地獄</strong>：肥大且巢狀的 XML 格式無法進行有意義的 Git Diff 與 Code Review，團隊多人協作必定發生 Merge Conflict。</li>
+<li><strong>開發體驗斷層</strong>：後端與 SRE 工程師日常使用現代 IDE 與程式語言，卻被迫切換到老舊的 Java GUI 介面點擊拉節點，腳本淪為無人維護的技術債。</li>
+<li><strong>CI/CD 自動化整合成本極高</strong>：啟動耗時、資源沉重，難以在輕量 CI Runner 容器中快速執行與退出。</li>
+</ol>
+<p><strong>Grafana k6</strong> 的核心哲學是 <strong>Testing as Code</strong>：以純粹的 JavaScript/ES6 撰寫測試，享有現代模組化、Linter、自動補全與版本控制優勢。</p>
+<h2 is-upgraded>底層架構優勢：Goroutine vs 傳統執行緒</h2>
+<p>k6 雖然腳本寫的是 JavaScript，但其底層執行引擎完全由 <strong>Go 語言</strong> 編寫（內建 Goja JS Runtime）：</p>
+<table>
+<tr><td colspan="1" rowspan="1"><p>評估維度</p>
+</td><td colspan="1" rowspan="1"><p>傳統 JVM 工具 (JMeter)</p>
+</td><td colspan="1" rowspan="1"><p>Grafana k6 (Go 引擎)</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p><strong>併發模型</strong></p>
+</td><td colspan="1" rowspan="1"><p>One OS Thread per Virtual User (VU)</p>
+</td><td colspan="1" rowspan="1"><p>Go Goroutine 輕量級協程</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p><strong>單 VU 記憶體開銷</strong></p>
+</td><td colspan="1" rowspan="1"><p>1MB ~ 2MB (Thread Stack)</p>
+</td><td colspan="1" rowspan="1"><p><strong>僅約 2KB ~ 4KB</strong></p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p><strong>Context Switch 開銷</strong></p>
+</td><td colspan="1" rowspan="1"><p>高 (由作業系統核心頻繁排程)</p>
+</td><td colspan="1" rowspan="1"><p>極低 (由 Go Runtime 在使用者空間高效調度)</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p><strong>單機併發能力</strong></p>
+</td><td colspan="1" rowspan="1"><p>約 1,000 ~ 2,000 VUs 即達硬體瓶頸</p>
+</td><td colspan="1" rowspan="1"><p><strong>單台普通機器可輕鬆驅動 30,000+ VUs</strong></p>
+</td></tr>
+</table>
+<h2 is-upgraded>k6 全平台安裝指南 (Installing k6)</h2>
+<p>k6 為單一獨立二進位檔（Single Binary），不依賴外部執行環境（無須預裝 Node.js 或 Go）。依據您的作業系統選擇合適的安裝方式：</p>
+<h3 is-upgraded>1. Linux 安裝</h3>
+<ul>
+<li><strong>Debian / Ubuntu</strong> (使用官方 GPG 金鑰與 APT 軟體庫)：<pre><code language="language-bash" class="language-bash">sudo gpg -k
+sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+echo &#34;deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main&#34; | sudo tee /etc/apt/sources.list.d/k6.list
+sudo apt-get update
+sudo apt-get install k6
+</code></pre>
+</li>
+<li><strong>Fedora / CentOS / RHEL</strong> (使用 DNF / YUM RPM 套件庫)：<pre><code language="language-bash" class="language-bash">sudo dnf install https://dl.k6.io/rpm/repo.rpm
+sudo dnf install k6
+</code></pre>
+</li>
+<li><strong>Arch Linux</strong>：<pre><code language="language-bash" class="language-bash">sudo pacman -S k6
+</code></pre>
+</li>
+<li><strong>Snap</strong> (跨發行版套件)：<pre><code language="language-bash" class="language-bash">sudo snap install k6
+</code></pre>
+</li>
+</ul>
+<h3 is-upgraded>2. macOS 安裝 (Homebrew)</h3>
+<p>macOS 用戶強烈建議透過 Homebrew 安裝，原生支援 Apple Silicon (M1~M4, ARM64) 與 Intel (x86_64)：</p>
+<pre><code language="language-bash" class="language-bash">brew install k6
+</code></pre>
+<h3 is-upgraded>3. Windows 安裝</h3>
+<ul>
+<li><strong>Windows 10/11 官方推薦 (Winget)</strong>：<pre><code language="language-powershell" class="language-powershell">winget install k6 --source winget
+</code></pre>
+</li>
+<li><strong>Chocolatey</strong>：<pre><code language="language-powershell" class="language-powershell">choco install k6
+</code></pre>
+</li>
+<li><strong>MSI 安裝檔</strong>：前往 <a href="https://github.com/grafana/k6/releases" target="_blank">k6 GitHub Releases</a> 下載最新的 <code>.msi</code> 雙擊安裝，安裝程式會自動將 k6 新增至系統環境變數 PATH。</li>
+<li><strong>WSL2</strong>：強烈建議在 Windows 上的開發者搭配 WSL2 (Ubuntu)，並依照 Linux Debian/Ubuntu 流程安裝，享有與雲端環境完全一致的壓測效能。</li>
+</ul>
+<h3 is-upgraded>4. Docker 容器化執行（免本機安裝）</h3>
+<p>在 CI/CD Runner 或不希望變更本機系統的環境中，可直接拉取官方 Docker 映像檔：</p>
+<pre><code language="language-bash" class="language-bash"># 透過管道 (Stdin) 直接執行腳本
+docker run --rm -i grafana/k6 run - &lt;script.js
+
+# 或掛載當前專案目錄並執行
+docker run --rm -v $(pwd):/app -w /app grafana/k6 run script.js
+</code></pre>
+<h3 is-upgraded>5. 驗證安裝</h3>
+<p>打開終端機，執行以下指令驗證安裝成果：</p>
+<pre><code language="language-bash" class="language-bash">k6 version
+</code></pre>
+<p>輸出範例：<code>k6 v0.50.0 (go1.22.1, linux/amd64)</code>，確認出現版本資訊即代表安裝成功！</p>
+<h2 is-upgraded>k6 CLI x AI 現代化工作流 (Configure AI Assistant &amp; MCP)</h2>
+<p>隨著生成式 AI 技術成熟，現代效能工程不僅走向代碼化（Testing as Code），更邁入 <strong>AI 智慧賦能時代</strong>。Grafana k6 官方正式推出基於 <strong>Model Context Protocol (MCP)</strong> 的整合方案，將 k6 CLI 與現代 AI 助手（Cursor、Claude Desktop、VS Code Copilot、Antigravity 等）無縫串接。</p>
+<h3 is-upgraded>1. 什麼是 k6 MCP Server？</h3>
+<p>Model Context Protocol (MCP) 是一項開放協議，允許大語言模型安全地存取本地工具與上下文。Grafana 官方發布了 <code>@grafana/k6-mcp-server</code>，讓 AI 助手具備以下能力：</p>
+<ul>
+<li>取得官方最新 k6 API 與最佳實踐文檔。</li>
+<li>在代碼編輯器中自動語法靜態檢驗。</li>
+<li>直接驅動 k6 執行壓測並即時解析測試指標。</li>
+</ul>
+<h3 is-upgraded>2. 快速設定 k6 MCP Server</h3>
+<p>在支援 MCP 的工具（如 Cursor、Claude Desktop 或 VS Code 擴充套件）的設定檔中，加入以下設定即可一鍵啟用（無需手動下載二進位檔，<code>npx</code> 會自動拉取執行）：</p>
+<pre><code language="language-json" class="language-json">{
+  &#34;mcpServers&#34;: {
+    &#34;k6&#34;: {
+      &#34;command&#34;: &#34;npx&#34;,
+      &#34;args&#34;: [
+        &#34;-y&#34;,
+        &#34;@grafana/k6-mcp-server&#34;
+      ]
+    }
+  }
+}
+</code></pre>
+<p>如果環境中未安裝 Node.js，亦可前往官方 Releases 下載對應 OS 的獨立編譯版本並直接配置執行路徑。</p>
+<h3 is-upgraded>3. MCP 工具庫 (Tools)、提示詞 (Prompts) 與資源 (Resources)</h3>
+<p>k6 MCP Server 為 AI 助手賦予了三類關鍵能力：</p>
+<ul>
+<li><strong>工具 (Tools)</strong>： <ul>
+<li><code>run_test</code>：允許 AI 助手直接在本機驅動 k6 執行指定的測試腳本，自動獲取並結構化解析 RPS、P95 延遲、錯誤碼等指標反饋。</li>
+<li><code>validate_script</code>：在執行壓測前，由底層 AST 解析器對腳本進行靜態檢查，提早揪出 ES6 模組引用錯誤、生命週期階段錯置或 Thresholds 宣告不合規。</li>
+<li><code>get_documentation</code>：動態向 k6 官方文檔庫檢索最新 API 規格（如 <code>k6/browser</code>、<code>k6/experimental/redis</code> 等），確保 AI 產出的代碼絕不幻覺過時的 API。</li>
+</ul>
+</li>
+<li><strong>提示詞模板 (Prompts)</strong>： <ul>
+<li>內建產生常規負載測試（依據特定 RPS 與坡度自動編寫腳本）。</li>
+<li>將 OpenAPI/Swagger 規格或瀏覽器 HAR 錄製檔轉譯為 k6 測試情境。</li>
+<li>診斷效能門禁違規（分析為何延遲超過閾值並給出具體優化建議）。</li>
+</ul>
+</li>
+<li><strong>資源 (Resources)</strong>：即時提供官方範例庫、常用設定片段與各行業流量建模的最佳實踐模板。</li>
+</ul>
+<h3 is-upgraded>4. 使用 AI Agent 自主逆向生成完整測試套件 (Bootstrap with k6 x Agent)</h3>
+<p>以往為一套複雜的後端系統撰寫效能測試需要耗費數天：開發者必須逐一閱讀 API 文件、手寫身分驗證邏輯、設計隨機資料池並校驗斷言。</p>
+<p>利用 <strong>Bootstrap with k6 x Agent</strong> 工作流，AI 代理能自主完成全套工程交付：</p>
+<pre><code>[專案代碼/OpenAPI/HAR 規格] ──&gt; [AI Agent 自主解析] ──&gt; [生成全情境壓測腳本] ──&gt; [validate_script + run_test (1 VU 冒煙)] ──&gt; [自動自癒微調] ──&gt; [生產就緒測試套件]
+</code></pre>
+<ol type="1">
+<li><strong>資產自動探索 (Asset Discovery)</strong>：Agent 讀取專案中的 <code>openapi.yaml</code> 或前端網路請求錄製檔（<code>.har</code>）。</li>
+<li><strong>情境自主建模 (Autonomous Modeling)</strong>：自動拆解出 Smoke、Load、Stress 測試情境，並配置合理的 P95 閾值門禁。</li>
+<li><strong>閉環驗證與自癒 (Self-Healing Loop)</strong>：Agent 自動調用 <code>validate_script</code> 校驗語法，並以 1 個 VU 發動 <code>run_test</code> 驗證真實 API 通訊；一旦遇到 401 Unauthorized 或 422 Unprocessable Entity，Agent 自行修正請求標頭與 Body 格式，直到全數 Pass！</li>
+</ol>
+<p>Positive : 透過 k6 CLI 與 AI 助手的深度融合，效能測試從「少數效能專家的專屬重擔」，變成了「每位開發者在 IDE 內隨手即可生成的日常防線」！</p>
+<h2 is-upgraded>k6 四階段生命週期 (Lifecycle)</h2>
+<p>理解 k6 的生命週期是撰寫正確腳本的第一步：</p>
+<pre><code language="language-javascript" class="language-javascript">// 1. Init Context (初始化階段：每個 VU 載入時執行一次，嚴禁在此發送 HTTP 請求！)
+import http from &#39;k6/http&#39;;
+import { check, sleep } from &#39;k6&#39;;
+
+export const options = { vus: 10, duration: &#39;30s&#39; };
+
+// 2. Setup Context (全域準備階段：壓測開始前全域只跑一次)
+export function setup() {
+  const token = &#39;login-and-fetch-global-token&#39;;
+  return { authToken: token };
+}
+
+// 3. VU Code / Default (預設執行階段：每個 VU 在測試期間依頻率反覆迴圈執行)
+export default function (data) {
+  const res = http.get(&#39;https://test.k6.io&#39;, {
+    headers: { Authorization: `Bearer ${data.authToken}` },
+  });
+  check(res, { &#39;status is 200&#39;: (r) =&gt; r.status === 200 });
+  sleep(1);
+}
+
+// 4. Teardown Context (全域收尾階段：所有 VU 結束後全域只跑一次)
+export function teardown(data) {
+  console.log(&#39;壓測結束，清理測試資料...&#39;);
+}
+</code></pre>
+<h2 is-upgraded>軟斷言 check() 與避免高基數爆炸</h2>
+<ul>
+<li><strong>check() 是軟斷言</strong>：與單元測試中斷執行的 <code>assert</code> 不同，k6 的 <code>check()</code> 失敗時<strong>不會停止測試</strong>，而是記錄成功率。這確保了在大規模壓測中能精確統計出 99.9% 成功率，而非因偶發錯誤中途夭折。</li>
+<li><strong>避免高基數維度爆炸 (High Cardinality)</strong>：嚴禁寫出 <code>http.get('/api/users/' + userId)</code>。當萬人併發產生數萬個不同 URL 時，Prometheus/Grafana 會因時序暴增而 OOM 崩潰！正確寫法是使用模板標籤函式：<code>http.url`https://api.example.com/users/${userId}`</code> ，指標將自動聚合在同一名稱下。</li>
+</ul>
+<h2 is-upgraded>實作演練：執行第一支生命週期測試</h2>
+<p>打開終端機，執行專案準備好的演示腳本：</p>
+<pre><code language="language-bash" class="language-bash">k6 run k6/demos/ch1_lifecycle_and_checks.js
+</code></pre>
+<p>Positive : 觀察終端機輸出，確認 Init、Setup、VU Code 與 Teardown 的執行順序！</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Chapter 2: 科學化流量建模與協調性漏測破解" duration="20">
+        <h2 is-upgraded>五大經典壓測模式</h2>
+<p>在盲目加壓前，必須先依據業務場景科學化定義流量波形：</p>
+<ol type="1">
+<li><strong>Smoke Test (冒煙測試)</strong>：1~2 VU，極短時間（1m），驗證 API 路由、鑑權與腳本邏輯通暢。</li>
+<li><strong>Load Test (常規負載測試)</strong>：平緩爬升 (Ramp-up) $\rightarrow$ 尖峰高原期 (Plateau) $\rightarrow$ 平緩降速 (Ramp-down)，驗證日常峰值下的 SLA/SLO。</li>
+<li><strong>Stress Test (壓力極限測試)</strong>：階梯式持續加壓衝破安全水位，尋找系統崩潰點 (Breaking Point)。</li>
+<li><strong>Spike Test (突發尖峰測試)</strong>：流量在數十秒內暴衝數十倍，考驗 Kubernetes HPA 自動擴展與自癒彈性。</li>
+<li><strong>Soak Test (浸泡耐久測試)</strong>：在基準負載下長跑數小時，揪出緩慢發生的 Memory Leak 與連線池枯竭。</li>
+</ol>
+<h2 is-upgraded>協調性漏測 (Coordinated Omission) 致命盲點</h2>
+<p>由效能專家 Gil Tene 提出的 <strong>Coordinated Omission</strong> 是傳統壓測最大的數據謊言：</p>
+<p>Negative : <strong>閉環模型 (Closed Loop Model - vus: 10)</strong>：虛擬用戶必須等待前一個請求回應才能發送下一個。當後端資料庫卡頓 5 秒時，10 個 VU 全部被卡住，5 秒內發出的請求數暴跌至個位數！測試工具誤以為「平均延遲不高」，卻完全忽略了外部真實使用者在此時正在瘋狂排隊等待的慘劇！</p>
+<h2 is-upgraded>開放模型實戰與利特爾法則 (Little&#39;s Law)</h2>
+<p><strong>開放模型 (Open Model)</strong> 將抵達率 (Arrival Rate) 與 VU 解耦，強制維持每秒發出既定數量的請求：</p>
+<pre><code language="language-javascript" class="language-javascript">export const options = {
+  scenarios: {
+    open_model_traffic: {
+      executor: &#39;constant-arrival-rate&#39;,
+      rate: 100,             // 每秒鎖定 100 次迭代 (100 RPS)
+      timeUnit: &#39;1s&#39;,
+      duration: &#39;5m&#39;,
+      preAllocatedVUs: 20,   // 依據利特爾法則精算的基準並發
+      maxVUs: 150,           // 面對延遲突波時的動態緩衝池
+    },
+  },
+};
+</code></pre>
+<h3 is-upgraded>利特爾法則精算公式</h3>
+<p>$$L = \lambda \times W$$</p>
+<ul>
+<li>$L$：系統內並行量 (所需 VU 數)</li>
+<li>$\lambda$：請求抵達率 (目標 RPS)</li>
+<li>$W$：平均回應時間 (Latency，秒)</li>
+</ul>
+<p><strong>精算範例</strong>：目標 200 RPS，預期回應時間 100ms (0.1s)：<br> $$L = 200 \times 0.1 = 20\text{ VUs}$$<br> 若極端延遲飆高至 1s，則需要 $200 \times 1 = 200\text{ VUs}$。因此設定 <code>preAllocatedVUs: 20</code>，<code>maxVUs: 250</code>。</p>
+<h2 is-upgraded>SharedArray 記憶體拯救神技</h2>
+<p>在萬人併發測試中，若在全域使用普通 JS 陣列載入 50MB 測試資料，k6 為每個獨立的 VU 虛擬機都會複製一份，1,000 個 VU 會消耗 50GB 記憶體，直接引發 OOM Crash！</p>
+<pre><code language="language-javascript" class="language-javascript">import { SharedArray } from &#39;k6/data&#39;;
+
+// 唯讀共享記憶體：10,000 筆資料在記憶體中永遠只有一份！
+const users = new SharedArray(&#39;users_dataset&#39;, function () {
+  return JSON.parse(open(&#39;./large_users.json&#39;));
+});
+</code></pre>
+<h2 is-upgraded>實作演練：驗證開放模型與 SharedArray</h2>
+<pre><code language="language-bash" class="language-bash"># 1. 執行閉環模型 (延遲拖垮 RPS)
+k6 run -e MODEL=closed k6/demos/ch2_closed_vs_open_model.js
+
+# 2. 執行開放模型 (自動調派 VU 守住目標 RPS)
+k6 run -e MODEL=open k6/demos/ch2_closed_vs_open_model.js
+
+# 3. 驗證 SharedArray 極速低記憶體載入
+k6 run k6/demos/ch2_shared_array.js
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Chapter 3: 效能指標解讀與 SLO 門檻自動化 (Quality Gates)" duration="20">
+        <h2 is-upgraded>微服務黃金準則：RED Method</h2>
+<p>解讀 k6 測試摘要時，請緊扣微服務監控的黃金準則：</p>
+<ul>
+<li><strong>Rate（吞吐速率）</strong>：對應 k6 的 <code>http_reqs</code> (每秒請求總量)。</li>
+<li><strong>Errors（錯誤比率）</strong>：對應 k6 的 <code>http_req_failed</code> (非預期狀態碼比例)。</li>
+<li><strong>Duration（回應延遲）</strong>：對應 k6 的 <code>http_req_duration</code> (完整網路交互時間)。</li>
+</ul>
+<h2 is-upgraded>破解平均值陷阱：尾端延遲 (Tail Latency)</h2>
+<p>Negative : 永遠不要看平均值 (Average)！在 100 個請求中，99 個 10ms，1 個結帳請求卡了 10 秒，算出來的平均值依然只有約 109ms，看似一切正常。但那個最關鍵的買單用戶已經流失！</p>
+<p>在定義 SLO 時，一律採用百分位數：</p>
+<ul>
+<li><strong>P95</strong>：95% 請求優於此時間，為日常及格標準。</li>
+<li><strong>P99（尾端延遲，Tail Latency）</strong>：精準捕捉體驗最差的 1% 用戶，防範微服務鏈路中的骨牌效應。</li>
+</ul>
+<h2 is-upgraded>四大自訂指標型態 (Custom Metrics)</h2>
+<pre><code language="language-javascript" class="language-javascript">import { Counter, Gauge, Rate, Trend } from &#39;k6/metrics&#39;;
+
+const orderCount = new Counter(&#39;orders_total&#39;);              // 累計計數器
+const activeWorkers = new Gauge(&#39;active_workers&#39;);           // 瞬時狀態規
+const businessSuccess = new Rate(&#39;checkout_success_rate&#39;);   // 業務成功率 (0~1)
+const dbLatency = new Trend(&#39;db_query_duration&#39;);            // 統計趨勢 (自動計算 p90/p95/avg)
+</code></pre>
+<h2 is-upgraded>CI/CD 自動卡關關鍵：Exit Code 99</h2>
+<pre><code>[k6 測試執行完畢] ──&gt; 所有 Thresholds 及格 ──&gt; Exit Code 0  ──&gt; CI/CD 綠燈發布
+                  └── 任何一項門檻違規 ──&gt; Exit Code 99 ──&gt; CI/CD 紅燈中斷阻斷！
+</code></pre>
+<p>在腳本中設定門檻，並搭配標籤精確控制各 API 的 SLO：</p>
+<pre><code language="language-javascript" class="language-javascript">export const options = {
+  thresholds: {
+    &#39;http_req_failed&#39;: [&#39;rate&lt;0.01&#39;], // 錯誤率 &lt; 1%
+    &#39;http_req_duration{api:checkout}&#39;: [&#39;p(99)&lt;500&#39;], // 關鍵 API P99 &lt; 500ms
+    &#39;checkout_success_rate&#39;: [
+      {
+        threshold: &#39;rate&gt;0.99&#39;,
+        abortOnFail: true,      // 熔斷機制：一旦嚴重失敗立即腰斬測試，止損 CI 運算資源！
+        delayAbortEval: &#39;5s&#39;,   // 緩衝 5 秒再開始評估熔斷，避免冷啟動誤判
+      },
+    ],
+  },
+};
+</code></pre>
+<h2 is-upgraded>實作演練：親手觸發 Exit Code 99 阻斷</h2>
+<pre><code language="language-bash" class="language-bash"># 模擬門檻超標，驗證 Linux Shell 捕獲代碼 99
+k6 run -e FAIL_SLO=true k6/demos/ch3_quality_gates_exit99.js ; echo &#34;CI Exit Code: $?&#34;
+</code></pre>
+<p>Positive : 終端機最後一行印出 <code>CI Exit Code: 99</code>，證明自動化效能門禁成功阻斷！</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Chapter 4: 邁向真實用戶體驗：流量錄製與 k6 Browser 混合壓測" duration="25">
+        <h2 is-upgraded>現代單頁應用 (SPA) 壓測盲區</h2>
+<p>在前後端分離與 React/Vue/Angular 盛行的現代架構中，只測後端協定層 API 會產生嚴重的效能盲區：</p>
+<ul>
+<li><strong>協定層 (Protocol-Level, HTTP/gRPC)</strong>：發送純 HTTP 封包，消耗極低資源（單機可模擬數萬 VU），但<strong>完全無法執行 JavaScript</strong>，也無法渲染 DOM。</li>
+<li><strong>瀏覽器層 (Browser-Level, Headless Chromium)</strong>：啟動真實無頭瀏覽器，完整載入前端靜態資源、解析 DOM、執行 JS Bundle，並採集真實 <strong>Core Web Vitals</strong> 使用者體驗指標。</li>
+</ul>
+<p>Positive : 「後端 API 回應僅 30ms，但前端肥大的 JS Bundle 與重排重繪卡了 3 秒」—— 唯有結合協定層與瀏覽器層，才能看見全鏈路真實效能！</p>
+<h2 is-upgraded>HAR 流量錄製與 Chrome DevTools 四大標準動作</h2>
+<p>手寫數十隻相依 API 的測試腳本既耗時又容易漏掉 Cookie 或 Header。k6 官方支援將瀏覽器錄製的 <strong>HAR (HTTP Archive)</strong> 檔案一鍵轉換為 k6 腳本。</p>
+<h3 is-upgraded>瀏覽器錄製四大標準動作</h3>
+<ol type="1">
+<li><strong>開啟無痕視窗 (Incognito Window)</strong>：強制排除所有瀏覽器擴充套件（如 AdBlock、密碼管理員）發出的背景流量干擾。</li>
+<li><strong>勾選「Preserve log」</strong>：在 Chrome DevTools 的 Network 面板右上角勾選 <strong>Preserve log</strong>，確保表單跳轉與跨頁重新導向時，歷程不會被清空。</li>
+<li><strong>清空現有 Log 後執行業務操作</strong>：點擊 Network 面板的 🚫「Clear」按鈕，接著在畫面上執行完整的端到端操作（例如 QuickPizza 瀏覽首頁、登入、生成推薦披薩）。</li>
+<li><strong>匯出 HAR 檔案</strong>：點擊 Network 面板右上方的「Export HAR (含敏感資料選項需謹慎)」，儲存為 <code>recording.har</code>。</li>
+</ol>
+<h3 is-upgraded>CLI 一鍵轉譯為 k6 腳本</h3>
+<pre><code language="language-bash" class="language-bash"># 透過 har-to-k6 工具自動轉譯
+npx har-to-k6 recording.har -o k6/demos/recording_raw.js
+</code></pre>
+<h2 is-upgraded>HAR 三大清理法則（從玩具到生產級）</h2>
+<p>直接執行轉譯出的 <code>recording_raw.js</code> 會立刻遭遇嚴重的兩大災難：</p>
+<ol type="1">
+<li><strong>401 死資料陷阱</strong>：HAR 錄製下來的 <code>Authorization: Token xxxxx</code> 是錄製當時的過期 Token，重新發送會收到 <code>401 Unauthorized</code>。</li>
+<li><strong>Don&#39;t load test Google!</strong>：HAR 連同外部 Google Analytics (<code>google-analytics.com</code>)、第三方字型或 CDN 都一起錄進去。對第三方服務壓測不僅違法，更會嚴重失真！</li>
+</ol>
+<h3 is-upgraded>清理法則 1：去靜態資源 (Strip External &amp; Static Assets)</h3>
+<p>剔除第三方追蹤代碼 (<code>google-analytics.com</code>、<code>hotjar</code> 等) 與非本機靜態資源，將測試焦點完全收斂在待測服務的業務邏輯 API。</p>
+<h3 is-upgraded>清理法則 2：動態關聯 (Dynamic Correlation)</h3>
+<p>在 <code>setup()</code> 生命週期中呼叫真實登入 API，動態取得最新有效憑證 (Auth Token)，並透過 <code>data</code> 參數注入給每一個 VU 迴圈使用。</p>
+<h3 is-upgraded>清理法則 3：結構化模組 (Semantic Modularization)</h3>
+<p>將錄製出來的上百行線性 URL 呼叫，封裝成語意清晰的業務函式（如 <code>browseHomepage()</code>、<code>orderPizza(token)</code>），方便維護與重用。</p>
+<h3 is-upgraded>程式碼對比：Raw HAR vs 清理後生產級腳本</h3>
+<pre><code language="language-javascript" class="language-javascript">// ❌ recording_raw.js：包含過期死 Token 與第三方統計
+let res1 = http.post(&#39;https://quickpizza.grafana.com/api/pizza&#39;, &#39;{}&#39;, {
+  headers: {
+    &#39;Authorization&#39;: &#39;Token EXPIRED_RECORDED_TOKEN_12345&#39;, // 💥 401 Unauthorized!
+  },
+});
+let res2 = http.get(&#39;https://www.google-analytics.com/g/collect?...&#39;); // 💥 違規外送流量!
+</code></pre>
+<pre><code language="language-javascript" class="language-javascript">// ✅ recording_cleaned.js：三大法則清理後的生產級架構
+import http from &#39;k6/http&#39;;
+import { check, group, sleep } from &#39;k6&#39;;
+
+export const options = {
+  vus: 5,
+  duration: &#39;5s&#39;,
+  thresholds: {
+    http_req_duration: [&#39;p(95)&lt;1000&#39;],
+    http_req_failed: [&#39;rate&lt;0.01&#39;],
+    checks: [&#39;rate==1.0&#39;],
+  },
+};
+
+// 法則 2：動態關聯 - setup() 獲取即時 Token
+export function setup() {
+  const loginRes = http.post(&#39;https://quickpizza.grafana.com/api/users/token/login&#39;, 
+    JSON.stringify({ username: &#39;default&#39;, password: &#39;123&#39; }),
+    { headers: { &#39;Content-Type&#39;: &#39;application/json&#39; } }
+  );
+  return { authToken: loginRes.json(&#39;token&#39;) };
+}
+
+// 法則 3：結構化模組封裝
+function browseHomepage() {
+  const res = http.get(&#39;https://quickpizza.grafana.com/&#39;);
+  check(res, { &#39;首頁載入成功 (200)&#39;: (r) =&gt; r.status === 200 });
+}
+
+function orderPizza(token) {
+  const res = http.post(&#39;https://quickpizza.grafana.com/api/pizza&#39;, &#39;{}&#39;, {
+    headers: {
+      &#39;Content-Type&#39;: &#39;application/json&#39;,
+      Authorization: `Token ${token}`, // 動態注入有效 Token
+    },
+  });
+  check(res, {
+    &#39;動態下單成功 (200)&#39;: (r) =&gt; r.status === 200,
+    &#39;披薩推薦生成成功&#39;: (r) =&gt; r.json(&#39;pizza.name&#39;) !== undefined,
+  });
+}
+
+export default function (data) {
+  group(&#39;使用者結帳旅程&#39;, function () {
+    browseHomepage();
+    sleep(0.5);
+    orderPizza(data.authToken);
+    sleep(0.5);
+  });
+}
+</code></pre>
+<h3 is-upgraded>實作演練：驗證清理後的 HAR 腳本</h3>
+<pre><code language="language-bash" class="language-bash">k6 run k6/demos/recording_cleaned.js
+</code></pre>
+<p><strong>真實執行終端輸出：</strong></p>
+<pre><code language="language-text" class="language-text">  █ THRESHOLDS 
+    checks .............: rate=100.00%
+    http_req_duration ..: p(95)=297.58ms
+    http_req_failed ....: rate=0.00%
+
+  █ TOTAL RESULTS 
+    checks_total.......: 62      
+    checks_succeeded...: 100.00% 62 out of 62
+    checks_failed......: 0.00%   0 out of 62
+
+    ✓ 登入成功取得 200
+    ✓ 取得有效 Token
+    ✓ 首頁載入成功 (200)
+    ✓ 動態下單成功 (200)
+    ✓ 披薩推薦生成成功
+</code></pre>
+<h2 is-upgraded>k6 Browser：真實 Chromium 渲染與 Core Web Vitals</h2>
+<p>k6 原生整合 Playwright-like 語法的瀏覽器自動化引擎，能夠在協定測試的同時啟動無頭瀏覽器。</p>
+<h3 is-upgraded>核心指標定義</h3>
+<table>
+<tr><td colspan="1" rowspan="1"><p>指標</p>
+</td><td colspan="1" rowspan="1"><p>全名</p>
+</td><td colspan="1" rowspan="1"><p>核心意義</p>
+</td><td colspan="1" rowspan="1"><p>業界良好標準</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p><strong>LCP</strong></p>
+</td><td colspan="1" rowspan="1"><p>Largest Contentful Paint</p>
+</td><td colspan="1" rowspan="1"><p>最大內容繪製時間（主視覺何時呈現）</p>
+</td><td colspan="1" rowspan="1"><p>$\le 2.5\text{s}$</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p><strong>FCP</strong></p>
+</td><td colspan="1" rowspan="1"><p>First Contentful Paint</p>
+</td><td colspan="1" rowspan="1"><p>首次內容繪製時間（白屏時間結束）</p>
+</td><td colspan="1" rowspan="1"><p>$\le 1.8\text{s}$</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p><strong>INP</strong></p>
+</td><td colspan="1" rowspan="1"><p>Interaction to Next Paint</p>
+</td><td colspan="1" rowspan="1"><p>互動到下次繪製延遲（點擊響應流暢度）</p>
+</td><td colspan="1" rowspan="1"><p>$\le 200\text{ms}$</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p><strong>TTFB</strong></p>
+</td><td colspan="1" rowspan="1"><p>Time to First Byte</p>
+</td><td colspan="1" rowspan="1"><p>伺服器首位元組時間（後端與網路基礎開銷）</p>
+</td><td colspan="1" rowspan="1"><p>$\le 800\text{ms}$</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p><strong>CLS</strong></p>
+</td><td colspan="1" rowspan="1"><p>Cumulative Layout Shift</p>
+</td><td colspan="1" rowspan="1"><p>累計版面配置位移（視覺穩定度）</p>
+</td><td colspan="1" rowspan="1"><p>$\le 0.1$</p>
+</td></tr>
+</table>
+<p>Negative : <strong>資源釋放軍規警告</strong>：操作瀏覽器時，務必將 <code>await page.close()</code> 放在 <code>finally</code> 區塊中！若腳本在執行途中異常拋出錯誤而略過關閉步驟，伺服器背景將堆積大量未釋放的 Chromium 殭屍行程，迅速吃光主機記憶體與 CPU。</p>
+<h3 is-upgraded>瀏覽器單元測試實作</h3>
+<pre><code language="language-bash" class="language-bash">k6 run k6/demos/ch4_browser_quickpizza.js
+</code></pre>
+<p><strong>真實採集指標輸出：</strong></p>
+<pre><code language="language-text" class="language-text">  █ THRESHOLDS 
+    browser_web_vital_fcp ..: p(95)=2.27s
+    browser_web_vital_lcp ..: p(95)=2.27s
+    checks .................: rate=100.00%
+
+  WEB_VITALS
+    browser_web_vital_cls...: avg=0       
+    browser_web_vital_fcp...: avg=2.27s   
+    browser_web_vital_inp...: avg=16ms    
+    browser_web_vital_lcp...: avg=2.27s   
+    browser_web_vital_ttfb..: avg=587.79ms
+</code></pre>
+<h2 is-upgraded>99:1 全鏈路混合壓測黃金架構 (Hybrid Testing)</h2>
+<p>在大型分散式系統中，啟動 1,000 個真實瀏覽器實例通常需要幾十台大型執行節點（每 Chromium VU 約需 50MB~100MB 記憶體），成本極其昂貴。</p>
+<p><strong>99:1 黃金比例架構</strong>以最低成本實現全鏈路壓測：</p>
+<ul>
+<li><strong>99% Protocol Load (協定負載)</strong>：使用輕量 VU 模擬巨量流量（例如 10,000 RPS），將後端 API、資料庫連線池與微服務網關打至滿載極限。</li>
+<li><strong>1% Browser Probe (瀏覽器探針)</strong>：在系統遭受協定負載狂轟濫炸時，派出一隻真實 Chromium 探針模擬真實用戶進入首頁與結帳，測量極限壓力下的真實前端 <strong>LCP/INP</strong> 是否惡化！</li>
+</ul>
+<pre><code>                                      ┌─── 99% Protocol Load (1000 VU) ───&gt; 後端 API 與資料庫滿載
+[全鏈路混合壓測 Hybrid Script] ───────┤
+                                      └─── 1% Browser Probe (1 VU Chromium) ──&gt; 即時採集風暴下的 LCP/CLS
+</code></pre>
+<h3 is-upgraded>混合壓測多情境腳本架構</h3>
+<pre><code language="language-javascript" class="language-javascript">import { browser } from &#39;k6/browser&#39;;
+import http from &#39;k6/http&#39;;
+import { check, sleep } from &#39;k6&#39;;
+
+export const options = {
+  scenarios: {
+    // 情境 1：99% 協定層狂轟濫炸 (Protocol Flood)
+    protocol_flood: {
+      executor: &#39;constant-vus&#39;,
+      vus: 10,
+      duration: &#39;10s&#39;,
+      exec: &#39;protocolScenario&#39;,
+    },
+    // 情境 2：1% 瀏覽器探針 (Browser Probe，在負載建立後延遲進場)
+    browser_sample: {
+      executor: &#39;shared-iterations&#39;,
+      vus: 1,
+      iterations: 1,
+      startTime: &#39;2s&#39;, // 確保後端已有高壓背景負載
+      options: { browser: { type: &#39;chromium&#39; } },
+      exec: &#39;browserScenario&#39;,
+    },
+  },
+  thresholds: {
+    &#39;http_req_duration{scenario:protocol_flood}&#39;: [&#39;p(95)&lt;1000&#39;],
+    &#39;browser_web_vital_lcp{scenario:browser_sample}&#39;: [&#39;p(90)&lt;3500&#39;],
+  },
+};
+
+export function protocolScenario() {
+  const res = http.get(&#39;https://quickpizza.grafana.com/api/pizza&#39;);
+  check(res, { &#39;Protocol 狀態碼為 200&#39;: (r) =&gt; r.status === 200 });
+  sleep(0.5);
+}
+
+export async function browserScenario() {
+  const page = await browser.newPage();
+  try {
+    await page.goto(&#39;https://quickpizza.grafana.com&#39;);
+    await page.locator(&#39;button[name=&#34;pizza-please&#34;]&#39;).click();
+    sleep(1);
+  } finally {
+    await page.close(); // 確保無頭進程正常釋放
+  }
+}
+</code></pre>
+<h3 is-upgraded>實作演練：執行 99:1 混合全鏈路壓測</h3>
+<pre><code language="language-bash" class="language-bash">k6 run k6/demos/ch4_hybrid_99_to_1.js
+</code></pre>
+<p><strong>真實執行終端輸出：</strong></p>
+<pre><code language="language-text" class="language-text">  █ THRESHOLDS 
+    browser_web_vital_lcp{scenario:browser_sample} ...: p(90)=2.1s (門檻 &lt;3500ms ✓)
+    http_req_duration{scenario:protocol_flood} .......: p(95)=193.65ms (門檻 &lt;1000ms ✓)
+    http_req_failed{scenario:protocol_flood} .........: rate=0.00% (門檻 &lt;5% ✓)
+
+  █ TOTAL RESULTS 
+    checks_succeeded...: 100.00% 140 out of 140
+    http_reqs..........: 280 (協定層成功轟出 280 次 API 請求)
+    
+    WEB_VITALS (在滿載壓力下之瀏覽器採樣)
+    browser_web_vital_fcp...........: avg=2.1s
+    browser_web_vital_inp...........: avg=24ms
+    browser_web_vital_lcp...........: avg=2.1s
+    browser_web_vital_ttfb..........: avg=587.9ms
+
+  running (00m10.3s), 00/11 VUs, 141 complete iterations
+  protocol_flood ✓ [ 100% ] 10 VUs  10s            
+  browser_sample ✓ [ 100% ] 1 VUs   00m03.6s/10m0s
+</code></pre>
+<p>Positive : 混合壓測以 10 個協定 VU 轟擊出 280 次請求，平均延遲僅 98ms；同時 Chromium 探針即時回報 LCP 為 2.1s、INP 為 24ms，雙邊 SLO 均成功達標！</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Chapter 5: 生態系擴充與全視角可觀測性整合" duration="20">
+        <h2 is-upgraded>破除數據孤島：原生 Web Dashboard</h2>
+<p>無需額外安裝任何資料庫或 Grafana，一行環境變數直接啟動原生動態儀表板：</p>
+<pre><code language="language-bash" class="language-bash">K6_WEB_DASHBOARD=true k6 run script.js
+# 開啟瀏覽器訪問：http://127.0.0.1:5665
+</code></pre>
+<h3 is-upgraded>CI/CD 匯出靜態 HTML 報告：Port=-1 退場神技</h3>
+<p>在 CI/CD 中，為避免 Web 伺服器一直佔據連接埠導致流水線無法結束，使用以下參數：</p>
+<pre><code language="language-bash" class="language-bash">K6_WEB_DASHBOARD=true \
+K6_WEB_DASHBOARD_PORT=-1 \
+K6_WEB_DASHBOARD_EXPORT=report.html \
+k6 run script.js
+</code></pre>
+<h2 is-upgraded>xk6 擴充機制與 Docker 確定性編譯</h2>
+<p>當需要測試 Kafka、PostgreSQL/MySQL SQL 或 Redis 時，使用官方 Docker 映像檔進行確定性編譯：</p>
+<pre><code language="language-bash" class="language-bash">docker run --rm \
+  -u &#34;$(id -u):$(id -g)&#34; \
+  -v &#34;$(pwd):/xk6&#34; \
+  grafana/xk6 build latest \
+  --with github.com/grafana/xk6-sql \
+  --output /xk6/k6-custom
+</code></pre>
+<p>Positive : 注意 <code>-v "$(pwd):/xk6"</code> 掛載點，確保編譯完成的二進位檔直接輸出至本機目錄！</p>
+<h2 is-upgraded>Prometheus Remote Write 與 Commit Tag 綁定</h2>
+<p>本 Lab 的 Prometheus 已啟用 <code>--web.enable-remote-write-receiver</code>，直接以時序串流推送指標，並綁定當前 Git 版本：</p>
+<pre><code language="language-bash" class="language-bash">K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
+k6 run \
+  -o experimental-prometheus-rw \
+  --tag &#34;commit_id=$(git rev-parse --short HEAD)&#34; \
+  script.js
+</code></pre>
+<h2 is-upgraded>顛峰時刻：Grafana 雙時間軸對齊除錯</h2>
+<p>在 Grafana 啟用 <strong>Shared Crosshair（共享十字準星）</strong>：</p>
+<pre><code>[14:02:00]  k6 API P95 Latency 曲線   ──&gt; 突然垂直暴衝至 2.2 秒！
+[14:02:00]  K8s Pod CPU CFS Throttling ──&gt; 同一秒飆高至 85%！
+</code></pre>
+<p><strong>結論</strong>：秒級破案！不是程式碼有 Bug，而是 Kubernetes Pod 的 CPU Limit 設得太緊，容器被 Linux 核心強迫降頻卡頓。將壓測與系統基礎設施指標對齊，徹底破除數據孤島！</p>
+<h2 is-upgraded>實作演練：執行 Prometheus 推播演示</h2>
+<pre><code language="language-bash" class="language-bash">./k6/demos/ch5_prometheus_remote_write.sh
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="總結與企業導入實作指南" duration="5">
+        <h2 is-upgraded>企業導入實作 Checklist</h2>
+<p>恭喜你完成全部課程！在團隊中推動效能工程落地時，請依循以下五部曲：</p>
+<ol type="1">
+<li><strong>測試代碼化</strong>：所有 k6 腳本與微服務應用代碼納入同一個 Git 儲存庫進行版本控管與審查。</li>
+<li><strong>SLO 量化</strong>：拋棄平均值，明確訂定 P95/P99 尾端延遲門檻與錯誤率容忍度。</li>
+<li><strong>門禁自動化</strong>：以 Exit Code 99 在 CI/CD 中自動守護生產主幹，並配置 <code>abortOnFail</code> 及時止損。</li>
+<li><strong>全鏈路混合</strong>：落實 99:1 黃金配比，以最低成本兼顧後端叢集負載與前端真實渲染體驗。</li>
+<li><strong>可觀測性閉環</strong>：透過 Prometheus Remote Write 將壓測數據時序化，於 Grafana 與 APM 分散式追蹤雙向對齊。</li>
+</ol>
+<h2 is-upgraded>延伸資源與原始碼清單</h2>
+<ul>
+<li><strong>專案原始碼</strong>：<a href="https://github.com/tedmax100/o11y_lab_for_dummies" target="_blank"><code>o11y_lab_for_dummies</code></a></li>
+<li><strong>實機演示腳本全集</strong>：<a href="https://github.com/tedmax100/o11y_lab_for_dummies/tree/main/k6/demos" target="_blank"><code>k6/demos/</code></a></li>
+<li><strong>全系列簡報 PPTX</strong>：<a href="https://github.com/tedmax100/o11y_lab_for_dummies/tree/main/k6/slides" target="_blank"><code>k6/slides/</code></a></li>
+<li><strong>錄課口播逐字稿</strong>：<a href="https://github.com/tedmax100/o11y_lab_for_dummies/tree/main/k6/slides/transcripts" target="_blank"><code>k6/slides/transcripts/</code></a></li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="../claat-public/native-shim.js"></script>
+  <script src="../claat-public/custom-elements.min.js"></script>
+  <script src="../claat-public/prettify.js"></script>
+  <script src="../claat-public/codelab-elements.js"></script>
+  <script src="//support.google.com/inapp/api.js"></script>
+
+</body>
+</html>

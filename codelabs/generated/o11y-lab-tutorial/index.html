@@ -9,7 +9,7 @@
   <title>OpenTelemetry 可觀測性實驗室教學</title>
   <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
   <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
-  <link rel="stylesheet" href="https://storage.googleapis.com/claat-public/codelab-elements.css">
+  <link rel="stylesheet" href="../claat-public/codelab-elements.css">
   <style>
     .success {
       color: #1e8e3e;
@@ -35,7 +35,7 @@
 <li>使用 Docker Compose 快速部署微服務架構</li>
 <li>理解 Python 自動埋點（Auto Instrumentation）</li>
 <li>實踐 Python 手動埋點（Manual Instrumentation）</li>
-<li>使用 K6 生成測試流量</li>
+<li>使用 K6 進行多種負載測試（煙霧測試、負載測試、壓力測試、尖峰測試）</li>
 <li>使用 Pumba 進行混沌工程（延遲注入）</li>
 <li>在 Grafana 中關聯 Logs、Metrics、Traces</li>
 </ul>
@@ -221,6 +221,156 @@ docker compose logs -f
 <li><strong>postgres</strong>: 資料庫</li>
 <li><strong>kafka</strong>: 訊息佇列</li>
 </ul>
+<h2 is-upgraded>Overall Architecture</h2>
+<pre><code>┌─────────────┐
+
+│   Client    │
+
+└──────┬──────┘
+
+       │ HTTP
+
+       ▼
+
+┌─────────────────────────────────────────────────────────────┐
+
+│                      API Gateway                             │
+
+│                    (Python/FastAPI)                          │
+
+│                 Auto Instrumentation                         │
+
+└──────┬──────────────────────────────────────────────────────┘
+
+       │
+
+       ▼
+
+┌─────────────────────────────────────────────────────────────┐
+
+│                      Service A                               │
+
+│                    (Python/FastAPI)                          │
+
+│                 Auto Instrumentation                         │
+
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+
+│  │PostgreSQL│  │Service D │  │Service B │  │3rd Party │   │
+
+│  │  Query   │  │   Call   │  │   Call   │  │API Call  │   │
+
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+
+└──────┬────────────────┬────────────────┬─────────────────────┘
+
+       │                │                │
+
+       ▼                ▼                ▼
+
+  ┌─────────┐    ┌──────────┐    ┌──────────┐
+
+  │PostgreSQL   │ Service D│    │Service B │
+
+  │         │    │ (Python/ │    │(Go/Gin)  │
+
+  │         │    │  Flask)  │    │Manual    │
+
+  └─────────┘    │   Auto   │    │Instrument│
+
+                 │Instrument│    └────┬─────┘
+
+                 └──────────┘         │
+
+                                      ▼
+
+                                 ┌─────────┐
+
+                                 │  Kafka  │
+
+                                 │  Queue  │
+
+                                 └────┬────┘
+
+                                      │
+
+                                      ▼
+
+                                 ┌──────────┐
+
+                                 │Service C │
+
+                                 │(Go/Gin)  │
+
+                                 │Manual    │
+
+                                 │Instrument│
+
+                                 └──────────┘
+
+</code></pre>
+<h2 is-upgraded>Observability Architecture</h2>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+
+│                    Application Services                      │
+
+│  API Gateway │ Service A │ Service B │ Service C │ Service D│
+
+└──────────────────────┬──────────────────────────────────────┘
+
+                       │ OTLP (gRPC/HTTP)
+
+                       │ - Traces
+
+                       │ - Metrics
+
+                       │ - Logs
+
+                       ▼
+
+┌─────────────────────────────────────────────────────────────┐
+
+│            OpenTelemetry Collector                           │
+
+│  ┌──────────┐  ┌───────────┐  ┌──────────┐                │
+
+│  │Receivers │→ │Processors │→ │Exporters │                │
+
+│  └──────────┘  └───────────┘  └──────────┘                │
+
+│       │              │               │                       │
+
+│     OTLP          Batch          OTLP/Prom/Loki            │
+
+└───────┼──────────────┼───────────────┼──────────────────────┘
+
+        │              │               │
+
+        ▼              ▼               ▼
+
+  ┌─────────┐   ┌───────────┐   ┌─────────┐
+
+  │  Tempo  │   │Prometheus │   │  Loki   │
+
+  │(Traces) │   │ (Metrics) │   │ (Logs)  │
+
+  └────┬────┘   └─────┬─────┘   └────┬────┘
+
+       │              │               │
+
+       └──────────────┼───────────────┘
+
+                      ▼
+
+              ┌──────────────┐
+
+              │   Grafana    │
+
+              │  Dashboard   │
+
+              └──────────────┘
+
+</code></pre>
 <h2 is-upgraded>等待服務就緒</h2>
 <pre><code language="language-bash" class="language-bash"># 檢查所有容器是否健康
 docker compose ps
@@ -245,7 +395,7 @@ docker compose ps
 </ol>
 <h2 is-upgraded>Grafana 介面介紹</h2>
 <p>登入後你會看到 Grafana 主介面：</p>
-<p class="image-container"><img alt="Grafana Home" src="img/0.png"></p>
+<p class="image-container"><img alt="Grafana Home" src="img/1f5a0fbaf7cc28dc.bmp"></p>
 <h3 is-upgraded>左側選單列</h3>
 <ul>
 <li><strong>Home</strong>: 首頁</li>
@@ -265,7 +415,6 @@ docker compose ps
 </ul>
 </li>
 </ol>
-<p class="image-container"><img alt="Data Sources" src="img/0.png"></p>
 <h2 is-upgraded>探索預先配置的 Dashboard</h2>
 <ol type="1">
 <li>點擊左側選單的 Dashboard 圖示</li>
@@ -276,74 +425,292 @@ docker compose ps
 </ul>
 </li>
 </ol>
-<p class="image-container"><img alt="Dashboards" src="img/0.png"></p>
+<p>儀表板列表: <img alt="Dashboards" src="img/3035602a77802a07.png"> Four Golden Signal 儀表板: <img alt="Dashboard" src="img/5fff56e386d4f4ce.png"></p>
 <p>Positive : Grafana 平台已經準備好了！接下來我們將使用 K6 生成流量。</p>
 
 
       </google-codelab-step>
     
-      <google-codelab-step label="使用 K6 生成測試流量" duration="8">
-        <h2 is-upgraded>K6 測試腳本</h2>
-<p>專案中已經包含了 K6 測試腳本。讓我們查看並執行它：</p>
-<pre><code language="language-bash" class="language-bash"># 查看 K6 腳本（如果存在）
+      <google-codelab-step label="使用 K6 進行負載測試" duration="15">
+        <h2 is-upgraded>K6 測試腳本介紹</h2>
+<p>專案中已經包含了四種不同的 K6 測試腳本，分別用於不同的測試場景：</p>
+<h3 is-upgraded>1. 煙霧測試 (Smoke Test) - <code>smoke-test.js</code></h3>
+<ul>
+<li><strong>目的</strong>: 驗證系統基本功能</li>
+<li><strong>虛擬用戶</strong>: 1 個</li>
+<li><strong>持續時間</strong>: 1 分鐘</li>
+<li><strong>使用時機</strong>: 部署後快速驗證、CI/CD 流程</li>
+</ul>
+<h3 is-upgraded>2. 負載測試 (Load Test) - <code>load-test.js</code></h3>
+<ul>
+<li><strong>目的</strong>: 測試系統在預期負載下的性能</li>
+<li><strong>虛擬用戶</strong>: 5 → 20 → 50（多階段）</li>
+<li><strong>持續時間</strong>: 約 3.5 分鐘</li>
+<li><strong>使用時機</strong>: 性能基準測試、容量規劃</li>
+</ul>
+<h3 is-upgraded>3. 壓力測試 (Stress Test) - <code>stress-test.js</code></h3>
+<ul>
+<li><strong>目的</strong>: 找出系統性能瓶頸和極限</li>
+<li><strong>虛擬用戶</strong>: 10 → 50 → 100 → 200（逐步增加）</li>
+<li><strong>持續時間</strong>: 約 6 分鐘</li>
+<li><strong>使用時機</strong>: 尋找系統瓶頸、驗證降級機制</li>
+</ul>
+<h3 is-upgraded>4. 尖峰測試 (Spike Test) - <code>spike-test.js</code></h3>
+<ul>
+<li><strong>目的</strong>: 測試系統應對突發流量的能力</li>
+<li><strong>虛擬用戶</strong>: 10 → 100 → 10 → 150（快速變化）</li>
+<li><strong>持續時間</strong>: 約 4 分鐘</li>
+<li><strong>使用時機</strong>: 測試自動擴展、驗證系統彈性</li>
+</ul>
+<h2 is-upgraded>查看測試腳本</h2>
+<pre><code language="language-bash" class="language-bash"># 查看所有可用的測試腳本
+ls -lh k6/
+
+# 查看負載測試腳本內容
 cat k6/load-test.js
-</code></pre>
-<p>如果專案中沒有，建立一個簡單的 K6 腳本：</p>
-<pre><code language="language-bash" class="language-bash">mkdir -p k6
-cat &gt; k6/load-test.js &lt;&lt; &#39;EOF&#39;
-import http from &#39;k6/http&#39;;
-import { check, sleep } from &#39;k6&#39;;
 
-export const options = {
-  stages: [
-    { duration: &#39;30s&#39;, target: 10 },  // 爬升到 10 個使用者
-    { duration: &#39;1m&#39;, target: 10 },   // 保持 10 個使用者
-    { duration: &#39;30s&#39;, target: 0 },   // 降到 0
-  ],
-};
-
-export default function () {
-  const response = http.get(&#39;http://localhost:8080/api/process&#39;);
-
-  check(response, {
-    &#39;status is 200&#39;: (r) =&gt; r.status === 200,
-    &#39;response time &lt; 500ms&#39;: (r) =&gt; r.timings.duration &lt; 500,
-  });
-
-  sleep(1);
-}
-EOF
+# 查看 README 文檔
+cat k6/README.md
 </code></pre>
 <h2 is-upgraded>執行 K6 測試</h2>
-<pre><code language="language-bash" class="language-bash"># 執行負載測試
-k6 run k6/load-test.js
-</code></pre>
-<p>你會看到類似這樣的輸出：</p>
-<pre><code>     ✓ status is 200
-     ✓ response time &lt; 500ms
+<h3 is-upgraded>方式一：使用 Makefile（推薦，無需安裝 K6）</h3>
+<p>專案已整合 K6 到 Makefile，使用 Docker 執行，<strong>完全不需要本地安裝 K6</strong>！</p>
+<pre><code language="language-bash" class="language-bash"># 查看所有 K6 測試命令和說明
+make k6-help
 
-     checks.........................: 100.00% ✓ 200  ✗ 0
-     data_received..................: 1.2 MB  20 kB/s
-     data_sent......................: 24 kB   400 B/s
-     http_req_duration..............: avg=125ms min=50ms med=120ms max=300ms
+# 1. 煙霧測試 - 快速驗證系統功能（1分鐘）
+make k6-smoke
+
+# 2. 負載測試 - 測試正常負載下的性能（3.5分鐘）
+make k6-load
+
+# 3. 尖峰測試 - 測試突發流量（4分鐘）
+make k6-spike
+
+# 4. 壓力測試 - 找出系統極限（6分鐘，可能影響系統穩定性）
+make k6-stress
+
+# 清理測試結果
+make k6-clean
 </code></pre>
-<h2 is-upgraded>在 Grafana 中觀察流量</h2>
+<p><strong>優點</strong>：</p>
+<ul>
+<li>✅ 無需本地安裝 K6，使用 Docker 執行</li>
+<li>✅ 命令簡單易記</li>
+<li>✅ 自動處理網路和檔案掛載</li>
+<li>✅ 環境一致性高</li>
+</ul>
+<h3 is-upgraded>方式二：直接使用 K6（需先安裝）</h3>
+<p>如果你已經安裝了 K6：</p>
+<pre><code language="language-bash" class="language-bash"># 1. 煙霧測試
+k6 run k6/smoke-test.js
+
+# 2. 負載測試
+k6 run k6/load-test.js
+
+# 3. 尖峰測試
+k6 run k6/spike-test.js
+
+# 4. 壓力測試
+k6 run k6/stress-test.js
+</code></pre>
+<h3 is-upgraded>方式三：使用 Docker 手動執行</h3>
+<pre><code language="language-bash" class="language-bash"># 使用 Docker 運行負載測試
+docker run --rm -i --network=host \
+  -v $(pwd)/k6:/scripts \
+  grafana/k6:latest run /scripts/load-test.js
+</code></pre>
+<h2 is-upgraded>測試結果解讀</h2>
+<p>執行測試後，你會在終端看到詳細的結果報告：</p>
+<pre><code>📊 測試結果摘要
+==================================================
+
+  █ THRESHOLDS 
+
+    http_req_duration
+    ✓ &#39;p(95)&lt;2000&#39; p(95)=969.75ms
+
+      {name:process}
+      ✓ &#39;p(99)&lt;5000&#39; p(99)=1.2s
+
+    http_req_failed
+    ✓ &#39;rate&lt;0.01&#39; rate=0.00%
+
+    process_success_rate
+    ✓ &#39;rate&gt;0.99&#39; rate=100.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 8275   43.39831/s
+    checks_succeeded...: 96.70% 8002 out of 8275
+    checks_failed......: 3.29%  273 out of 8275
+
+    ✓ 狀態碼是 200
+    ✓ 回應包含 status
+    ✓ 回應包含 data
+    ✓ 回應時間 &lt; 5秒
+    ✓ Stats 狀態碼是 200
+    ✗ Stats 回應包含 service
+      ↳  0% — ✓ 0 / ✗ 273
+    ✓ Stats 回應包含統計數據
+    ✓ Info 狀態碼是 200
+    ✓ Info 回應包含 service
+    ✓ API Gateway 健康檢查通過
+    ✓ Service A 健康檢查通過
+
+    CUSTOM
+    process_duration...............: avg=676.445165 min=291      med=654      max=1538  p(90)=947      p(95)=1039  
+    process_success_rate...........: 100.00% 1541 out of 1541
+
+    HTTP
+    http_req_duration..............: avg=402.79ms   min=603.81µs med=468.43ms max=1.53s p(90)=862.94ms p(95)=969.75ms
+      { expected_response:true }...: avg=402.79ms   min=603.81µs med=468.43ms max=1.53s p(90)=862.94ms p(95)=969.75ms
+      { name:process }.............: avg=676.31ms   min=291.57ms med=653.74ms max=1.53s p(90)=947.12ms p(95)=1.03s   
+    http_req_failed................: 0.00%   0 out of 2623
+    http_reqs......................: 2623    13.756347/s
+
+    EXECUTION
+    iteration_duration.............: avg=2.67s      min=1.38s    med=2.67s    max=4.43s p(90)=3.49s    p(95)=3.62s   
+    iterations.....................: 1541    8.081788/s
+    vus............................: 1       min=1            max=50
+    vus_max........................: 50      min=50           max=50
+
+    NETWORK
+    data_received..................: 1.8 MB  9.2 kB/s
+    data_sent......................: 208 kB  1.1 kB/s
+
+
+
+
+running (3m10.7s), 00/50 VUs, 1541 complete and 0 interrupted iterations
+default ✓ [ 100% ] 00/50 VUs  3m10s
+
+✅ Load test complete! Check output above for results.
+</code></pre>
+<p><strong>關鍵指標說明</strong>：</p>
+<ul>
+<li><code>http_req_duration</code>: 請求響應時間 <ul>
+<li><code>avg</code>: 平均響應時間</li>
+<li><code>p(95)</code>: 95% 的請求在此時間內完成</li>
+<li><code>p(99)</code>: 99% 的請求在此時間內完成</li>
+</ul>
+</li>
+<li><code>http_req_failed</code>: 請求失敗率</li>
+<li><code>checks</code>: 檢查項目通過率</li>
+</ul>
+<h2 is-upgraded>在 Grafana 中即時觀察測試影響</h2>
+<p>在執行 K6 測試時，建議同時在 Grafana 中觀察系統指標：</p>
+<h3 is-upgraded>1. 觀察 Metrics（指標）</h3>
 <ol type="1">
-<li>在 Grafana 中開啟 <strong>Explore</strong></li>
+<li>開啟 Grafana: http://localhost:3000</li>
+<li>點擊左側的 <strong>Explore</strong> 圖示</li>
 <li>選擇資料來源: <strong>Prometheus</strong></li>
-<li>輸入查詢: <pre><code language="language-promql" class="language-promql">rate(http_requests_total[1m])
+<li>輸入以下查詢並點擊 <strong>Run query</strong>:<pre><code language="language-promql" class="language-promql"># 請求速率
+rate(http_server_requests_seconds_count[1m])
+
+# 平均響應時間
+rate(http_server_requests_seconds_sum[1m]) / rate(http_server_requests_seconds_count[1m])
+
+# 錯誤率
+rate(http_server_requests_seconds_count{status=~&#34;5..&#34;}[1m])
 </code></pre>
 </li>
-<li>點擊 <strong>Run query</strong></li>
 </ol>
-<p>你應該會看到請求速率的圖表：</p>
-<p class="image-container"><img alt="K6 Traffic" src="img/0.png"></p>
-<h2 is-upgraded>持續流量生成（選用）</h2>
-<p>如果想要持續生成流量用於後續實驗：</p>
-<pre><code language="language-bash" class="language-bash"># 背景執行 K6
-k6 run --duration 30m k6/load-test.js &amp;
+<h3 is-upgraded>2. 觀察 Traces（追蹤）</h3>
+<ol type="1">
+<li>在 Grafana <strong>Explore</strong> 中</li>
+<li>切換資料來源為: <strong>Tempo</strong></li>
+<li>選擇 <strong>Search</strong> 標籤</li>
+<li>設定搜尋條件: <ul>
+<li>Service Name: <code>api-gateway</code> 或 <code>service-a-hybrid</code></li>
+<li>時間範圍: 最近 15 分鐘</li>
+</ul>
+</li>
+<li>點擊任一 Trace 查看詳細的分散式追蹤</li>
+</ol>
+<p>你會看到：</p>
+<ul>
+<li>完整的請求流程（Gateway → Service A → Service D/B）</li>
+<li>每個服務的處理時間</li>
+<li>資料庫查詢耗時</li>
+<li>外部 API 調用時間</li>
+</ul>
+<h3 is-upgraded>3. 觀察 Logs（日誌）</h3>
+<ol type="1">
+<li>在 Grafana <strong>Explore</strong> 中</li>
+<li>切換資料來源為: <strong>Loki</strong></li>
+<li>使用以下查詢:<pre><code language="language-logql" class="language-logql"># 查看所有服務日誌
+{container_name=~&#34;api-gateway|service-a|service-b|service-d&#34;}
+
+# 只看錯誤日誌
+{container_name=~&#34;api-gateway|service-a&#34;} |= &#34;ERROR&#34;
+
+# 根據 trace_id 查詢（從 Trace 中複製）
+{container_name=~&#34;.*&#34;} |= &#34;your-trace-id-here&#34;
 </code></pre>
-<p>Positive : 現在我們有流量資料了！接下來注入一些混沌。</p>
+</li>
+</ol>
+<h2 is-upgraded>實戰演練：完整測試流程</h2>
+<p>建議按照以下順序進行測試：</p>
+<h3 is-upgraded>Step 1: 煙霧測試（1 分鐘）</h3>
+<pre><code language="language-bash" class="language-bash"># 使用 Makefile（推薦）
+make k6-smoke
+
+# 或使用 K6 直接執行
+k6 run k6/smoke-test.js
+</code></pre>
+<p>✅ 確認：所有檢查都通過，失敗率 &lt; 1%</p>
+<h3 is-upgraded>Step 2: 負載測試（3.5 分鐘）</h3>
+<pre><code language="language-bash" class="language-bash"># 終端 1: 監控即時日誌
+docker compose logs -f api-gateway service-a
+
+# 終端 2: 執行負載測試（使用 Makefile）
+make k6-load
+
+# 或使用 K6 直接執行
+k6 run k6/load-test.js
+</code></pre>
+<p>✅ 確認：在 Grafana 中觀察到請求速率上升</p>
+<h3 is-upgraded>Step 3: 分析測試結果</h3>
+<ol type="1">
+<li>在 Grafana <strong>Explore</strong> (Tempo) 中找到測試期間的 traces</li>
+<li>點擊一個 trace，查看完整的調用鏈路</li>
+<li>切換到 <strong>Logs</strong> 標籤，查看相關日誌</li>
+<li>注意 trace_id 如何關聯 logs 和 traces</li>
+</ol>
+<h3 is-upgraded>Step 4: 尖峰測試（選用，4 分鐘）</h3>
+<pre><code language="language-bash" class="language-bash"># 使用 Makefile
+make k6-spike
+
+# 或使用 K6 直接執行
+k6 run k6/spike-test.js
+</code></pre>
+<p>✅ 觀察：系統在流量突增時的表現和恢復能力</p>
+<h2 is-upgraded>測試建議與最佳實踐</h2>
+<p>Positive : <strong>提示</strong>：建議測試順序為 smoke → load → spike → stress，避免一開始就執行壓力測試導致系統不穩定。</p>
+<p>Negative : <strong>警告</strong>：壓力測試可能會導致系統資源耗盡或服務崩潰，建議在獨立環境中執行。</p>
+<h2 is-upgraded>進階用法</h2>
+<h3 is-upgraded>自訂測試參數</h3>
+<pre><code language="language-bash" class="language-bash"># 使用環境變數指定不同的服務地址
+k6 run -e BASE_URL=http://your-gateway:8080 k6/load-test.js
+
+# 輸出結果到 JSON 檔案
+k6 run --out json=results.json k6/load-test.js
+
+# 在背景執行持續負載（用於混沌測試）
+k6 run --duration 10m k6/load-test.js &amp;
+</code></pre>
+<h3 is-upgraded>結合混沌測試</h3>
+<pre><code language="language-bash" class="language-bash"># 終端 1: 執行持續負載
+k6 run --duration 10m k6/load-test.js
+
+# 終端 2: 注入網路延遲
+make chaos-network-delay
+
+# 觀察系統在故障情況下的表現
+</code></pre>
+<p>Positive : 完成測試後，檢查 k6 目錄中生成的 JSON 報告檔案，可用於深入分析和歷史對比。</p>
 
 
       </google-codelab-step>
@@ -507,7 +874,7 @@ make chaos-stress-postgres
 <li>連接池是否耗盡</li>
 <li>應用是否有快取機制來減輕影響</li>
 </ul>
-<h3 is-upgraded>2.3 消息佇列混沌</h3>
+<h3 is-upgraded>2.3 Message Queue 混沌</h3>
 <pre><code language="language-bash" class="language-bash"># 暫停 Kafka 容器 30 秒
 make chaos-pause-kafka
 </code></pre>
@@ -726,7 +1093,7 @@ CMD [&#34;opentelemetry-instrument&#34;, &#34;uvicorn&#34;, &#34;main:app&#34;, 
 <li>在 Grafana 中:<ul>
 <li>開啟 <strong>Explore</strong></li>
 <li>選擇資料來源: <strong>Tempo</strong></li>
-<li>選擇 <strong>Service</strong>: <code>service-a</code></li>
+<li>選擇 <strong>Service</strong>: <code>service-a-hybrid</code></li>
 <li>點擊 <strong>Run query</strong></li>
 </ul>
 </li>
@@ -737,7 +1104,7 @@ CMD [&#34;opentelemetry-instrument&#34;, &#34;uvicorn&#34;, &#34;main:app&#34;, 
 </ul>
 </li>
 </ol>
-<p class="image-container"><img alt="Auto Instrumentation Trace" src="img/0.png"></p>
+<p class="image-container"><img alt="Auto Instrumentation Trace" src="img/86afdfcec3e95b69.png"></p>
 <h2 is-upgraded>自動埋點的優勢</h2>
 <p>✅ <strong>零程式碼侵入</strong>: 不需要修改業務程式碼 ✅ <strong>快速啟用</strong>: 幾分鐘內完成配置 ✅ <strong>覆蓋廣泛</strong>: 自動支援常見框架和函式庫 ✅ <strong>標準化</strong>: 遵循 OpenTelemetry 規範</p>
 <h2 is-upgraded>自動埋點的局限</h2>
@@ -929,7 +1296,7 @@ def process():
 </li>
 <li>點擊任意日誌行的 trace_id，直接跳轉到對應的 trace</li>
 </ol>
-<p class="image-container"><img alt="Manual Instrumentation" src="img/0.png"></p>
+<p class="image-container"><img alt="Manual Instrumentation" src="img/c513118ff4be3375.png"></p>
 <h2 is-upgraded>手動埋點最佳實踐</h2>
 <ol type="1">
 <li><strong>有意義的 Span 名稱</strong>: 使用業務術語，如 <code>checkout_cart</code> 而不是 <code>process</code></li>
@@ -1163,7 +1530,7 @@ docker compose down -v
 </ul>
 <h2 is-upgraded>你學到了什麼</h2>
 <p>恭喜！你已經完成了整個實驗室。你現在掌握了：</p>
-<p>✅ 搭建完整的可觀測性堆疊 ✅ Docker Compose 部署微服務 ✅ Python 自動和手動埋點 ✅ K6 負載測試 ✅ Pumba 混沌工程 ✅ Grafana 三大支柱關聯 ✅ 完整的問題定位流程</p>
+<p>✅ 搭建完整的可觀測性堆疊 ✅ Docker Compose 部署微服務 ✅ Python 自動和手動埋點 ~~[x] K6 負載測試~~ ✅ Pumba 混沌工程 ✅ Grafana 三大支柱關聯 ✅ 完整的問題定位流程</p>
 <h2 is-upgraded>下一步</h2>
 <ul>
 <li>嘗試在自己的專案中應用這些技術</li>
@@ -1178,10 +1545,10 @@ docker compose down -v
     
   </google-codelab>
 
-  <script src="https://storage.googleapis.com/claat-public/native-shim.js"></script>
-  <script src="https://storage.googleapis.com/claat-public/custom-elements.min.js"></script>
-  <script src="https://storage.googleapis.com/claat-public/prettify.js"></script>
-  <script src="https://storage.googleapis.com/claat-public/codelab-elements.js"></script>
+  <script src="../claat-public/native-shim.js"></script>
+  <script src="../claat-public/custom-elements.min.js"></script>
+  <script src="../claat-public/prettify.js"></script>
+  <script src="../claat-public/codelab-elements.js"></script>
   <script src="//support.google.com/inapp/api.js"></script>
 
 </body>

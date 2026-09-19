@@ -1,5 +1,8 @@
 # Codelabs 相关
-claat-*
+claat-linux-*
+claat-darwin-*
+!claat-public/
+!generated/claat-public/
 *.swp
 *.swo
 *~

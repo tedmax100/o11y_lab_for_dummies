@@ -45,9 +45,7 @@ echo "📂 掃描教學頁面..."
 
 if [ -d "generated/o11y-lab-tutorial" ]; then
     find generated/o11y-lab-tutorial -name "index.html" -o -name "*.html" | while read -r file; do
-        # 移除 'generated/' 前綴
         relative_path="${file#generated/}"
-        # 如果檔案名稱不是 index.html，則使用完整路徑
         url="${SITE_URL}/${relative_path}"
 
         echo "    <url>" >> "$OUTPUT_FILE"
@@ -55,6 +53,21 @@ if [ -d "generated/o11y-lab-tutorial" ]; then
         echo "        <lastmod>${CURRENT_DATE}</lastmod>" >> "$OUTPUT_FILE"
         echo "        <changefreq>monthly</changefreq>" >> "$OUTPUT_FILE"
         echo "        <priority>0.7</priority>" >> "$OUTPUT_FILE"
+        echo "    </url>" >> "$OUTPUT_FILE"
+        echo ""  >> "$OUTPUT_FILE"
+    done
+fi
+
+if [ -d "generated/k6-performance-testing" ]; then
+    find generated/k6-performance-testing -name "index.html" -o -name "*.html" | while read -r file; do
+        relative_path="${file#generated/}"
+        url="${SITE_URL}/${relative_path}"
+
+        echo "    <url>" >> "$OUTPUT_FILE"
+        echo "        <loc>${url}</loc>" >> "$OUTPUT_FILE"
+        echo "        <lastmod>${CURRENT_DATE}</lastmod>" >> "$OUTPUT_FILE"
+        echo "        <changefreq>monthly</changefreq>" >> "$OUTPUT_FILE"
+        echo "        <priority>0.9</priority>" >> "$OUTPUT_FILE"
         echo "    </url>" >> "$OUTPUT_FILE"
         echo ""  >> "$OUTPUT_FILE"
     done
