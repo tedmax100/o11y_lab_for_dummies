@@ -426,11 +426,30 @@ js_addition = """
     });
   }
 
+  function injectBranding() {
+    const codelab = document.querySelector('google-codelab');
+    if (!codelab) return;
+    const codelabId = codelab.getAttribute('id');
+    if (codelabId === 'k6-performance-testing') {
+      const h1 = document.querySelector('#codelab-title h1.title, #codelab-title .title');
+      if (h1 && !h1.getAttribute('data-branded')) {
+        h1.setAttribute('data-branded', 'true');
+        const icon = document.createElement('img');
+        icon.src = '../assets/images/k6-icon-square.png';
+        icon.alt = 'k6';
+        icon.style.cssText = 'width: 26px; height: 26px; vertical-align: -5px; margin-right: 10px; border-radius: 6px; box-shadow: 0 2px 6px rgba(249,115,22,0.4); display: inline-block;';
+        h1.insertBefore(icon, h1.firstChild);
+      }
+    }
+  }
+
   function init() {
+    injectBranding();
     enhanceCodeBlocks();
     enhanceCallouts();
 
     const observer = new MutationObserver(() => {
+      injectBranding();
       enhanceCodeBlocks();
       enhanceCallouts();
     });

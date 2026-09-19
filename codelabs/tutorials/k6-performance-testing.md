@@ -13,6 +13,8 @@ Duration: 3
 
 ### 歡迎來到 Grafana k6 效能工程實戰！
 
+![Grafana k6 Banner](assets/images/grafana-k6-banner.png)
+
 在雲原生、微服務與 CI/CD 高速迭代的時代，傳統的效能測試往往面臨龐大瓶頸：笨重的 GUI 介面、難以維護的 XML 配置、昂貴的虛擬用戶資源開銷，以及與現代監控系統的嚴重脫節。
 
 本教學為全系列 **5 大章節線上課程**的完整互動式實作指引，帶領你從零打造現代化、代碼化（Testing as Code）的企業級效能防線。
@@ -61,6 +63,8 @@ Duration: 15
 3. **CI/CD 自動化整合成本極高**：啟動耗時、資源沉重，難以在輕量 CI Runner 容器中快速執行與退出。
 
 **Grafana k6** 的核心哲學是 **Testing as Code**：以純粹的 JavaScript/ES6 撰寫測試，享有現代模組化、Linter、自動補全與版本控制優勢。
+
+![k6 Testing as Code 核心架構與全鏈路閉環工作流](assets/images/grafana-k6-arch.png)
 
 ### 底層架構優勢：Goroutine vs 傳統執行緒
 
@@ -253,6 +257,8 @@ export function teardown(data) {
 - **避免高基數維度爆炸 (High Cardinality)**：嚴禁寫出 `http.get('/api/users/' + userId)`。當萬人併發產生數萬個不同 URL 時，Prometheus/Grafana 會因時序暴增而 OOM 崩潰！正確寫法是使用模板標籤函式：``http.url`https://api.example.com/users/${userId}` ``，指標將自動聚合在同一名稱下。
 
 ### 實作演練：執行第一支生命週期測試
+
+![k6 CLI 終端實機執行展示](assets/images/k6-demo.gif)
 
 打開終端機，執行專案準備好的演示腳本：
 

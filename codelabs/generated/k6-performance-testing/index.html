@@ -29,6 +29,7 @@
     
       <google-codelab-step label="課程簡介與導讀" duration="3">
         <h2 is-upgraded>歡迎來到 Grafana k6 效能工程實戰！</h2>
+<p class="image-container"><img alt="Grafana k6 Banner" src="img/bd3cc069638c48f7.png"></p>
 <p>在雲原生、微服務與 CI/CD 高速迭代的時代，傳統的效能測試往往面臨龐大瓶頸：笨重的 GUI 介面、難以維護的 XML 配置、昂貴的虛擬用戶資源開銷，以及與現代監控系統的嚴重脫節。</p>
 <p>本教學為全系列 <strong>5 大章節線上課程</strong>的完整互動式實作指引，帶領你從零打造現代化、代碼化（Testing as Code）的企業級效能防線。</p>
 <pre><code>[Chapter 1: 核心哲學] ──&gt; [Chapter 2: 流量建模] ──&gt; [Chapter 3: 品質門禁] ──&gt; [Chapter 4: 混合壓測] ──&gt; [Chapter 5: 可觀測性閉環]
@@ -72,6 +73,7 @@
 <li><strong>CI/CD 自動化整合成本極高</strong>：啟動耗時、資源沉重，難以在輕量 CI Runner 容器中快速執行與退出。</li>
 </ol>
 <p><strong>Grafana k6</strong> 的核心哲學是 <strong>Testing as Code</strong>：以純粹的 JavaScript/ES6 撰寫測試，享有現代模組化、Linter、自動補全與版本控制優勢。</p>
+<p class="image-container"><img alt="k6 Testing as Code 核心架構與全鏈路閉環工作流" src="img/a801ea0233525bc2.png"></p>
 <h2 is-upgraded>底層架構優勢：Goroutine vs 傳統執行緒</h2>
 <p>k6 雖然腳本寫的是 JavaScript，但其底層執行引擎完全由 <strong>Go 語言</strong> 編寫（內建 Goja JS Runtime）：</p>
 <table>
@@ -232,6 +234,7 @@ export function teardown(data) {
 <li><strong>避免高基數維度爆炸 (High Cardinality)</strong>：嚴禁寫出 <code>http.get('/api/users/' + userId)</code>。當萬人併發產生數萬個不同 URL 時，Prometheus/Grafana 會因時序暴增而 OOM 崩潰！正確寫法是使用模板標籤函式：<code>http.url`https://api.example.com/users/${userId}`</code> ，指標將自動聚合在同一名稱下。</li>
 </ul>
 <h2 is-upgraded>實作演練：執行第一支生命週期測試</h2>
+<p class="image-container"><img alt="k6 CLI 終端實機執行展示" src="img/bcfedeaefeed2eda.gif"></p>
 <p>打開終端機，執行專案準備好的演示腳本：</p>
 <pre><code language="language-bash" class="language-bash">k6 run k6/demos/ch1_lifecycle_and_checks.js
 </code></pre>
