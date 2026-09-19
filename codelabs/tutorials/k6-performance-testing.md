@@ -851,70 +851,415 @@ k6 run k6/spike-test.js
 ---
 
 ## Chapter 3: 效能指標解讀與 SLO 門檻自動化 (Quality Gates)
-Duration: 20
+Duration: 25
 
-### 微服務黃金準則：RED Method
+### 微服務黃金準則：Google SRE 與 RED Method 深度解剖
 
-解讀 k6 測試摘要時，請緊扣微服務監控的黃金準則：
+在完成流量施壓後，面對終端機中傾瀉而出的海量數據，許多團隊最常問的問題是：「這些數字到底代表什麼？怎樣才算及格？」
 
-- **Rate（吞吐速率）**：對應 k6 的 `http_reqs` (每秒請求總量)。
-- **Errors（錯誤比率）**：對應 k6 的 `http_req_failed` (非預期狀態碼比例)。
-- **Duration（回應延遲）**：對應 k6 的 `http_req_duration` (完整網路交互時間)。
+在現代微服務與雲原生架構中，效能監控與品質門禁的靈魂基石來自於兩大業界黃金法則：
+1. **Google SRE 四大黃金信號 (The Four Golden Signals)**：延遲 (Latency)、流量 (Traffic)、錯誤 (Errors)、飽和度 (Saturation)。
+2. **Weaveworks / Tom Wilkie 提出的 RED Method**：專為微服務架構量身打造，將監控聚焦於最關鍵的三大軸線：
+   - **Rate（請求速率 / 吞吐量）**：系統當前每秒正在處理多少個請求？
+   - **Errors（錯誤比率）**：有多少請求以非預期的 5xx 或業務邏輯錯誤結束？
+   - **Duration（持續時間 / 延遲）**：每個請求完成完整的網路與業務交互需要耗費多少毫秒？
 
-### 破解平均值陷阱：尾端延遲 (Tail Latency)
+#### k6 核心指標與 RED Method 的映射關係
+
+| RED 維度 | 對應 k6 內建指標 | 指標型態 | 監控核心意義 | 典型 SLO 門檻範例 |
+| :--- | :--- | :--- | :--- | :--- |
+| **Rate** | `http_reqs` | Counter | 系統整體處理速率 (RPS) 與總請求量 | `rate > 500` (每秒需能承受 500 RPS) |
+| **Errors** | `http_req_failed` | Rate (0~1) | 非 2xx/3xx HTTP 狀態碼之失敗比例 | `rate < 0.01` (全站錯誤率嚴格低於 1%) |
+| **Duration** | `http_req_duration` | Trend | 請求完整耗時（自連線至完全接收回應） | `p(95) < 1000` (95% 請求需在 1 秒內完成) |
+| **Saturation** | `vus` / `vus_max` | Gauge | 壓測端資源飽和度與動態 Goroutine 水位 | 觀察是否觸發 `dropped_iterations` |
+
+---
+
+### 延遲時間線微觀拆解：剖析 `http_req_duration` 底層生命週期
+
+許多工程師誤以為 `http_req_duration` 只是單純的「後端計算時間」，這是一個極大的誤解！在分散式網路環境中，一個 HTTP 請求的耗時由多個微觀階段組合而成：
+
+```text
+[───────────────────────────────── http_req_duration ─────────────────────────────────]
+┌───────────────┬──────────────────┬──────────────┬──────────────┬──────────────────┬───────────────┐
+│ http_req_     │ http_req_        │ http_req_    │ http_req_    │ http_req_        │ http_req_     │
+│ blocked       │ connecting       │ tls_hand-    │ sending      │ waiting (TTFB)   │ receiving     │
+│               │                  │ shaking      │              │                  │               │
+└───────────────┴──────────────────┴──────────────┴──────────────┴──────────────────┴───────────────┘
+  等待本機連線池   TCP 三向握手建立   TLS 證書協商     傳送請求封包     伺服器處理與運算   下載回應內容至
+  空閒 Socket     SYN->SYN/ACK->ACK  密鑰交換開銷     上行傳輸時間     (DB 查詢 / 運算)  壓測客戶端完成
+```
+
+#### 延遲異常根因診斷矩陣 (Latency Diagnostic Matrix)
+
+當 `http_req_duration` 門檻超標時，請依據細分指標快速鎖定架構瓶頸：
+
+- **`http_req_blocked` 飆高**：
+  - **可能病因**：壓測客戶端本機連線數達到上限、作業系統本機埠耗盡 (Local Port Exhaustion)、或未啟用 HTTP Keep-Alive 連線複用。
+  - **解法**：在作業系統調整 `sysctl net.ipv4.ip_local_port_range`，或在 k6 啟用連線池重複利用。
+- **`http_req_connecting` / `http_req_tls_handshaking` 飆高**：
+  - **可能病因**：每次 HTTP 請求都重新建立連線，缺乏持久連線 (Persistent Connection)；或負載平衡器 (Nginx/ALB) 與壓測機之間的跨機房網路 RTT 延遲過大。
+  - **解法**：確認 HTTP 請求標頭包含 `Connection: keep-alive`，並在受測架構中啟用 TLS Session Resumption。
+- **`http_req_waiting` (TTFB, Time to First Byte) 飆高**：
+  - **可能病因**：**90% 後端效能瓶頸的罪魁禍首！** 代表伺服器已收到請求，但在吐出第一個 Byte 前思考了很久。通常為資料庫慢查詢、資料庫連線池耗盡 (Pool Starvation)、CPU 100% 阻塞、或微服務下游 RPC 串聯卡頓。
+  - **解法**：透過 OpenTelemetry Distributed Tracing 深入後端 Span 鏈路定位 SQL 慢查詢。
+- **`http_req_receiving` 飆高**：
+  - **可能病因**：後端回傳了極度肥大的 JSON Payload（例如一次回傳 10,000 筆商品詳細資料），導致網路頻寬被打滿。
+  - **解法**：API 強制實施分頁機制 (Pagination)、精簡欄位，並開啟 Gzip/Brotli 壓縮。
+
+---
+
+### 破解「平均值陷阱」：長尾分佈與百分位數 (Percentiles)
 
 Negative
-: 永遠不要看平均值 (Average)！在 100 個請求中，99 個 10ms，1 個結帳請求卡了 10 秒，算出來的平均值依然只有約 109ms，看似一切正常。但那個最關鍵的買單用戶已經流失！
+: **永遠不要在效能測試與 SLO 審查中使用「平均值 (Average)」！** 在高併發分散式系統中，平均值是最大謊言。如果 100 個請求中，99 個只要 10ms，但有 1 個結帳請求卡了 10 秒，算出來的平均值依然只有約 109ms，看起來風平浪靜。但那 1% 被卡死的用戶，恰恰是正準備掏錢結帳的最核心 VIP！
 
-在定義 SLO 時，一律採用百分位數：
-- **P95**：95% 請求優於此時間，為日常及格標準。
-- **P99（尾端延遲，Tail Latency）**：精準捕捉體驗最差的 1% 用戶，防範微服務鏈路中的骨牌效應。
+#### 雙峰分佈 (Bimodal Distribution) 與快取失效
 
-### 四大自訂指標型態 (Custom Metrics)
+真實世界的網路延遲往往呈現「雙峰」甚至「多峰」分佈：
+- **峰值 A (10ms)**：快取命中 (Cache Hit)，直接由 Redis 回傳。
+- **峰值 B (3,000ms)**：快取失效 (Cache Miss)，穿透至資料庫進行多表關聯 JOIN 查詢。
+
+若使用平均值，這兩個極端會被無情抹平成「150ms」，導致架構師誤以為全站速度飛快，完全忽略了每次快取失效時給資料庫造成的致命衝擊！
+
+#### 百分位數 (Percentiles) 的權威標準
+
+- **P90 (90th Percentile)**：九成使用者的常態體驗。
+- **P95 (95th Percentile)**：**業界標準發版品質門禁**。95% 的請求都優於此時間，允許少數突波但不失控。
+- **P99 (99th Percentile - 尾端延遲 Tail Latency)**：捕捉最倒楣的 1% 用戶體驗，更是微服務架構防範「骨牌效應」的生命線。
+
+#### 微服務長尾放大效應 (Tail Latency Amplification)
+
+為什麼大型微服務系統對 P99 如此嚴苛？  
+假設首頁渲染需要並行呼叫 10 個後端微服務（用戶、推薦、庫存、價格、購物車...），每個服務的 P99 延遲為 1% 機率超標：
+
+```text
+整個前端請求遭遇延遲的機率 = 1 - (1 - 0.01)^10 ≈ 9.56%
+```
+
+只要後端呼叫的微服務鏈路擴展至 50 個，前端使用者遭遇卡頓的機率將直接飆升至 **39.5%**！這就是為什麼 Google 與 Netflix 等頂級工程團隊一律使用 P99 與 P99.9 作為生產級 SLO。
+
+---
+
+### 四大自訂指標型態 (Custom Metrics) 實戰全解析
+
+k6 除了能自動統計 HTTP 網路層指標，更允許工程師將業務語意轉化為代碼化指標：
 
 ```javascript
 import { Counter, Gauge, Rate, Trend } from 'k6/metrics';
-
-const orderCount = new Counter('orders_total');              // 累計計數器
-const activeWorkers = new Gauge('active_workers');           // 瞬時狀態規
-const businessSuccess = new Rate('checkout_success_rate');   // 業務成功率 (0~1)
-const dbLatency = new Trend('db_query_duration');            // 統計趨勢 (自動計算 p90/p95/avg)
 ```
 
-### CI/CD 自動卡關關鍵：Exit Code 99
+#### 1. Counter（累計計數器）
+- **特性**：數值只能**單調遞增**（不可減少）。
+- **業務場景**：統計訂單成交總數、特定業務錯誤碼出現次數、重試觸發次數。
+- **代碼示範**：
+  ```javascript
+  const completedOrders = new Counter('business_orders_completed');
+  // 在業務邏輯中累加
+  completedOrders.add(1);
+  completedOrders.add(5); // 亦可一次增加多個
+  ```
 
-```
-[k6 測試執行完畢] ──> 所有 Thresholds 及格 ──> Exit Code 0  ──> CI/CD 綠燈發布
-                  └── 任何一項門檻違規 ──> Exit Code 99 ──> CI/CD 紅燈中斷阻斷！
+#### 2. Gauge（瞬時狀態規）
+- **特性**：可隨時增加、減少或重設，永遠記錄**當下的最新快照值**。
+- **業務場景**：監控壓測過程中的即時記憶體佔用、當前等待隊列深度、特定時刻在線的 Worker 數。
+- **代碼示範**：
+  ```javascript
+  const queueDepthGauge = new Gauge('active_queue_depth');
+  // 記錄瞬時值
+  queueDepthGauge.add(currentQueueLength);
+  ```
+
+#### 3. Rate（比率規 / 成功率）
+- **特性**：專門記錄 `0` 與 `1`（或布林值 `false` / `true`），k6 會自動計算百分比（`0.0 ~ 1.0`）。
+- **業務場景**：業務級結帳成功率、第三方支付回調成功率（區別於 HTTP 200，即使 HTTP 為 200，但回傳 `{"code": -101}` 依然是業務失敗）。
+- **代碼示範**：
+  ```javascript
+  const checkoutSuccessRate = new Rate('checkout_success_rate');
+  // 記錄成功 (1) 或失敗 (0)
+  checkoutSuccessRate.add(res.json('status') === 'SUCCESS');
+  ```
+
+#### 4. Trend（統計趨勢規）
+- **特性**：自動對傳入的數值陣列計算 `min`, `max`, `avg`, `med`, `p(90)`, `p(95)`, `p(99)`。
+- **業務場景**：衡量內部資料庫查詢耗時、自訂 gRPC 耗時、從登入到完成結帳的全流程漏斗總耗時。
+- **代碼示範**：
+  ```javascript
+  const dbQueryTrend = new Trend('custom_db_query_duration');
+  // 記錄數值 (毫秒)
+  dbQueryTrend.add(queryExecutionTimeMs);
+  ```
+
+---
+
+### 斷言三部曲完整對照：check vs thresholds vs expect
+
+許多開發者在撰寫 k6 腳本時，常將 `check` 與 `thresholds` 混為一談。以下整理出權威級對比：
+
+| 比較維度 | `check()`（軟斷言） | `thresholds`（全域品質閘門） | `expect()`（BDD 風格斷言） |
+| :--- | :--- | :--- | :--- |
+| **執行層級** | 請求 / 函數局部層級 | 測試執行階段全域聚合層級 | 代碼單元 / 局部層級 |
+| **失敗後果** | 印出紅叉，**測試繼續進行**，**不影響** Exit Code | 門檻未達標，**自動觸發 Exit Code 99** | 拋出例外，可能中斷當前迭代 |
+| **指標歸宿** | 聚合記錄入內建的 `checks` (Rate) 指標 | 可監控任何內建或自訂指標 | 通常與 `check` 搭配包裝 |
+| **核心職責** | 驗證「資料正則與結構正確性」 | 宣告「效能與穩定度及格標準」 | 提供類似 Chai / Jest 的流暢語意 |
+| **CI/CD 角色**| 提供除錯線索，**無法單獨阻斷 Pipeline** | **CI/CD 自動卡關的核心裁決依據** | 單元測試轉移腳本輔助 |
+
+Positive
+: **最佳實踐組合技**：使用 `check()` 驗證回應正確性，並在 `thresholds` 宣告 `'checks': ['rate>0.99']`！唯有將軟斷言納入全域門檻，才能在資料錯誤時自動使 CI/CD 卡關！
+
+---
+
+### 標籤與分組機制 (Tagging & Groups)：打造微服務精確 SLO
+
+在真實企業微服務中，不同等級的 API 絕對不能適用同一套標準：
+- **核心交易 API**（如 `/api/checkout`）：SLO 嚴苛，要求 P99 < 300ms，錯誤率 < 0.1%。
+- **背景報表 API**（如 `/api/export/pdf`）：SLO 寬鬆，允許 P95 < 5,000ms。
+
+如果只設定全域 `http_req_duration: ['p(95)<500']`，報表 API 的正常耗時就會直接拖垮全站門禁，產生大量「假警報」！
+
+#### 1. 請求層級打標 (Request-Level Tags)
+
+在發送 HTTP 請求時，傳入 `tags` 物件：
+
+```javascript
+http.get('https://api.example.com/checkout', {
+  tags: { tier: 'critical', feature: 'payment' },
+});
+
+http.get('https://api.example.com/reports', {
+  tags: { tier: 'background', feature: 'export' },
+});
 ```
 
-在腳本中設定門檻，並搭配標籤精確控制各 API 的 SLO：
+#### 2. 基於標籤的精準門檻語法 (Tagged Thresholds)
 
 ```javascript
 export const options = {
   thresholds: {
-    'http_req_failed': ['rate<0.01'], // 錯誤率 < 1%
-    'http_req_duration{api:checkout}': ['p(99)<500'], // 關鍵 API P99 < 500ms
+    // 1. 全域基準門檻
+    'http_req_failed': ['rate<0.01'],
+
+    // 2. 針對 critical 等級端點的高標準門禁
+    'http_req_duration{tier:critical}': ['p(99)<300'],
+
+    // 3. 針對 background 報表端點的寬鬆門禁
+    'http_req_duration{tier:background}': ['p(95)<5000'],
+
+    // 4. 多重標籤聯合約束 (AND 邏輯)
+    'http_req_duration{tier:critical,feature:payment}': ['p(99.9)<500'],
+  },
+};
+```
+
+#### 3. 避免高基數維度爆炸 (High Cardinality)
+
+Negative
+: 嚴禁將動態變數（如用戶 ID、訂單 ID、時間戳）直接拼接在 URL 或 Tag 中！  
+**錯誤示範**：`http.get('/api/users/' + userId)` ❌  
+當萬人併發產生 10,000 個不同 URL 時，k6 會為每個獨立 URL 創建一組指標，導致 Prometheus 時序資料庫瞬間 OOM 崩潰！  
+**正確示範**：使用模板標籤函式：  
+```javascript
+http.get(http.url`https://api.example.com/users/${userId}`); // ✔️ 自動聚合為單一維度
+```
+
+---
+
+### 熔斷止損機制 (Circuit Breaker with `abortOnFail`)
+
+想像一個情境：你在深夜排程了一場長達 **2 小時** 的耐久壓力測試。然而在測試開始第 **30 秒**，資料庫連線池就被擊穿，後端全部狂噴 500 錯誤。
+
+如果沒有保護機制，k6 將會繼續無腦發送請求長達 1 小時 59 分鐘：
+- 消耗數十萬次無效的雲端伺服器運算資源。
+- 產生數十 GB 的垃圾日誌，塞爆 ElasticSearch 或 Loki。
+- 甚至將測試環境的資料庫打到磁碟鎖死或核心崩潰！
+
+#### `abortOnFail` 與 `delayAbortEval` 實戰配置
+
+k6 提供了企業級熔斷急停機制：
+
+```javascript
+export const options = {
+  thresholds: {
+    // 當錯誤率突破 10% 時，立刻腰斬中止壓測！
+    'http_req_failed': [
+      {
+        threshold: 'rate<0.10',
+        abortOnFail: true,      // 立即熔斷，中斷整個 k6 行程！
+        delayAbortEval: '10s',  // 緩衝 10 秒後再開始評估，防止系統冷啟動時的誤殺！
+      },
+    ],
+    // 關鍵交易成功率門檻
     'checkout_success_rate': [
       {
-        threshold: 'rate>0.99',
-        abortOnFail: true,      // 熔斷機制：一旦嚴重失敗立即腰斬測試，止損 CI 運算資源！
-        delayAbortEval: '5s',   // 緩衝 5 秒再開始評估熔斷，避免冷啟動誤判
+        threshold: 'rate>0.95',
+        abortOnFail: true,
+        delayAbortEval: '15s',
       },
     ],
   },
 };
 ```
 
-### 實作演練：親手觸發 Exit Code 99 阻斷
+> **`delayAbortEval` 的重要性**：在壓測啟動的最初幾秒內，快取尚未建立、連線池剛在握手，極端延遲可能短暫飆高。設定 10~15 秒的寬限期，能有效避免冷啟動引發的「假陽性熔斷」。
+
+---
+
+### 自訂結構化報表匯出 (`handleSummary`)
+
+在現代 CI/CD Pipeline 中，測試執行完畢後不能只留下一段終端機文字，工程團隊需要：
+1. **JSON 原始數據**：供後續監控平台分析、時序對比或寫入資料庫。
+2. **HTML 視覺化報表**：自動歸檔至 GitLab Artifacts 或 GitHub Actions Run，方便工程師直接下載用瀏覽器檢視漂亮圖表。
+
+#### `handleSummary()` 實作範例
+
+```javascript
+import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.2/index.js';
+
+export function handleSummary(data) {
+  console.log('正在生成效能測試歸檔報告...');
+
+  return {
+    // 1. 保留終端機標準輸出
+    'stdout': textSummary(data, { indent: ' ', enableColors: true }),
+
+    // 2. 匯出結構化全量指標 JSON 檔案
+    'test-results/summary.json': JSON.stringify(data, null, 2),
+
+    // 3. 生成簡潔的 Markdown 格式摘要（可用於 PR 留言或 Slack 機器人）
+    'test-results/summary.md': generateMarkdownSummary(data),
+  };
+}
+
+function generateMarkdownSummary(data) {
+  const reqs = data.metrics.http_reqs.values.count;
+  const p95 = data.metrics.http_req_duration.values['p(95)'].toFixed(2);
+  const failRate = (data.metrics.http_req_failed.values.rate * 100).toFixed(2);
+  
+  return `### 🚀 k6 效能測試摘要報告
+- **總請求量**: ${reqs} reqs
+- **P95 延遲**: ${p95} ms
+- **HTTP 失敗率**: ${failRate} %
+`;
+}
+```
+
+---
+
+### CI/CD 自動卡關核心：Exit Code 99 傳遞鏈
+
+自動化測試的最高境界是**「完全無人值守，代碼自動裁決」**。在 Unix/Linux 世界中，程式結束時回傳的退出碼 (Exit Code) 是管線判定成敗的通用協議。
+
+#### k6 Exit Code 規範
+
+```text
+[k6 測試執行結束] 
+        │
+        ├─── 所有宣告之 Thresholds 門檻全數通過 ───> Exit Code: 0  (CI 通過，允許上線)
+        │
+        └─── 只要有任何一條 Threshold 門檻違規 ───> Exit Code: 99 (CI 失敗，自動阻斷部署！)
+```
+
+#### 1. GitHub Actions 流水線實戰配置
+
+在 `.github/workflows/performance-test.yml` 中：
+
+```yaml
+name: Performance Quality Gate
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  k6_load_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
+
+      - name: Run k6 Quality Gate
+        run: |
+          # 若門檻未過，k6 自動 exit 99，GitHub Actions 會立即標記 Step 失敗！
+          k6 run --summary-export=summary.json k6/demos/ch3_quality_gates_exit99.js
+
+      - name: Archive Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-test-results
+          path: summary.json
+```
+
+#### 2. GitLab CI 流水線實戰配置
+
+在 `.gitlab-ci.yml` 中：
+
+```yaml
+stages:
+  - test
+  - deploy
+
+performance_gate:
+  stage: test
+  image: 
+    name: grafana/k6:latest
+    entrypoint: [""]
+  script:
+    - k6 run k6/demos/ch3_quality_gates_exit99.js
+  # 當 k6 回傳 99 時，GitLab CI 預設判定 Job Failed，Deploy 階段將被自動取消！
+```
+
+---
+
+### 手把手實作演練：驗證品質門禁與 Exit Code 99
+
+現在切換到終端機，親身體會自動化門禁的裁決威力。
+
+#### 實作 1：驗證通過情境（Exit Code 0）
+
+執行腳本並將 `FAIL_SLO` 環境變數設為 `false`：
 
 ```bash
-# 模擬門檻超標，驗證 Linux Shell 捕獲代碼 99
+k6 run -e FAIL_SLO=false k6/demos/ch3_quality_gates_exit99.js ; echo "CI Exit Code: $?"
+```
+
+> **👀 觀察重點**：
+> 1. 終端機下方 `THRESHOLDS` 區塊全數打上綠色勾勾 `✓`。
+> 2. 4 大自訂指標（`orders_submitted_total`、`active_workers_gauge`、`business_transaction_success`、`custom_db_processing_duration`）整齊列出統計數字。
+> 3. 最後一行印出 `CI Exit Code: 0`，代表門禁通過，CI/CD 管線一路放行！
+
+#### 實作 2：模擬門檻違規與 CI/CD 卡關（Exit Code 99）
+
+將 `FAIL_SLO` 設為 `true`，刻意將關鍵端點的 P95 延遲門檻縮緊至不可能達成的 `1ms`：
+
+```bash
 k6 run -e FAIL_SLO=true k6/demos/ch3_quality_gates_exit99.js ; echo "CI Exit Code: $?"
 ```
 
-Positive
-: 終端機最後一行印出 `CI Exit Code: 99`，證明自動化效能門禁成功阻斷！
+> **👀 觀察重點**：
+> 1. 終端機中出現醒目的紅色叉叉 `✗ 'p(95)<1' p(95)=...ms`。
+> 2. **最關鍵的一行**：命令輸出結尾明確印出 `CI Exit Code: 99`！
+> 3. 這正是 CI/CD 伺服器識別效能衰退、自動中止部署並發送警報的唯一憑證。
+
+---
+
+### Chapter 3 核心心智模型與 SRE 避坑指南
+
+1. **Check 只是輔助，Threshold 才是法律**：
+   - 永遠記得：`check()` 失敗不會讓 CI 停止！若要使錯誤阻斷部署，必須在 `thresholds` 宣告 `'checks': ['rate==1.0']`。
+2. **拿掉所有平均值，嚴格遵循 P95 / P99**：
+   - 產品 SLA 合約與 SRE 審查一律以百分位數為準，平均值只能當作參考背景值。
+3. **分級治理，多用標籤過濾 (Tag Filtering)**：
+   - 嚴格隔離 Critical 核心業務與 Background 背景報表端點，避免次要服務的延遲劣化破壞全域發版。
+4. **長跑測試務必配置 `abortOnFail`**：
+   - 任何超過 30 分鐘的壓力測試，都必須設置錯誤率熔斷，保護測試環境不受毀滅性打擊。
 
 ---
 
