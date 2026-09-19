@@ -1752,6 +1752,8 @@ K6_WEB_DASHBOARD=true k6 run k6/demos/ch5_dashboard_and_html_summary.js
 
 > **瀏覽器即時訪問**：打開 `http://127.0.0.1:5665`，即可看見極具質感的深色系儀表板，即時動態繪製請求吞吐、P95 延遲、錯誤率以及 Thresholds 門檻達成進度！
 
+![k6 原生 Web Dashboard 本地即時動態儀表板 (http://127.0.0.1:5665)](assets/images/k6-ch5-web-dashboard.png)
+
 #### 2. 自訂監聽連接埠與遠端綁定
 
 若在遠端 Linux 測試機上執行，可綁定 `0.0.0.0` 允許辦公室內部網路訪問：
@@ -1831,11 +1833,13 @@ export function handleSummary(data) {
 
   return {
     'stdout': textSummary(data, { indent: ' ', enableColors: true }), // 終端機依然印出標準摘要
-    'test-results/summary.json': JSON.stringify(data, null, 2),       // 匯出 JSON 供 CI/CD 分析
-    'test-results/custom_report.html': customHtml,                    // 匯出自訂 HTML
+    'summary.json': JSON.stringify(data, null, 2),                   // 匯出 JSON 供 CI/CD 分析
+    'custom_report.html': customHtml,                                // 匯出自訂 HTML
   };
 }
 ```
+
+![handleSummary 自訂 HTML 獨立報表產出成果](assets/images/k6-ch5-handlesummary-report.png)
 
 ---
 
@@ -1954,6 +1958,8 @@ k6 run \
 
 在 Grafana 中，只需將儀表板的變數 (Variables) 綁定為 `label_values(k6_http_req_duration_p95, commit_id)`，即可透過下拉選單自由切換不同的 Git Commit，同屏對比兩次發版的 P95 延遲曲線！
 
+![Grafana 統一可觀測性效能監控儀表板 (Prometheus Remote Write 串流)](assets/images/k6-ch5-grafana-dashboard.png)
+
 ---
 
 ### 顛峰時刻：Grafana 雙十字準星全視角對齊 (Crosshair Convergence)
@@ -1988,6 +1994,8 @@ k6 run \
 
 ### 手把手實作演練：可觀測性全鏈路閉環
 
+![k6 Chapter 5 全鏈路可觀測性實戰展示 (3 大場景動態輪播)](assets/images/k6-ch5-observability-demo.gif)
+
 現在切換到終端機，親自實操原生 Web Dashboard、自訂報告產生器、Docker 編譯與 Prometheus 串流推播。
 
 #### 實作 1：啟動原生 Web Dashboard 即時監控
@@ -1996,11 +2004,14 @@ k6 run \
 K6_WEB_DASHBOARD=true k6 run k6/demos/ch5_dashboard_and_html_summary.js
 ```
 
+![DEMO 1: 本地即時動態儀表板 (Native Web Dashboard)](assets/images/k6-ch5-web-dashboard.png)
+
 > **👀 觀察重點**：
 > 1. 控制台輸出提示：`Web dashboard: http://127.0.0.1:5665`。
-> 2. 打開瀏覽器訪問該網址，觀察測試執行期間圖表即時繪製的動態曲線！
+> 2. 打開瀏覽器訪問該網址，觀察測試執行期間圖表即時繪製的動態曲線（包含 HTTP Req Rate、P95 Latency、Active VUs 等）！
+> 3. 測試完成後可點擊右上角「REPORT」按鈕直接匯出單一靜態 HTML 報告。
 
-#### 實作 2：CI/CD 離線 HTML 報告匯出（Port=-1 驗證）
+#### 實作 2：CI/CD 離線 HTML 報告匯出與 handleSummary 客製化（Port=-1 驗證）
 
 ```bash
 K6_WEB_DASHBOARD=true \
@@ -2009,8 +2020,12 @@ K6_WEB_DASHBOARD_EXPORT=offline_report.html \
 k6 run k6/demos/ch5_dashboard_and_html_summary.js
 ```
 
+![DEMO 2: handleSummary 自訂獨立 HTML 報告產出](assets/images/k6-ch5-handlesummary-report.png)
+
 > **👀 觀察重點**：
-> 測試結束後，k6 立即退出（無背景行程懸掛），且本機目錄生成了 `offline_report.html`。用瀏覽器直接雙擊打開，即可離線檢視完整互動儀表板！
+> 1. **無人值守退場**：設定 `K6_WEB_DASHBOARD_PORT=-1` 後，k6 不會卡在 Web 伺服器監聽，測試結束立即正常退出（Exit Code 0）。
+> 2. **雙重報表產出**：本地同時生成官方格式 `offline_report.html` 以及由 `handleSummary` 鉤子客製化生成的 `custom_report.html` 與 `summary.json`。
+> 3. **極致輕量**：`custom_report.html` 體積極小且自包含 CSS，非常適合在 GitLab CI / GitHub Actions 中做為 Artifact 發布或由 Bot 推送到團隊 IM。
 
 #### 實作 3：Docker 確定性編譯客製化 xk6 引擎
 
@@ -2024,7 +2039,7 @@ k6 run k6/demos/ch5_dashboard_and_html_summary.js
 > 1. 觀察 Docker 自動拉取 `grafana/xk6` 映像檔並注入 `xk6-sql` 擴充。
 > 2. 編譯完成後，檢視 `bin/k6-custom version`，確認已成功打包資料庫原生壓測引擎！
 
-#### 實作 4：Prometheus Remote Write 串流與 Git 標籤實戰
+#### 實作 4：Prometheus Remote Write 串流與 Grafana 統一儀表板
 
 執行專案內建的 Prometheus 推播腳本：
 
@@ -2032,14 +2047,16 @@ k6 run k6/demos/ch5_dashboard_and_html_summary.js
 ./k6/demos/ch5_prometheus_remote_write.sh
 ```
 
+![DEMO 3: Prometheus Remote Write 與 Grafana 統一效能工程儀表板](assets/images/k6-ch5-grafana-dashboard.png)
+
 > **👀 觀察重點**：
-> 1. 腳本動態取得本機當前 Git Commit Short Hash（如 `9ffc846`）。
-> 2. k6 透過 `-o experimental-prometheus-rw` 將每秒數據推送至本機 Prometheus (`http://localhost:9090`)。
-> 3. 打開 Grafana (`http://localhost:3000`)，在 Explore 頁面輸入 PromQL：
->    ```promql
->    k6_http_req_duration_p95{commit_id=~".+"}
->    ```
->    成功在 Grafana 觀測到帶有版本標籤的壓測指標串流！
+> 1. **自動注入版本標籤**：腳本動態取得本機當前 Git Commit Short Hash（如 `2b367bd`）與 Git Branch。
+> 2. **每秒即時串流推送**：k6 透過 `-o experimental-prometheus-rw` 將每秒數據以 Snappy 壓縮推送至本機 Prometheus (`http://localhost:9090/api/v1/write`)。
+> 3. **Grafana 開箱即用儀表板**：打開本專案 Grafana ([http://localhost:3000/d/k6-live-metrics/](http://localhost:3000/d/k6-live-metrics/)，帳密 `admin/admin`)，儀表板已預先配置完成，即時呈現：
+>    - **Total Requests / P95 Duration / Active VUs / Business Success Rate** 核心指標。
+>    - **HTTP Request Duration Percentiles (P90 / P95 / P99)** 延遲趨勢圖。
+>    - **Requests by Tagged Endpoint** 端點維度佔比分析圓環圖。
+>    - 右上角可依照 `commit_id`、`git_branch` 與 `environment` 動態過濾，實現跨版本的基準線對比！
 
 ---
 
