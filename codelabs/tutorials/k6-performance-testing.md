@@ -254,6 +254,117 @@ export function teardown(data) {
 }
 ```
 
+---
+
+### k6 執行設定與常用 Options 全指南 (Configuration & Options Guide)
+
+在上述生命週期範例中，我們看見了 `export const options = { vus: 10, duration: '30s' };`。
+**Options（執行選項）** 是 k6 壓測的大腦與調度中樞，用來精準定義壓測的規模、時間、行為特徵、品質門檻與輸出目標。
+
+官方文檔深入導讀：
+- 官方設定指引教學：[How to set k6 options](https://grafana.com/docs/k6/latest/using-k6/k6-options/how-to/)
+- 官方完整 Options 參考手冊：[k6 options reference](https://grafana.com/docs/k6/latest/using-k6/k6-options/reference/)
+
+#### 1. 設定 Options 的三種主要途徑
+
+以最常見的「**10 個虛擬使用者 (VUs)** 且**執行 30 秒 (Duration)**」為例，k6 提供了三種靈活的宣告途徑：
+
+##### (1) 腳本內宣告 (In-script Options)
+直接在 JavaScript 檔案頂層匯出名為 `options` 的物件。這是官方最推薦的標準作法（Testing as Code），可將測試規格直接納入 Git 版本控管：
+
+```javascript
+export const options = {
+  vus: 10,
+  duration: '30s',
+};
+
+export default function () {
+  // 測試邏輯...
+}
+```
+
+##### (2) 命令列旗標 (CLI Flags)
+在執行 `k6 run` 時透過命令列參數直接傳入：
+
+```bash
+k6 run --vus 10 --duration 30s script.js
+```
+
+命令列旗標提供了最高靈活度，特別適合：
+- 本機除錯時快速以 `--vus 1 --duration 5s` 進行冒煙驗證。
+- CI/CD Pipeline 依據當前部署環境（如 Dev, Staging, Prod）動態傳入不同規模的壓測參數。
+
+##### (3) 環境變數 (Environment Variables)
+所有 k6 Options 都有對應的全大寫前綴 `K6_` 環境變數：
+
+```bash
+K6_VUS=10 K6_DURATION=30s k6 run script.js
+```
+
+非常適用於 Docker 容器執行、Kubernetes Job / Pod 宣告、或 CI/CD 的 Secret / ConfigMap 注入。
+
+---
+
+#### 2. Options 四層設定優先級 (Precedence Order)
+
+當同一個 Option 同時在多處被設定時，k6 依照嚴格的**覆蓋原則（由高至低）**進行解析：
+
+```
+[1. CLI Flags (最高)] ──> [2. Environment Variables] ──> [3. In-script options] ──> [4. Default Values (最低)]
+```
+
+| 優先層級 | 設定方式 | 範例 | 說明 |
+| :--- | :--- | :--- | :--- |
+| **1 (最高)** | **CLI Flags** | `k6 run --vus 50` | 命令列傳入的旗標具備絕對最高覆蓋權 |
+| **2 (次高)** | **Environment Variables** | `export K6_VUS=30` | 系統環境變數覆蓋腳本內建值 |
+| **3 (中等)** | **In-script `options`** | `export const options = { vus: 10 }` | 腳本代碼內部宣告的值 |
+| **4 (最低)** | **Default Values** | `vus: 1`, `iterations: 1` | 若完全未指定，k6 採用的預設安全值 |
+
+Positive
+: **實戰技巧**：這種階層優先級讓團隊可以將標準負載腳本提交到 Git（例如腳本內寫 `vus: 100, duration: '10m'`），但在本地開發或 CI 冒煙檢查時，只需加上 `k6 run --vus 1 -i 1 script.js` 即可瞬間覆蓋，完全不用改動程式碼！
+
+---
+
+#### 3. 常用 Options 實用分類速查表
+
+在實際工程專案中，除了 `--vus` 與 `--duration` 之外，以下是業界最常用的 Options 清單：
+
+##### A. 負載規模與時間控制 (Workload & Duration)
+
+| Option 屬性 | CLI 旗標 | 型態 / 範例 | 說明與典型場景 |
+| :--- | :--- | :--- | :--- |
+| `vus` | `--vus`, `-u` | 數值（如 `10`） | **虛擬使用者數 (Virtual Users)**。同時並行執行的 VU 總數。 |
+| `duration` | `--duration`, `-d` | 字串（如 `'30s'`, `'5m'`, `'1h'`） | **測試持續時間**。所有 VU 在此時間內反覆迴圈執行。 |
+| `iterations` | `--iterations`, `-i` | 數值（如 `100`） | **總迭代次數**。所有 VU 累計完成指定次數後即結束（適合冒煙或批次測試）。 |
+| `stages` | `--stage` | 陣列（如 `[{ duration: '1m', target: 50 }]`） | **階梯式負載**。依時間動態調整 VU 數量，實現漸進爬坡 (Ramp-up) 與降溫 (Ramp-down)。 |
+| `scenarios` | *(無單一旗標)* | 物件 | **進階多情境調度**。支援不同 Executor（如按固定抵達率 RPS、或不同執行函式並行）。 |
+
+##### B. 品質門禁與 SLA 判定 (Quality Gates & Thresholds)
+
+| Option 屬性 | CLI 旗標 | 型態 / 範例 | 說明與典型場景 |
+| :--- | :--- | :--- | :--- |
+| `thresholds` | *(無單一旗標)* | 物件 | **宣告式 SLA/SLO 門檻**。例如 `http_req_duration: ['p(95)<200']`（95% 請求需在 200ms 內完成）。若失敗則 k6 退出碼非 0，直接熔斷 CI/CD。 |
+
+##### C. 網路協定與連線行為 (Network & Protocols)
+
+| Option 屬性 | CLI 旗標 | 型態 / 範例 | 說明與典型場景 |
+| :--- | :--- | :--- | :--- |
+| `noConnectionReuse` | `--no-connection-reuse` | 布林（預設 `false`） | **停用 HTTP 連線複用 (Keep-Alive)**。每次請求強制建立全新 TCP/TLS 握手，考驗伺服器高頻建連能力。 |
+| `insecureSkipTLSVerify` | `--insecure-skip-tls-verify` | 布林（預設 `false`） | **跳過 SSL 憑證檢查**。在開發或 Staging 環境遇到自簽憑證或無效 HTTPS 時必備。 |
+| `rps` | `--rps` | 數值（如 `500`） | **每秒最大請求數上限**。限制全域每秒發出的 HTTP 請求，防止壓測本機把受測系統徹底癱瘓。 |
+| `userAgent` | `--user-agent` | 字串（如 `'k6-load-tester/1.0'`） | **自訂 User-Agent**。方便受測後端透過存取日誌過濾並辨識壓測流量。 |
+
+##### D. 觀察性、除錯與報表輸出 (Observability & Debugging)
+
+| Option 屬性 | CLI 旗標 | 型態 / 範例 | 說明與典型場景 |
+| :--- | :--- | :--- | :--- |
+| `httpDebug` | `--http-debug`, `--http-debug="full"` | 字串 / 布林 | **HTTP 詳細除錯模式**。在終端機完整印出所有發送與接收的 HTTP Header 及 Body，排查 4xx/5xx 首選。 |
+| `summaryExport` | `--summary-export=summary.json` | 檔案路徑 | **匯出結構化測試摘要**。將最終統計數據存為 JSON，供 CI/CD Pipeline 解析或發送 Slack 通報。 |
+| `tags` | `--tag key=value` | 物件 / 鍵值對 | **全域標籤**。為本次測試的所有指標打上維度標籤（如 `env: staging`, `service: payment`）。 |
+| *(匯出串流)* | `-o`, `--out <plugin>` | 外掛名稱 / URL | **指標串流外銷**。將即時時序指標直接推送至 Prometheus、InfluxDB、Datadog 或 Grafana Cloud。 |
+
+---
+
 ### 軟斷言 check() 與避免高基數爆炸
 
 - **check() 是軟斷言**：與單元測試中斷執行的 `assert` 不同，k6 的 `check()` 失敗時**不會停止測試**，而是記錄成功率。這確保了在大規模壓測中能精確統計出 99.9% 成功率，而非因偶發錯誤中途夭折。
@@ -266,11 +377,18 @@ export function teardown(data) {
 打開終端機，執行專案準備好的演示腳本：
 
 ```bash
+# 1. 依照腳本內預設 Options 執行 (vus: 2, iterations: 4)
 k6 run k6/demos/ch1_lifecycle_and_checks.js
+
+# 2. 實踐 CLI 覆蓋技巧：動態改為 10 個 VU 執行 30 秒
+k6 run --vus 10 --duration 30s k6/demos/ch1_lifecycle_and_checks.js
+
+# 3. 搭配 HTTP 除錯旗標觀察底層通訊 Header 與 Body (單一 VU 冒煙模式)
+k6 run --vus 1 --iterations 1 --http-debug k6/demos/ch1_lifecycle_and_checks.js
 ```
 
 Positive
-: 觀察終端機輸出，確認 Init、Setup、VU Code 與 Teardown 的執行順序！
+: 觀察終端機輸出，確認 Init、Setup、VU Code 與 Teardown 的執行順序！體驗 CLI 參數如何即時覆蓋腳本預設值。
 
 ---
 
