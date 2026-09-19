@@ -1543,72 +1543,346 @@ Positive
 ---
 
 ## Chapter 5: 生態系擴充與全視角可觀測性整合
-Duration: 20
+Duration: 25
 
-### 破除數據孤島：原生 Web Dashboard
+### 破除效能數據孤島：壓測納入全視角可觀測性體系
 
-無需額外安裝任何資料庫或 Grafana，一行環境變數直接啟動原生動態儀表板：
+在傳統企業研發中，效能測試最常遭遇的致命瓶頸是：**「測試數據永遠是一座孤島」**。
 
-```bash
-K6_WEB_DASHBOARD=true k6 run script.js
-# 開啟瀏覽器訪問：http://127.0.0.1:5665
+當測試人員在終端機中看到 P95 延遲從 50ms 突然飆升至 2,000ms 時，由於缺乏系統內部視角，往往只能在 Slack 群組中盲目猜測：「是資料庫慢了嗎？還是微服務代碼寫爛了？或是網路交換機掉包？」各團隊各執一詞，排查瓶頸曠日廢時。
+
+在現代雲原生架構下，效能測試不應是單獨的「黑盒跑分」，而應是**全視角可觀測性 (Unified Observability) 的核心觸發源**。壓測產生的負載指標，必須與後端微服務的**分散式追蹤 (Tracing)**、**日誌 (Logs)** 以及**主機與容器指標 (Metrics)** 在同一個時間軸上無縫對齊：
+
+```text
+                        ┌─────────────────────────────────┐
+                        │   Grafana 統一可觀測性監控中心    │
+                        │   (Unified Observability Hub)   │
+                        └────────────────┬────────────────┘
+                                         │ (時間軸同步 / 共享十字準星)
+       ┌─────────────────────────────────┼─────────────────────────────────┐
+       ▼                                 ▼                                 ▼
+【應用層分散式追蹤】              【系統基礎設施時序】              【k6 壓測客戶端時序】
+OpenTelemetry Collector          Prometheus (cAdvisor / Node)      Prometheus Remote Write
+- Trace ID / Span 鏈路耗時        - Pod CPU CFS Throttling 限流     - http_req_duration (P95/P99)
+- Database SQL 慢查詢            - 記憶體 WorkingSet / OOMKilled   - 即時吞吐量 (RPS)
+- 跨微服務下游 RPC 呼叫           - 網路連線池 Socket 佔用           - dropped_iterations 容量告警
 ```
 
-#### CI/CD 匯出靜態 HTML 報告：Port=-1 退場神技
+---
 
-在 CI/CD 中，為避免 Web 伺服器一直佔據連接埠導致流水線無法結束，使用以下參數：
+### 原生 Web Dashboard 即時監控與 CI/CD 離線報告
+
+以往要在測試期間看到動態曲線圖，必須架設 InfluxDB、安裝 Telegraf、或部署完整的 Prometheus 與 Grafana，架構沉重且維護成本高昂。
+
+k6 自 v0.49+ 起正式內建了**原生 Web Dashboard**：單一二進位檔內建 HTTP Web 服務，透過 WebSocket 即時串流 VU、RPS、P95 延遲、狀態碼與細分網路時間線，**零外部依賴、一行指令即可啟動！**
+
+#### 1. 本地即時動態儀表板
+
+執行壓測時，只需注入環境變數 `K6_WEB_DASHBOARD=true`：
+
+```bash
+K6_WEB_DASHBOARD=true k6 run k6/demos/ch5_dashboard_and_html_summary.js
+```
+
+> **瀏覽器即時訪問**：打開 `http://127.0.0.1:5665`，即可看見極具質感的深色系儀表板，即時動態繪製請求吞吐、P95 延遲、錯誤率以及 Thresholds 門檻達成進度！
+
+#### 2. 自訂監聽連接埠與遠端綁定
+
+若在遠端 Linux 測試機上執行，可綁定 `0.0.0.0` 允許辦公室內部網路訪問：
+
+```bash
+K6_WEB_DASHBOARD=true \
+K6_WEB_DASHBOARD_HOST=0.0.0.0 \
+K6_WEB_DASHBOARD_PORT=8080 \
+k6 run script.js
+```
+
+#### 3. CI/CD 無人值守匯出靜態 HTML：Port=-1 退場神技
+
+在 GitHub Actions 或 GitLab CI 等自動化流水線中，容器是無人值守的，不需要開啟 Web 伺服器監聽連接埠；如果啟動了 Web 伺服器，流水線反而會因連接埠未釋放而卡死掛起。
+
+k6 提供了一個優雅的解法——**`K6_WEB_DASHBOARD_PORT=-1`**：
 
 ```bash
 K6_WEB_DASHBOARD=true \
 K6_WEB_DASHBOARD_PORT=-1 \
-K6_WEB_DASHBOARD_EXPORT=report.html \
+K6_WEB_DASHBOARD_EXPORT=test-report.html \
 k6 run script.js
 ```
 
-### xk6 擴充機制與 Docker 確定性編譯
+- **底層運作機制**：設定 `PORT=-1` 會完全停用本地 HTTP 伺服器監聽，但保留 Dashboard 的圖表渲染引擎。在測試執行完畢的瞬間，k6 自動將所有動態圖表、數據序列完整封裝成一份**「獨立、單一、無伺服器依賴的靜態 HTML 檔案」**！
+- **CI/CD 價值**：生成的 `test-report.html` 可作為 Build Artifact 一鍵上傳歸檔，開發者只需下載並用任何瀏覽器打開，即可檢視完整的互動圖表。
 
-當需要測試 Kafka、PostgreSQL/MySQL SQL 或 Redis 時，使用官方 Docker 映像檔進行確定性編譯：
+---
+
+### 自訂結構化報表產生器 (`handleSummary`)
+
+除了原生 Web Dashboard，k6 還提供了強大的生命週期鉤子函式——**`handleSummary(data)`**。當壓測結束時，k6 會將整場測試的全量統計數據（包含所有內建與自訂指標）打包傳遞給該函式，由開發者自由客製化輸出格式。
+
+#### `handleSummary()` 多目標輸出範例
+
+在腳本中導出 `handleSummary`，可同時生成終端機輸出、JSON 機器可讀數據與客製化 HTML：
+
+```javascript
+import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.2/index.js';
+
+export function handleSummary(data) {
+  console.log('>>> [handleSummary] 測試結束，正在處理自訂報告輸出...');
+
+  const p95 = data.metrics.http_req_duration ? data.metrics.http_req_duration.values['p(95)'].toFixed(2) : 'N/A';
+  const totalReqs = data.metrics.http_reqs ? data.metrics.http_reqs.values.count : 0;
+  const failedRate = data.metrics.http_req_failed ? (data.metrics.http_req_failed.values.rate * 100).toFixed(2) : '0';
+
+  // 產生輕量自訂 HTML 報表
+  const customHtml = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <title>k6 效能測試執行摘要</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 30px; background: #0b0c10; color: #c5c6c7; }
+      .card { background: #1f2833; border-radius: 8px; padding: 20px; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+      h1 { color: #66fcf1; font-size: 22px; margin-top: 0; }
+      .metric { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #45a29e; }
+      .label { color: #c5c6c7; }
+      .value { color: #45a29e; font-weight: bold; font-family: monospace; }
+      .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+      .pass { background: #2ecc71; color: #000; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>🚀 k6 效能測試執行摘要</h1>
+      <div class="metric"><span class="label">總請求數</span><span class="value">${totalReqs} reqs</span></div>
+      <div class="metric"><span class="label">P95 回應延遲</span><span class="value">${p95} ms</span></div>
+      <div class="metric"><span class="label">HTTP 失敗率</span><span class="value">${failedRate} %</span></div>
+      <div class="metric"><span class="label">品質門禁狀態</span><span class="badge pass">PASSED</span></div>
+    </div>
+  </body>
+  </html>
+  `;
+
+  return {
+    'stdout': textSummary(data, { indent: ' ', enableColors: true }), // 終端機依然印出標準摘要
+    'test-results/summary.json': JSON.stringify(data, null, 2),       // 匯出 JSON 供 CI/CD 分析
+    'test-results/custom_report.html': customHtml,                    // 匯出自訂 HTML
+  };
+}
+```
+
+---
+
+### xk6 模組化擴充機制與 Go-to-JS Bridge 深度解密
+
+k6 原生核心專注於 HTTP、WebSocket、gRPC 與 Browser 協定。但當企業微服務架構需要壓測以下組件時：
+- **消息隊列**：直接對 Apache Kafka 或 RabbitMQ 進行高頻收發壓測。
+- **資料庫連接池**：繞過 Web API，直接對 PostgreSQL、MySQL 或 SQL Server 發送百萬級 SQL 語句。
+- **分散式快取**：直接對 Redis Cluster 發起批量快取讀寫，驗證快取穿透防禦。
+- **物聯網通訊**：對 MQTT 或 CoAP Broker 進行百萬物聯網設備連線測試。
+
+原生 k6 無法直接支援上述協定。為此，Grafana 開發了專屬的擴充架構——**xk6 (eXtensible k6)**！
+
+#### Go-to-JS Bridge 底層架構
+
+xk6 的底層設計極其精妙：
+1. **Go Native 生態庫**：開發者可以使用 Go 語言龐大成熟的開源庫（如 `confluent-kafka-go`、`pgx`、`go-redis`）。
+2. **Go-to-JS Bridge 反射機制**：xk6 透過 Goja JS 引擎的 Type Reflection，自動將 Go 結構體、方法包裝成符合 ES6 標準的 JavaScript 類別與模組。
+3. **極致效能與敏捷開發並存**：壓測工程師依然使用熟悉的 JavaScript 撰寫測試腳本，但在執行時，底層是 Go 原生編譯後的機器碼與輕量 Goroutine 在發起網路通訊，效能零損耗！
+
+```text
+[ 壓測工程師編寫的 JavaScript 腳本 ]
+  import sql from 'k6/x/sql';
+  sql.query("SELECT * FROM users WHERE id = ?", 101);
+                     │
+                     ▼ (Goja JS Runtime)
+[ Go-to-JS Bridge 模組橋接層 ]
+                     │
+                     ▼ (Go Native Code)
+[ Go 原生驅動程式 (database/sql, lib/pq, pgx) ] ──> [ 直接壓測 PostgreSQL / MySQL 資料庫 ]
+```
+
+#### 擴充套件雙引擎分類
+
+| 擴充套件分類 | 代表性模組 | 核心功能 | 適用場景 |
+| :--- | :--- | :--- | :--- |
+| **JS Extensions (協定與中間件擴充)** | `xk6-kafka`<br>`xk6-sql`<br>`xk6-redis`<br>`xk6-amqp` | 在 JavaScript 中擴充全新全域物件與通訊協定 | 直接壓測 Kafka、PostgreSQL、MySQL、Redis 等底層中間件 |
+| **Output Extensions (時序指標匯出擴充)** | `xk6-output-timescaledb`<br>`xk6-output-kafka`<br>`xk6-output-influxdb` | 攔截 k6 產生的每一筆指標並即時轉發 | 將高頻壓測時序串流即時寫入 TimescaleDB、Kafka 或 Datadog |
+
+---
+
+### xk6 Docker 確定性編譯實戰 (Deterministic Build)
+
+要在本地編譯 xk6 擴充套件，傳統上需要安裝特定版本的 Go 編譯環境、配置 GOPATH、處理 CGO 與本機依賴，極容易因為環境差異導致「在我的電腦可以跑，在 CI/CD 卻編譯失敗」的窘境。
+
+最佳實踐是使用官方提供的 Docker 映像檔 **`grafana/xk6`** 進行**確定性編譯 (Deterministic Build)**。
+
+#### Docker 編譯兩大軍規避坑點
+
+Negative
+: 1. **目錄掛載避坑 (`-v "$(pwd)/bin:/xk6"`)**：官方 `grafana/xk6` 容器的預設工作目錄是 `/xk6`。若掛載路徑寫錯，編譯產出的 `k6` 二進位檔會被遺留在已被銷毀的容器層中，本機空空如也！  
+: 2. **使用者權限避坑 (`-u "$(id -u):$(id -g)"`)**：Docker 預設以 `root` 執行。如果不指定本機用戶的 UID/GID，編譯產生的客製化 `k6` 檔案權限會屬於 `root:root`，導致本機一般使用者無法執行、無法覆寫、甚至 CI Runner 刪除 Workspace 時噴出 Permission Denied！
+
+#### 生產級 Docker 確定性編譯指令
+
+以下腳本展示如何一鍵編譯支援 `xk6-sql` 的客製化 k6 引擎：
 
 ```bash
+OUTPUT_DIR="$(pwd)/bin"
+mkdir -p "${OUTPUT_DIR}"
+
 docker run --rm \
   -u "$(id -u):$(id -g)" \
-  -v "$(pwd):/xk6" \
+  -v "${OUTPUT_DIR}:/xk6" \
   grafana/xk6 build latest \
   --with github.com/grafana/xk6-sql \
   --output /xk6/k6-custom
+
+# 驗證客製化二進位檔
+"${OUTPUT_DIR}/k6-custom" version
 ```
 
-Positive
-: 注意 `-v "$(pwd):/xk6"` 掛載點，確保編譯完成的二進位檔直接輸出至本機目錄！
+---
 
-### Prometheus Remote Write 與 Commit Tag 綁定
+### Prometheus Remote Write 串流與 Git Commit Tag 版本追蹤
 
-本 Lab 的 Prometheus 已啟用 `--web.enable-remote-write-receiver`，直接以時序串流推送指標，並綁定當前 Git 版本：
+#### 從「事後輪詢 (Pull)」到「即時推播 (Remote Write)」
+
+Prometheus 傳統上使用定時「拉取 (Scrape)」機制（例如每 15 秒抓取一次 `/metrics` 端點）。但效能測試往往持續數秒至數分鐘，且流量以毫秒級劇烈震盪：
+- 若用傳統 Scrape，高併發下的瞬時延遲突波極易落在採樣間隔之外而被漏採。
+- k6 內建的 **Prometheus Remote Write (`-o experimental-prometheus-rw`)** 機制，採用時序數據串流推播（Push）。測試進行時，k6 會將採集到的指標透過 Protocol Buffers 序列化並以 Snappy 壓縮，每秒即時推送給 Prometheus！
+
+#### 前置條件：Prometheus 啟用 Remote Write 接收器
+
+在 Prometheus 的啟動參數中必須顯式啟用：
+```yaml
+# prometheus.yml 或 Docker 啟動指令：
+--web.enable-remote-write-receiver
+```
+
+> **本 Lab 環境**：本專案 Docker Compose 中的 Prometheus 容器已經預先配置並啟用了該參數，接收端點為 `http://localhost:9090/api/v1/write`。
+
+#### 注入 Git Commit Tag 實現 A/B 版本回歸對比
+
+壓測最具商業價值之處，是「**發版前後的效能對比 (Regression Testing)**」：這次 PR 改動了 ORM 查詢，API 是變快了還是變慢了？
+
+透過動態注入 Git 標籤，每筆時序指標都帶有確切的版本元數據：
 
 ```bash
+COMMIT_ID=$(git rev-parse --short HEAD 2>/dev/null || echo "demo-rev1")
+BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+
 K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
+K6_PROMETHEUS_RW_TREND_STATS="p(90),p(95),p(99),min,max,avg,med" \
 k6 run \
   -o experimental-prometheus-rw \
-  --tag "commit_id=$(git rev-parse --short HEAD)" \
+  --tag "commit_id=${COMMIT_ID}" \
+  --tag "git_branch=${BRANCH_NAME}" \
+  --tag "environment=staging" \
   script.js
 ```
 
-### 顛峰時刻：Grafana 雙時間軸對齊除錯
+在 Grafana 中，只需將儀表板的變數 (Variables) 綁定為 `label_values(k6_http_req_duration_p95, commit_id)`，即可透過下拉選單自由切換不同的 Git Commit，同屏對比兩次發版的 P95 延遲曲線！
 
-在 Grafana 啟用 **Shared Crosshair（共享十字準星）**：
+---
 
+### 顛峰時刻：Grafana 雙十字準星全視角對齊 (Crosshair Convergence)
+
+什麼是全視角可觀測性帶來的降維打擊？請看以下真實生產環境除錯案例：
+
+#### 真實破案現場：神秘的 14:02 延遲雪崩
+
+某電商平台進行促銷壓測時，在下午 `14:02:00`，k6 回報的 API P95 延遲突然出現**垂直暴衝**：從原本平穩的 `45ms` 瞬間飆高至 `2,200ms`！
+
+```text
+[14:02:00]  k6 API P95 延遲曲線   ──> 突然垂直暴衝至 2.2 秒！
+[14:02:00]  K8s Pod CPU CFS 限流 ──> 同一秒飆高至 85%！
 ```
-[14:02:00]  k6 API P95 Latency 曲線   ──> 突然垂直暴衝至 2.2 秒！
-[14:02:00]  K8s Pod CPU CFS Throttling ──> 同一秒飆高至 85%！
+
+#### 傳統盲猜 vs 雙十字準星秒級破案
+
+1. **傳統盲猜**：
+   - 後端工程師猜測：「是不是資料庫連線池被佔滿了？」$\rightarrow$ 檢查 DB 監控，連線數平穩。
+   - 運維工程師猜測：「是不是 Java JVM 發生了 Full GC Stop-the-World？」$\rightarrow$ 檢查 GC Log，無異常。
+   - 網路工程師猜測：「是不是負載平衡器丟包？」$\rightarrow$ 檢查 Nginx 錯誤日誌，無 502/504。
+2. **Grafana 共享十字準星 (Shared Crosshair) 秒級破案**：
+   - 在 Grafana 面板設定中開啟 `Shared crosshair`。
+   - 當滑鼠游標停留在 `14:02:00` 的延遲飆高尖峰時，垂直標記線同步貫穿下方所有的基礎設施監控圖表。
+   - **真兇瞬間現形**：在下方 cAdvisor 監控圖表中，該服務 Pod 的 **`container_cpu_cfs_throttled_periods_total` (CPU CFS 限流比率)** 在 `14:02:00` 整整飆升至 **85%**！
+
+> **結論**：根本不是程式碼有 Bug，也不是資料庫變慢，而是 Kubernetes Deployment 的 `resources.limits.cpu: "500m"` 設得過於嚴格！Linux Completely Fair Scheduler (CFS) 在容器用滿 500m 配額後，強制把容器凍結降頻，直到下一個 CPU 週期。  
+> 將 CPU Limit 調高至 `1000m` 後重新壓測，P95 延遲瞬間恢復至 45ms！  
+> **這就是將壓測指標與基礎設施指標對齊帶來的神級除錯威力：徹底破除數據孤島，秒級定位架構真兇！**
+
+---
+
+### 手把手實作演練：可觀測性全鏈路閉環
+
+現在切換到終端機，親自實操原生 Web Dashboard、自訂報告產生器、Docker 編譯與 Prometheus 串流推播。
+
+#### 實作 1：啟動原生 Web Dashboard 即時監控
+
+```bash
+K6_WEB_DASHBOARD=true k6 run k6/demos/ch5_dashboard_and_html_summary.js
 ```
 
-**結論**：秒級破案！不是程式碼有 Bug，而是 Kubernetes Pod 的 CPU Limit 設得太緊，容器被 Linux 核心強迫降頻卡頓。將壓測與系統基礎設施指標對齊，徹底破除數據孤島！
+> **👀 觀察重點**：
+> 1. 控制台輸出提示：`Web dashboard: http://127.0.0.1:5665`。
+> 2. 打開瀏覽器訪問該網址，觀察測試執行期間圖表即時繪製的動態曲線！
 
-### 實作演練：執行 Prometheus 推播演示
+#### 實作 2：CI/CD 離線 HTML 報告匯出（Port=-1 驗證）
+
+```bash
+K6_WEB_DASHBOARD=true \
+K6_WEB_DASHBOARD_PORT=-1 \
+K6_WEB_DASHBOARD_EXPORT=offline_report.html \
+k6 run k6/demos/ch5_dashboard_and_html_summary.js
+```
+
+> **👀 觀察重點**：
+> 測試結束後，k6 立即退出（無背景行程懸掛），且本機目錄生成了 `offline_report.html`。用瀏覽器直接雙擊打開，即可離線檢視完整互動儀表板！
+
+#### 實作 3：Docker 確定性編譯客製化 xk6 引擎
+
+在專案中執行內建的編譯腳本：
+
+```bash
+./k6/demos/ch5_xk6_docker_build.sh
+```
+
+> **👀 觀察重點**：
+> 1. 觀察 Docker 自動拉取 `grafana/xk6` 映像檔並注入 `xk6-sql` 擴充。
+> 2. 編譯完成後，檢視 `bin/k6-custom version`，確認已成功打包資料庫原生壓測引擎！
+
+#### 實作 4：Prometheus Remote Write 串流與 Git 標籤實戰
+
+執行專案內建的 Prometheus 推播腳本：
 
 ```bash
 ./k6/demos/ch5_prometheus_remote_write.sh
 ```
+
+> **👀 觀察重點**：
+> 1. 腳本動態取得本機當前 Git Commit Short Hash（如 `9ffc846`）。
+> 2. k6 透過 `-o experimental-prometheus-rw` 將每秒數據推送至本機 Prometheus (`http://localhost:9090`)。
+> 3. 打開 Grafana (`http://localhost:3000`)，在 Explore 頁面輸入 PromQL：
+>    ```promql
+>    k6_http_req_duration_p95{commit_id=~".+"}
+>    ```
+>    成功在 Grafana 觀測到帶有版本標籤的壓測指標串流！
+
+---
+
+### Chapter 5 核心心智模型與架構師避坑指南
+
+1. **數據不落地，壓測無意義**：
+   - 嚴禁把壓測結果留在個人電腦的終端機裡。在 CI/CD 中，至少透過 `Port=-1` 匯出 HTML 報告歸檔，最佳做法是一律透過 Prometheus Remote Write 匯入團隊共享的 Grafana。
+2. **善用 Commit Tag 建立效能基準線 (Baseline)**：
+   - 每一次合併到 `main` 分支的代碼都必須帶有 Commit ID 進行回歸壓測。當延遲退化時，一眼即可看出是哪一次 Commit 引入的效能退化。
+3. **編譯 xk6 嚴格遵守 Docker 確定性原則**：
+   - 避免在個人電腦隨意 `go install`。統一使用 Docker 映像檔編譯，並嚴格加上 `-u $(id -u):$(id -g)` 確保檔案權限正常。
+4. **結合分散式追蹤 (Tracing) 與主機監控破除盲區**：
+   - 當 P95 飆高時，第一時間看 CPU CFS Throttling、記憶體分頁錯誤與 DB 連線池水位，拒絕憑感覺除錯。
 
 ---
 
