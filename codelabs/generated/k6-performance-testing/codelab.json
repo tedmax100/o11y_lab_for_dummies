@@ -1,7 +1,7 @@
 {
   "environment": "web",
   "format": "html",
-  "prefix": "https://storage.googleapis.com",
+  "prefix": "..",
   "mainga": "UA-49880327-14",
   "updated": "2026-09-21T23:37:55+08:00",
   "id": "k6-performance-testing",
