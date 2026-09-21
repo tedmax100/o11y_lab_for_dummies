@@ -36,6 +36,12 @@ THEMES = {
         'border': RGBColor(2, 132, 199),
         'label': RGBColor(186, 230, 253),
         'url': RGBColor(56, 189, 248),
+    },
+    'Ch6': {
+        'bg': RGBColor(255, 255, 255),
+        'border': RGBColor(203, 213, 225),
+        'label': RGBColor(51, 65, 85),
+        'url': RGBColor(79, 70, 229),
     }
 }
 
@@ -45,6 +51,7 @@ DECKS = [
     ('Ch3', 'k6/slides/Ch3_k6_Quality_Gates.pptx'),
     ('Ch4', 'k6/slides/Ch4_Precision_k6_Hybrid_Testing.pptx'),
     ('Ch5', 'k6/slides/Ch5_k6_Observability_and_Modular_Architecture.pptx'),
+    ('Ch6', 'k6/slides/Ch6_k6_AI_Agent_Engineering.pptx'),
 ]
 
 TARGET_URL = 'https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/'
