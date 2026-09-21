@@ -128,21 +128,39 @@ TEMPLATE = """<!DOCTYPE html>
 
 SCENE_1 = """
 <div><span class='prompt'>nathan@o11y-lab</span>:<span class='path'>~/Project/o11y_lab_for_dummies</span>$ <span class='cmd'>k6 x agent status</span></div>
-<div class='dim'>time="2026-09-21T23:33:01+08:00" level=info msg="Automatic extension resolution is enabled. Provisioning custom binary..." deps="subcommand:agent"</div>
-<div class='dim'>time="2026-09-21T23:33:02+08:00" level=info msg="Using cached k6 binary" artifact_id=976b21276989 deps="map[k6:v2.2.0 subcommand:agent:v0.2.1]"</div>
+<div class='dim'>time="2026-09-21T23:55:00+08:00" level=info msg="Using cached k6 binary" artifact_id=976b21276989 deps="map[k6:v2.2.0 subcommand:agent:v0.2.1]"</div>
 <br>
 <div class='white-bold'>Agent installation status</div>
 <br>
-<div><span class='yellow-txt'>[-]</span> <span class='white-bold'>Claude Code</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='dim'>Missing: .mcp.json (Hint: k6 x agent init claude-code)</span></div>
+<div><span class='green-txt'>[+]</span> <span class='white-bold'>Claude Code</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='green-txt'>.mcp.json detected</span> &nbsp;<span class='dim'>(skills in .claude/skills/)</span></div>
 <div><span class='dim'>[-]</span> <span class='white-bold'>Cline</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='dim'>Not detected in this workspace (Hint: k6 x agent init cline)</span></div>
 <div><span class='dim'>[-]</span> <span class='white-bold'>OpenAI Codex CLI</span> &nbsp;&nbsp;&nbsp;<span class='dim'>Missing: .codex/mcp.json (Hint: k6 x agent init codex-cli)</span></div>
-<div><span class='green-txt'>[+]</span> <span class='white-bold'>Cursor</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='green-txt'>.cursor/mcp.json detected</span> &nbsp;<span class='dim'>(11 rules in .cursor/rules/)</span></div>
+<div><span class='green-txt'>[+]</span> <span class='white-bold'>Cursor</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='green-txt'>.cursor/mcp.json detected</span> &nbsp;<span class='dim'>(rules in .cursor/rules/)</span></div>
 <div><span class='dim'>[-]</span> <span class='white-bold'>OpenCode</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='dim'>Missing: opencode.json (Hint: k6 x agent init opencode)</span></div>
 <div><span class='dim'>[-]</span> <span class='white-bold'>VSCode Copilot</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='dim'>Missing: .vscode/mcp.json (Hint: k6 x agent init vscode-copilot)</span></div>
 <br>
 <div><span class='green-txt'>[+]</span> <span class='white-bold'>k6 MCP support</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='cyan'>Found at /usr/bin/k6 (subcommand:mcp:v0.6.1 active)</span></div>
 <br>
-<div class='dim'># 提示：透過 'k6 x agent init &lt;target&gt;' 可一鍵配置對應編輯器的 Rules 與 MCP 連線</div>
+<div class='dim'># 狀態更新：Claude Code 與 Cursor 雙編輯器均已就緒，MCP 與技能均正常掛載！</div>
+"""
+
+SCENE_SKILLS = """
+<div><span class='prompt'>nathan@o11y-lab</span>:<span class='path'>~/Project/o11y_lab_for_dummies</span>$ <span class='cmd'>k6 x agent skills list</span></div>
+<div class='dim'>time="2026-09-21T23:55:01+08:00" level=info msg="Using cached k6 binary" artifact_id=976b21276989 deps="map[k6:v2.2.0 subcommand:agent:v0.2.1]"</div>
+<br>
+<div class='cyan'><span style='display:inline-block;width:240px;'>NAME</span> <span>DESCRIPTION</span></div>
+<div><span class='white-bold' style='display:inline-block;width:240px;'>k6-browser-test</span> <span class='dim'>Write a k6 browser test that drives headless Chromium...</span></div>
+<div><span class='white-bold' style='display:inline-block;width:240px;'>k6-cloud-investigate-test</span> <span class='dim'>Investigate Grafana Cloud k6 test runs and diagnostics...</span></div>
+<div><span class='white-bold' style='display:inline-block;width:240px;'>k6-docs</span> <span class='dim'>Look up official k6 documentation with `k6 x docs`...</span></div>
+<div><span class='white-bold' style='display:inline-block;width:240px;'>k6-load-test</span> <span class='dim'>Generate production-grade load test scripts with stages...</span></div>
+<div><span class='white-bold' style='display:inline-block;width:240px;'>k6-playwright-converter</span> <span class='dim'>Convert Playwright/Puppeteer scripts to k6 browser tests...</span></div>
+<div><span class='white-bold' style='display:inline-block;width:240px;'>k6-smoke-test</span> <span class='dim'>Quick 1-2 VU smoke test to verify basic endpoint health...</span></div>
+<div><span class='white-bold' style='display:inline-block;width:240px;'>k6-test-planner</span> <span class='dim'>Plan k6 test suites from natural-language requirements...</span></div>
+<div><span class='white-bold' style='display:inline-block;width:240px;'>k6-trend-analysis</span> <span class='dim'>Analyze Grafana Cloud test trends and detect regressions...</span></div>
+<br>
+<div><span class='prompt'>nathan@o11y-lab</span>:<span class='path'>~/Project/o11y_lab_for_dummies</span>$ <span class='cmd'>k6 x agent skills show k6-smoke-test | head -n 4</span></div>
+<div class='green-txt'>You are a senior k6 performance engineer. You create lightweight smoke tests</div>
+<div class='green-txt'>that verify an application's basic functionality under minimal load...</div>
 """
 
 SCENE_2 = """
@@ -214,15 +232,23 @@ SCENE_4 = """
 SCENES = [
     {
         "id": "status",
-        "badge_text": "STEP 1: 狀態檢核",
+        "badge_text": "STEP 1: 狀態診斷",
         "badge_class": "badge-cyan",
         "body": SCENE_1,
         "png_name": "k6-ch6-agent-status.png",
         "duration_ms": 3500
     },
     {
+        "id": "skills_list",
+        "badge_text": "STEP 2: 技能清單與檢索",
+        "badge_class": "badge-purple",
+        "body": SCENE_SKILLS,
+        "png_name": "k6-ch6-agent-skills-list.png",
+        "duration_ms": 3500
+    },
+    {
         "id": "dryrun",
-        "badge_text": "STEP 2: 安全預覽",
+        "badge_text": "STEP 3: 安全預覽",
         "badge_class": "badge-yellow",
         "body": SCENE_2,
         "png_name": "k6-ch6-agent-init-dryrun.png",
@@ -230,7 +256,7 @@ SCENES = [
     },
     {
         "id": "init_cursor",
-        "badge_text": "STEP 3: 編輯器初始化",
+        "badge_text": "STEP 4: 編輯器初始化",
         "badge_class": "",
         "body": SCENE_3,
         "png_name": "k6-ch6-agent-init-cursor.png",
@@ -238,7 +264,7 @@ SCENES = [
     },
     {
         "id": "mcp_validate",
-        "badge_text": "STEP 4: MCP 閉環驗證",
+        "badge_text": "STEP 5: MCP 閉環驗證",
         "badge_class": "badge-purple",
         "body": SCENE_4,
         "png_name": "k6-ch6-mcp-validation.png",

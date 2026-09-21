@@ -2248,7 +2248,7 @@ k6 x agent skills list
 
 #### 實作 1：檢查本機工作區 AI 狀態與 MCP 原生支援（k6 x agent status）
 
-在專案根目錄執行狀態檢查命令，觀察 k6 的 **Automatic Extension Resolution（自動擴充解析機制）**：
+在專案根目錄執行狀態檢查命令，觀察 k6 的 **Automatic Extension Resolution（自動擴充解析機制）** 與編輯器適配狀態：
 
 ![k6 x agent status 狀態檢核](assets/images/k6-ch6-agent-status.png)
 
@@ -2257,12 +2257,95 @@ k6 x agent skills list
 k6 x agent status
 ```
 
-**終端執行輸出解析**：
-* **動態依賴解析**：`k6 v2.2+` 內建自動依賴解析機制，當偵測到子命令擴充套件時，會自動在背景按需快取二進位檔（例如 `subcommand:agent:v0.2.1` 與 `subcommand:mcp:v0.6.1`），無需手動安裝 Go 編譯器或 npm 全域包。
-* **支援編輯器矩陣**：終端會列出 6 大支援編輯器（Claude Code, Cline, Codex CLI, Cursor, OpenCode, VSCode Copilot）的配置狀態。
-* **原生 MCP 偵測**：確認 `/usr/bin/k6` 具備原生 MCP 協定支援，為 AI 助手提供本地工具調用能力。
+**終端真實執行輸出**：
+```text
+nathan@o11y-lab:~/Project/o11y_lab_for_dummies$ k6 x agent status
+INFO[0000] Automatic extension resolution is enabled. The current k6 binary doesn't satisfy all dependencies, it's required to provision a custom binary.  deps="subcommand:agent"
+INFO[0000] Using cached k6 binary                        artifact_id=976b21276989fad3b6480294c0662247e292396f deps="map[k6:v2.2.0 subcommand:agent:v0.2.1]" path=/home/nathan/.cache/k6/builds/976b21276989fad3b6480294c0662247e292396f/k6
+Agent installation status
 
-#### 實作 2：安全預覽安裝檔案與路徑（--dry-run 零副作用檢核）
+[+] Claude Code
+   - .mcp.json detected
+
+[-] Cline
+   - Not detected in this workspace
+   - Hint: k6 x agent init cline
+
+[-] OpenAI Codex CLI
+   - Missing: .codex/mcp.json
+   - Hint: k6 x agent init codex-cli
+
+[+] Cursor
+   - .cursor/mcp.json detected
+
+[-] OpenCode
+   - Missing: opencode.json
+   - Hint: k6 x agent init opencode
+
+[-] VSCode/GitHub Copilot
+   - Missing: .vscode/mcp.json
+   - Hint: k6 x agent init vscode-copilot
+
+[+] k6 MCP support
+   - Found at /usr/bin/k6
+```
+
+**終端執行輸出深度解析**：
+* **`Automatic extension resolution`**：`k6 v2.2+` 內建自動依賴解析機制，當呼叫 `x agent` 或 `x mcp` 時，k6 會動態從官方二進位庫按需下載擴充套件（如 `subcommand:agent:v0.2.1` 與 `subcommand:mcp:v0.6.1`），存於 `~/.cache/k6/builds/`，完全免除本機預裝 Go 或 npm 的負擔。
+* **`[+] Claude Code` 與 `[+] Cursor`**：當我們為 Cursor 與 Claude Code 執行 `init` 後，狀態會從 `[-]` 變成綠色 `[+]`，標記 `.mcp.json` 與相關技能規則已正確就位。
+* **`[+] k6 MCP support`**：系統在 `/usr/bin/k6` 偵測到原生 MCP 支援，代表 AI 助手可透過 Model Context Protocol 直接呼叫 k6 執行腳本驗證。
+
+---
+
+#### 實作 2：探索 11 大內建技能庫與 Prompt 規則檢索（skills list & skills show）
+
+透過 `k6 x agent skills` 系列指令，你可以隨時查看二進位檔內建的所有技能，甚至直接印出官方 Prompt 規範：
+
+![k6 x agent skills list 技能清單與檢索](assets/images/k6-ch6-agent-skills-list.png)
+
+```bash
+# 1. 列出二進位檔內建的所有 AI 技能清單
+k6 x agent skills list
+
+# 2. 查看特定技能的完整 Prompt 規則（以 k6-smoke-test 為例）
+k6 x agent skills show k6-smoke-test
+```
+
+**`skills list` 終端真實輸出**：
+```text
+NAME                       DESCRIPTION
+k6-browser-test            Use this skill when the user wants to write a k6 browser test that in...
+k6-cloud-investigate-test  Investigate a Grafana Cloud k6 test — describe the script, list run...
+k6-docs                    Look up official k6 documentation with `k6 x docs` when writing, debu...
+k6-load-test               Use this skill when the user says "write a k6 script", "generate a k6...
+k6-manage                  Interact with Grafana Cloud k6 (GCk6) — manage load tests, test run...
+k6-perf-test-website       Use when the user wants to performance-test, load-test, or stress-tes...
+k6-playwright-converter    Use this skill when a user provides a Playwright script and needs a f...
+k6-smoke-test              Use this skill when the user wants a quick k6 smoke test to verify ba...
+k6-test-maintenance        Maintain and improve existing k6 test scripts. Covers threshold tight...
+k6-test-planner            Use this skill to plan k6 test suites from natural-language requireme...
+k6-trend-analysis          Analyze Grafana Cloud test trends and detect regressions...
+```
+
+**`skills show k6-smoke-test` 核心規則解析**：
+執行 `skills show` 會直接將編譯在 k6 內部的 Markdown Prompt 印到終端：
+```markdown
+You are a senior k6 performance engineer. You create lightweight smoke tests that verify an application's basic functionality under minimal load — the first line of defence before heavier performance testing.
+
+## Workflow
+1. Scope & Inputs: A smoke test should cover the happy path only — no stress, no edge cases.
+2. Design & Development:
+   - Use 1–5 VUs with a short duration (30s–2m).
+   - Prefer constant-vus executor for simplicity.
+   - Include check() calls for every critical assertion.
+   - Set strict thresholds: http_req_failed: ['rate==0'], http_req_duration: ['p(95)<500'].
+   - Parameterise base URL via environment variable (__ENV.BASE_URL).
+```
+這意味著團隊可以**零時差檢驗官方提示詞工程標準**，無需到處翻找檔案即可知悉 AI 的決策邏輯！
+
+---
+
+#### 實作 3：安全預覽安裝檔案與路徑（--dry-run 零副作用檢核）
 
 在正式修改磁碟前，利用 `--dry-run` 旗標預覽即將產生的規則與設定檔：
 
@@ -2271,32 +2354,41 @@ k6 x agent status
 ```bash
 # 針對 Cursor 編輯器進行乾跑預覽
 k6 x agent init cursor --dry-run
+
+# 針對 Claude Code 進行乾跑預覽
+k6 x agent init claude-code --dry-run
 ```
 
 **預覽檢核要點**：
-* 終端會清楚標記即將 `[create]` 的 11 個 `.mdc` 專業技能檔案（如 `k6-smoke-test.mdc`, `k6-browser-test.mdc`）。
-* 針對既有的 `.cursor/mcp.json`，會使用 `[merge]` 智慧合併，絕不覆蓋使用者原本配置的其他 MCP 伺服器。
-* 乾跑模式下完全零磁碟寫入，安全可靠。
+* **Cursor 格式**：產生 11 個 `.cursor/rules/*.mdc` 規則檔案，並智慧合併（`[merge]`）`.cursor/mcp.json`。
+* **Claude Code 格式**：產生 `.claude/skills/*/SKILL.md` 目錄結構，並合併根目錄的 `.mcp.json` 與 `.claude/settings.local.json`。
+* 乾跑模式下完全零磁碟寫入，避免誤更動專案檔案。
 
-#### 實作 3：一鍵初始化 AI 編輯器與檢核配置（.cursor/mcp.json 與 11 大技能包）
+---
+
+#### 實作 4：一鍵初始化 AI 編輯器與檢核配置（.cursor/mcp.json 與 11 大技能包）
 
 確認無誤後，正式執行初始化命令：
 
 ![k6 x agent init cursor 初始化完成](assets/images/k6-ch6-agent-init-cursor.png)
 
 ```bash
-# 正式初始化 Cursor 編輯器環境
+# 1. 初始化 Cursor 編輯器環境
 k6 x agent init cursor
 
+# 2. 或初始化 Claude Code 終端環境
+k6 x agent init claude-code
+
 # 檢視自動產生的 MCP 設定檔
-cat .cursor/mcp.json
+cat .cursor/mcp.json  # Cursor 專屬配置
+cat .mcp.json         # Claude Code 專屬配置
 
 # 檢視自動產生的 AI 技能規則檔案頭部
 head -n 7 .cursor/rules/k6-smoke-test.mdc
 ```
 
 **產出檔案檢驗**：
-* `.cursor/mcp.json` 內容如下，註冊了本地的原生 k6 MCP 伺服器：
+* `.cursor/mcp.json` 或 `.mcp.json` 內容如下，註冊了本地的原生 k6 MCP 伺服器：
   ```json
   {
     "mcpServers": {
@@ -2309,7 +2401,9 @@ head -n 7 .cursor/rules/k6-smoke-test.mdc
   ```
 * 規則檔案首部包含 `<!-- generated by k6 x agent -->` 擁有者防護標籤，防止未來的更新覆蓋手動修改的客製化規則。
 
-#### 實作 4：AI 閉環驗證與自癒：調用 validate_script 與 run_script
+---
+
+#### 實作 5：AI 閉環驗證與自癒：調用 validate_script 與 run_script
 
 當 AI 編輯器連線至 `k6 x mcp` 後，AI 助手即可自動調用原生 MCP 工具：
 
@@ -2336,7 +2430,7 @@ head -n 7 .cursor/rules/k6-smoke-test.mdc
 ```
 若有語法錯誤或端點無法連線，AI 會接收到結構化報錯，自動修正代碼後再次驗證，形成自主閉環自癒！
 
-#### 實作 5：實戰執行 AI 逆向生成之 QuickPizza 冒煙測試腳本
+#### 實作 6：實戰執行 AI 逆向生成之 QuickPizza 冒煙測試腳本
 
 專案中自帶了 AI 遵循最佳實踐規範生成的示範冒煙腳本 `k6/demos/ch6_quickpizza_smoke_agent.js`：
 
