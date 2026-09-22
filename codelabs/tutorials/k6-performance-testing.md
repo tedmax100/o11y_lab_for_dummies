@@ -2198,32 +2198,578 @@ k6 x agent skills list
 
 ![內建 5 大 AI 技能深度剖析：專家級壓測工作流](assets/images/k6-ch6-slide-5.png)
 
-執行 `init` 後，`k6 x agent` 會自動將 11 個專業壓測技能寫入編輯器的 Rules 目錄。其中最核心的 5 大日常工作流技能如下：
+執行 `init` 後，`k6 x agent` 會自動將 11 個專業壓測技能寫入編輯器的 Rules 目錄（如 `.cursor/rules/*.mdc` 或 `.claude/skills/*/SKILL.md`）。這些技能並非一般的簡短提示詞，而是 Grafana 官方效能工程團隊將數十年的壓測經驗、最佳實踐、AST 語法規範與自癒修復邏輯固化而成的**專家系統知識庫**。
 
-1. **`k6-test-planner` (壓測策略規劃師)**：
-   - **常見觸發詞**：`"plan tests for order service"`, `"design a test strategy"`, `"recommend VU and RPS"`
-   - **核心能力**：分析 API 架構、端點特徵與預期吞吐量，自動規劃流量模型、計算並發 VU 與爬坡階段，並設計合理的 P95 延遲門檻與 SLO 門禁規範。
-2. **`k6-load-test` (生產級負載壓測)**：
-   - **常見觸發詞**：`"write a load test"`, `"stress test this endpoint"`, `"soak test with 500 RPS"`
-   - **核心能力**：生成具備 stages 階梯爬坡、arrival-rate 開放模型與動態 Token 關聯的生產級標準腳本，嚴格遵循 SharedArray 跨 VU 記憶體共享最佳實踐。
-3. **`k6-smoke-test` (極速冒煙檢驗)**：
-   - **常見觸發詞**：`"write a smoke test"`, `"quick sanity check"`, `"verify health check endpoint"`
-   - **核心能力**：以極低資源開銷（1 到 2 個 VU）在 5 秒內快速驗證 API 基礎可用性、HTTP 200/201 與 Check 軟斷言，適合作為 CI/CD 門禁的第一道快速防線。
-4. **`k6-browser-test` (前端真實渲染與 Web Vitals)**：
-   - **常見觸發詞**：`"browser test for login UI"`, `"measure Web Vitals"`, `"hybrid 99:1 test"`
-   - **核心能力**：透過 `k6/browser` 驅動真實無頭 Chromium，量測 LCP、CLS、INP 等 Core Web Vitals 前端性能指標，並自動注入 `finally { await page.close() }` 軍規防護。
-5. **`k6-playwright-converter` (Playwright 測試無痛轉譯)**：
-   - **常見觸發詞**：`"convert Playwright script"`, `"migrate E2E test to k6"`, `"transform ui test"`
-   - **核心能力**：讀取現有的 Playwright 或 Puppeteer E2E 功能測試代碼，自動提取選擇器與業務流程，無痛轉譯為相容 k6 高併發架構的混合壓測腳本。
+#### 實戰操練系統目標 (System Under Test, SUT)
 
-#### 完整 11 大 AI 擴充技能庫全覽矩陣
-除了上述核心 5 大技能外，`k6 x agent` 還打包了進階的維護與雲端分析工具：
-* **`k6-docs`**：透過 `k6 x docs` 快速查詢最新 k6 語法規格與官方文件，AI 絕不胡編濫造。
-* **`k6-test-maintenance`**：專門用於維護並重構既有腳本，收緊鬆散的 Thresholds 門檻或修正過期 API。
-* **`k6-perf-test-website`**：網站全站效能分析、SEO 探測與真實 CDN 靜態資源負載綜合評估。
-* **`k6-cloud-investigate-test`**：直接透過 AI 查詢與排查 Grafana Cloud k6 雲端壓測記錄與日誌。
-* **`k6-manage`**：管理 Grafana Cloud k6 上的專案、測試群組與執行配額。
-* **`k6-trend-analysis`**：多版本壓測趨勢比對，自動偵測 P95 退化與潛在效能回歸（Performance Regression）。
+為了讓讀者深刻體會 AI 技能在生產環境中的威力，本章所有實戰案例與演練均統一採用 Grafana 官方維護的微服務旗艦電商示範應用 ── **Astronomy Shop (OpenTelemetry Demo)**：
+
+* 🌐 **旗艦測試網站**：[`https://appenvdev.field-eng-demo.grafana.net/`](https://appenvdev.field-eng-demo.grafana.net/)
+* 🔭 **系統核心特徵**：由 10+ 個雲原生微服務組成（Next.js 前端、Product Catalog、Cart Service、Recommendation、Checkout 等），支援端到端分散式追蹤與 Prometheus 可觀測性監控。
+* 🎯 **三大關鍵業務路徑**：
+  1. **全館商品目錄查詢**：`GET /api/products`（取得天文望遠鏡、濾鏡、配件列表）
+  2. **單一商品規格詳情**：`GET /api/products/{id}`（例如 `OLJCESPC7Z` 探索型折射望遠鏡）
+  3. **購物車寫入操作**：`POST /api/cart`（傳送 JSON payload 模擬加入購物車）
+  4. **前端真實 SSR 頁面渲染**：`GET /product/66VCHSJNUP`（Starsense 望遠鏡頁面，量測真實 Core Web Vitals）
+
+---
+
+### 內建 5 大 AI 技能深度剖析：專家級壓測工作流
+
+在 11 大技能庫中，以下 5 大技能涵蓋了從「需求規劃」、「冒煙快篩」、「生產級負載」、「前端體驗」到「E2E 測試轉譯」的日常核心研發工作流。讓我們透過具體對話 Prompt、AI 推理思考與可執行的生產級腳本，一步步深度拆解：
+
+---
+
+#### 技能 1：`k6-test-planner` (壓測策略規劃師)
+
+* **核心定位**：擔任資深效能架構師。專門接收產品經理或開發團隊模糊的自然語言需求，自動分析端點特徵、計算並發 VU 與爬坡階段，並設計合理的 SLO 品質門禁規範。
+* **常見觸發詞**：`"plan tests for order service"`, `"design a test strategy"`, `"recommend VU and RPS"`, `"針對天文商城設計壓測計畫"`
+
+##### 實戰演示：為 Astronomy Shop 電商下單鏈路規劃促銷壓測策略
+
+> **💬 使用者對話 Prompt**：
+> 「我們即將針對 Astronomy Shop (`https://appenvdev.field-eng-demo.grafana.net`) 進行促銷檔期壓測。主要業務旅程為：瀏覽商品目錄 (`/api/products`)、查詢個別望遠鏡規格 (`/api/products/{id}`)，並將商品加入購物車 (`POST /api/cart`)。平日流量約 30 RPS，預期大促高峰將達到 150 RPS。請為我們規劃專業的壓測策略，包含利特爾法則並發 VU 計算、測試階段規劃與 SLO 門檻設計。」
+
+##### AI Agent 內部推理與規劃流程 (Behind the Scenes)
+1. **呼叫 MCP 工具預檢**：調用 `mcp_k6_info` 確認當前安裝的 k6 版本與可用擴充。
+2. **端點架構特徵解構**：
+   * `/api/products`：讀取密集型端點，預期回應體較大（~11KB JSON），易受網路頻寬與 JSON 序列化瓶頸影響。
+   * `/api/products/{id}`：高頻讀取端點，具備快取潛力。
+   * `/api/cart`：狀態寫入端點，涉及 Redis/資料庫狀態變更與分散式鎖，最容易在高併發下產生競爭與延遲劣化。
+3. **運用利特爾法則 (Little's Law) 進行並發推導**：
+   $$N = X \times (R + Z)$$
+   * 目標峰值吞吐量 $X = 150 \text{ req/sec}$。
+   * 預期平均系統延遲 $R \approx 0.2 \text{s}$ (200ms)。
+   * 人類真實思考時間 (Think Time) $Z \approx 1.5 \text{s}$。
+   * 單一虛擬用戶每次完整迭代耗時 $= 0.2\text{s} + 1.5\text{s} = 1.7\text{s}$。
+   * 所需高峰並發虛擬用戶數 $N = 150 \times 1.7 = 255 \text{ VUs}$。
+
+##### AI 輸出的結構化壓測計畫 (Markdown Plan)
+
+```markdown
+# Astronomy Shop 促銷檔期效能壓測計畫書
+
+## 1. 系統全貌與關鍵路徑
+- **目標系統**：Astronomy Shop (OpenTelemetry Demo e-commerce)
+- **測試基底網址**：https://appenvdev.field-eng-demo.grafana.net
+- **核心路徑**：Catalog (`/api/products`) -> Detail (`/api/products/{id}`) -> Cart (`/api/cart`)
+
+## 2. 測試矩陣 (Test Matrix)
+| 階段 | 測試類型 | 執行器 (Executor) | 並發規模 (VUs / RPS) | 持續時間 | 目標驗證重點 | 推薦調用技能 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Phase 1** | 冒煙測試 (Smoke) | `constant-vus` | 1 VU | 30s | 驗證 200 OK 與資料結構正確性 | `k6-smoke-test` |
+| **Phase 2** | 常規負載 (Average) | `ramping-vus` | 0 -> 50 VUs | 10m | 檢驗平日 30 RPS 負載下的穩態表現 | `k6-load-test` |
+| **Phase 3** | 大促尖峰 (Stress) | `ramping-vus` | 0 -> 255 VUs | 15m | 階梯式爬坡檢驗 150 RPS 負載極限 | `k6-load-test` |
+| **Phase 4** | 前端混合體驗 (Hybrid) | 99 Protocol : 1 Browser | 99 VUs + 1 Browser VU | 5m | 測量後端高壓下前端 Core Web Vitals | `k6-browser-test` |
+
+## 3. 建議 SLO 品質門禁規範 (Thresholds)
+- **全域可用性**：`http_req_failed: ['rate<0.005']` (錯誤率低於 0.5%)
+- **全域 P95 延遲**：`http_req_duration: ['p(95)<500', 'p(99)<1000']`
+- **關鍵寫入端點 (Cart)**：`http_req_duration{name:AddToCart}: ['p(95)<400']`
+- **斷言成功率**：`checks: ['rate>0.99']`
+```
+
+---
+
+#### 技能 2：`k6-smoke-test` (極速冒煙檢驗)
+
+* **核心定位**：CI/CD Pipeline 的第一道極速防線。以極少資源（1 個 VU）在 5 秒內快速發送請求，驗證端點連線狀態、HTTP 狀態碼與資料有效性，在尚未發起高壓測試前先行攔截低階錯誤。
+* **常見觸發詞**：`"write a smoke test"`, `"quick sanity check"`, `"verify health check endpoint"`
+
+##### 實戰演示：Astronomy Shop 5 秒極速冒煙先驗
+
+> **💬 使用者對話 Prompt**：
+> 「請幫我針對 Astronomy Shop (`https://appenvdev.field-eng-demo.grafana.net`) 寫一個 1 個 VU 的極速冒煙測試腳本。必須檢查：1. 首頁 HTML 正常回應且包含 OTel demo 標題；2. 商品目錄 API (`/api/products`) 回傳有效商品陣列；3. 望遠鏡詳情 API (`/api/products/OLJCESPC7Z`) 正確回傳 Explorascope 商品。請設定嚴格門禁：錯誤率必須為 0%，P95 < 600ms，並且一定要遵循 tags 防高基數標籤規範！」
+
+##### AI 自動生成的生產級冒煙腳本
+
+```javascript
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+
+export const options = {
+  vus: 1,
+  duration: '5s',
+  thresholds: {
+    // 冒煙測試零容忍標準：不可有任何請求失敗，check 100% 成功
+    http_req_failed: ['rate==0.00'],
+    checks: ['rate==1.00'],
+    http_req_duration: ['p(95)<600'],
+  },
+};
+
+const BASE_URL = __ENV.BASE_URL || 'https://appenvdev.field-eng-demo.grafana.net';
+
+export default function () {
+  // 1. 探測商城首頁 HTML
+  const homeRes = http.get(BASE_URL, { tags: { name: 'GetHomePage' } });
+  check(homeRes, {
+    '首頁回應 200 OK': (r) => r.status === 200,
+    '首頁標題包含 OTel demo': (r) => r.body && r.body.includes('OTel demo'),
+  });
+
+  // 2. 探測商品目錄 API (/api/products)
+  const productsRes = http.get(`${BASE_URL}/api/products`, {
+    tags: { name: 'GetProducts' },
+  });
+  check(productsRes, {
+    '商品目錄回應 200 OK': (r) => r.status === 200,
+    '回傳陣列包含有效商品': (r) => {
+      try {
+        const data = r.json();
+        return Array.isArray(data) && data.length > 0;
+      } catch (e) {
+        return false;
+      }
+    },
+  });
+
+  // 3. 探測特定商品詳情 API (/api/products/OLJCESPC7Z)
+  // 注意：使用 tags 標籤統一聚合，防止不同商品 ID 造成時序高基數爆炸
+  const detailRes = http.get(`${BASE_URL}/api/products/OLJCESPC7Z`, {
+    tags: { name: 'GetProductDetail' },
+  });
+  check(detailRes, {
+    '商品詳情回應 200 OK': (r) => r.status === 200,
+    '商品包含 Explorascope 望遠鏡': (r) => {
+      try {
+        const item = r.json();
+        return item.id === 'OLJCESPC7Z';
+      } catch (e) {
+        return false;
+      }
+    },
+  });
+
+  sleep(1);
+}
+```
+
+##### 終端真實執行輸出與成果解析
+
+```text
+  █ THRESHOLDS 
+    checks..............: ✓ 'rate==1.00' rate=100.00%
+    http_req_duration...: ✓ 'p(95)<600'  p(95)=171.2ms
+    http_req_failed.....: ✓ 'rate==0.00' rate=0.00%
+
+  █ TOTAL RESULTS 
+    checks_succeeded...: 100.00% 18 out of 18
+    ✓ 首頁回應 200 OK
+    ✓ 首頁標題包含 OTel demo
+    ✓ 商品目錄回應 200 OK
+    ✓ 回傳陣列包含有效商品
+    ✓ 商品詳情回應 200 OK
+    ✓ 商品包含 Explorascope 望遠鏡
+
+    HTTP
+    http_req_duration...: avg=169.61ms min=167.74ms med=169.66ms max=171.36ms p(95)=171.2ms
+    http_req_failed.....: 0.00% 0 out of 9
+    iterations..........: 3
+```
+
+> [!TIP]
+> **AI 專家守護原則**：在執行任何大規模並發壓測（例如 500 VU）之前，AI 技能庫強制要求先跑一次 1 VU 冒煙先驗。若 1 VU 下 API 就出現 500 錯誤或路徑不存在，壓測應立即終止，避免無效流量衝擊測試環境並浪費 CI Runner 資源！
+
+---
+
+#### 技能 3：`k6-load-test` (生產級負載壓測)
+
+* **核心定位**：自動生成符合生產規格的高併發負載測試腳本。原生支援階梯爬坡（Ramping VUs）、開放式到達率模型（Arrival Rate）、動態數據關聯，並嚴格遵循 `SharedArray` 跨 VU 記憶體共享最佳實踐。
+* **常見觸發詞**：`"write a load test"`, `"stress test this endpoint"`, `"soak test with 500 RPS"`
+
+##### 實戰演示：Astronomy Shop 階梯式購物車下單負載壓測
+
+> **💬 使用者對話 Prompt**：
+> 「請為 Astronomy Shop (`https://appenvdev.field-eng-demo.grafana.net`) 撰寫一份生產級負載壓測腳本：
+> 1. 模擬使用者購買流程：瀏覽目錄 -> 點擊望遠鏡商品規格 -> 加入購物車 (`POST /api/cart`)。
+> 2. 負載模型：使用 `ramping-vus` 階梯爬坡（3s 爬升至 3 VU、維持 5s、2s 降坡冷卻）。
+> 3. 測試資料：使用 `SharedArray` 跨 VU 唯讀共享 5 款熱門望遠鏡 ID（`OLJCESPC7Z`, `66VCHSJNUP`, `1YMWWN1N4O` 等），各 VU 隨機挑選商品進行購物車加入操作。
+> 4. 防高基數：針對商品詳情與購物車加入加入標準化 `tags: { name: '...' }` 標籤。
+> 5. 門禁：全域 P95 < 800ms，且針對 AddToCart 單獨配置 P95 < 600ms SLO。」
+
+##### AI 自動生成的生產級負載腳本
+
+```javascript
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+import { SharedArray } from 'k6/data';
+
+// 1. 跨 VU 唯讀共享測試商品清單 (SharedArray 最佳實踐，杜絕記憶體洩漏)
+const TARGET_PRODUCTS = new SharedArray('Astronomy Products', function () {
+  return [
+    { id: 'OLJCESPC7Z', name: 'Explorascope Refractor' },
+    { id: '66VCHSJNUP', name: 'Starsense Explorer' },
+    { id: '1YMWWN1N4O', name: 'Eclipsmart Solar Scope' },
+    { id: '2ZYFJ3GM2N', name: 'Roof Binoculars' },
+    { id: '0PUK6V6EV0', name: 'Solar System Color Imager' },
+  ];
+});
+
+// 2. 階梯爬坡與精確 Tagged Thresholds 門禁
+export const options = {
+  scenarios: {
+    astronomy_shop_flow: {
+      executor: 'ramping-vus',
+      startVUs: 1,
+      stages: [
+        { duration: '3s', target: 3 },  // 快速階梯爬坡
+        { duration: '5s', target: 3 },  // 穩態負載測試
+        { duration: '2s', target: 0 },  // 降坡冷卻釋放
+      ],
+      gracefulRampDown: '2s',
+    },
+  },
+  thresholds: {
+    // 全域門禁
+    http_req_failed: ['rate<0.01'],
+    http_req_duration: ['p(95)<800'],
+    checks: ['rate==1.00'],
+
+    // 端點級細緻門禁 (利用 tags 標籤精準過濾，單獨監控關鍵寫入瓶頸)
+    'http_req_duration{name:GetProductCatalog}': ['p(95)<500'],
+    'http_req_duration{name:GetProductDetail}': ['p(95)<400'],
+    'http_req_duration{name:AddToCart}': ['p(95)<600'],
+  },
+};
+
+const BASE_URL = __ENV.BASE_URL || 'https://appenvdev.field-eng-demo.grafana.net';
+
+export default function () {
+  // 從 SharedArray 隨機選取一件天文儀器
+  const product = TARGET_PRODUCTS[Math.floor(Math.random() * TARGET_PRODUCTS.length)];
+  const userId = `k6-user-${__VU}`;
+
+  // 步驟 1：瀏覽全館目錄 (GET /api/products)
+  const catalogRes = http.get(`${BASE_URL}/api/products`, {
+    tags: { name: 'GetProductCatalog' },
+  });
+  check(catalogRes, {
+    '商品目錄回應 200 OK': (r) => r.status === 200,
+    '商品目錄包含商品': (r) => r.json().length > 0,
+  });
+
+  // 步驟 2：點選特定望遠鏡商品詳情 (GET /api/products/{id})
+  const detailRes = http.get(`${BASE_URL}/api/products/${product.id}`, {
+    tags: { name: 'GetProductDetail' },
+  });
+  check(detailRes, {
+    '商品詳情回應 200 OK': (r) => r.status === 200,
+    '商品 ID 符合預期': (r) => r.json().id === product.id,
+  });
+
+  // 步驟 3：加入購物車 (POST /api/cart)
+  const cartPayload = JSON.stringify({
+    userId: userId,
+    item: { productId: product.id, quantity: 1 },
+  });
+
+  const cartRes = http.post(`${BASE_URL}/api/cart`, cartPayload, {
+    headers: { 'Content-Type': 'application/json' },
+    tags: { name: 'AddToCart' },
+  });
+  check(cartRes, {
+    '加入購物車回應 200 OK': (r) => r.status === 200,
+    '購物車包含目標商品': (r) => {
+      try {
+        const data = r.json();
+        return data.items && data.items.some(i => i.productId === product.id);
+      } catch (e) {
+        return false;
+      }
+    },
+  });
+
+  // 破除協調性漏測：注入 1~2 秒動態隨機思考時間 (Think Time)
+  sleep(1 + Math.random() * 1);
+}
+```
+
+##### 終端真實執行輸出與指標深度解析
+
+```text
+  █ THRESHOLDS 
+    checks..........................................: ✓ 'rate==1.00' rate=100.00%
+    http_req_duration...............................: ✓ 'p(95)<800'  p(95)=209.9ms
+      {name:AddToCart}..............................: ✓ 'p(95)<600'  p(95)=176.31ms
+      {name:GetProductCatalog}......................: ✓ 'p(95)<500'  p(95)=307.12ms
+      {name:GetProductDetail}.......................: ✓ 'p(95)<400'  p(95)=164.6ms
+    http_req_failed.................................: ✓ 'rate<0.01'  rate=0.00%
+
+  █ TOTAL RESULTS 
+    checks_succeeded...: 100.00% 72 out of 72
+    http_reqs..........: 36     3.385477/s
+    iterations.........: 12
+```
+
+> [!NOTE]
+> **指標剖析**：透過 Tagged Thresholds 可以清晰看出：
+> 1. `GetProductCatalog` 由於需回傳完整的商品 JSON 陣列，P95 為 **307.12ms**，是三者中延遲最高者。
+> 2. `AddToCart` 為狀態寫入，P95 為 **176.31ms**，遠低於 600ms 警戒線。
+> 3. 全部 72 個 check 100% 成功，展現了微服務後端在併發下的健全度。
+
+---
+
+#### 技能 4：`k6-browser-test` (前端真實渲染與 Web Vitals)
+
+* **核心定位**：透過 `k6/browser` 驅動真實無頭 Chromium，完整加載 CSS、JavaScript、圖片與字體資源，量測 Google Core Web Vitals（LCP 最大內容繪製、CLS 累計版面位移、INP 互動延遲）真實前端體驗指標。
+* **常見觸發詞**：`"browser test for login UI"`, `"measure Web Vitals"`, `"hybrid 99:1 test"`
+
+##### 實戰演示：Astronomy Shop 望遠鏡詳情頁 Core Web Vitals 採樣
+
+> **💬 使用者對話 Prompt**：
+> 「請幫我為 Astronomy Shop 的 Starsense 望遠鏡商品頁面 (`https://appenvdev.field-eng-demo.grafana.net/product/66VCHSJNUP`) 寫一個 k6/browser 瀏覽器渲染壓測腳本。
+> 要求：
+> 1. 使用 chromium 瀏覽器渲染真實前端與 CSS/JS/圖片資源。
+> 2. 驗證商品頁標題包含 'Starsense Explorer Refractor Telescope'。
+> 3. 採樣 Core Web Vitals，並訂定門禁：LCP < 2.5s、CLS < 0.1。
+> 4. 嚴格落實 `try ... finally { await page.close() }` 清理機制，防範瀏覽器記憶體洩漏！」
+
+##### AI 自動生成的生產級瀏覽器壓測腳本
+
+```javascript
+import { browser } from 'k6/browser';
+import { check } from 'k6';
+
+export const options = {
+  scenarios: {
+    astronomy_browser_ui: {
+      executor: 'shared-iterations',
+      iterations: 1,
+      options: {
+        browser: {
+          type: 'chromium',
+        },
+      },
+    },
+  },
+  thresholds: {
+    // 嚴格 Core Web Vitals 前端指標門禁 (Google 官方良好體驗門檻)
+    browser_web_vital_lcp: ['p(95)<2500'], // Largest Contentful Paint < 2.5s
+    browser_web_vital_cls: ['p(95)<0.1'],  // Cumulative Layout Shift < 0.1
+    checks: ['rate==1.00'],
+  },
+};
+
+const PRODUCT_URL = __ENV.TARGET_URL || 'https://appenvdev.field-eng-demo.grafana.net/product/66VCHSJNUP';
+
+export default async function () {
+  // 建立全新隔離的無頭瀏覽器頁面
+  const page = await browser.newPage();
+
+  try {
+    // 導航至望遠鏡商品頁，等待網路閒置以確保 Next.js 完成 Hydration
+    await page.goto(PRODUCT_URL, { waitUntil: 'networkidle' });
+
+    // 檢查瀏覽器頁面標題
+    const title = await page.title();
+    check(title, {
+      '頁面標題包含 OTel demo': (t) => t.includes('OTel demo'),
+    });
+
+    // 驗證商品主要標題 h2 是否正確渲染
+    const heading = await page.locator('h2').textContent();
+    check(heading, {
+      '商品名稱正確渲染': (h) => h && h.includes('Starsense Explorer'),
+    });
+  } finally {
+    // 軍規級防護：無論測試成功或丟出例外，保證關閉頁面，杜絕 Chromium 殭屍進程！
+    await page.close();
+  }
+}
+```
+
+##### 終端真實執行輸出與 Web Vitals 解析
+
+```text
+  █ TOTAL RESULTS 
+    checks_succeeded...: 100.00% 2 out of 2
+    ✓ 頁面標題包含 OTel demo
+    ✓ 商品名稱正確渲染
+
+    BROWSER
+    browser_data_received.......: 1.4 MB 714 kB/s
+    browser_data_sent...........: 108 kB 56 kB/s
+    browser_http_req_duration...: avg=416.54ms min=31.84ms med=353.03ms max=702.98ms
+    browser_http_req_failed.....: 0.00%  0 out of 30
+
+    WEB_VITALS
+    browser_web_vital_cls.......: avg=0.000646 min=0.000646 med=0.000646 max=0.000646
+    browser_web_vital_fcp.......: avg=980ms    min=980ms    med=980ms    max=980ms
+    browser_web_vital_lcp.......: avg=980ms    min=980ms    med=980ms    max=980ms
+    browser_web_vital_ttfb......: avg=654ms    min=654ms    med=654ms    max=654ms
+```
+
+> [!IMPORTANT]
+> **瀏覽器測試三大關鍵洞察**：
+> 1. **真實資源開銷**：純 HTTP 測試只下載了 50KB 的 HTML，但真實瀏覽器測試加載了 **30 個靜態資產**（Next.js chunks、字型、高解析望遠鏡圖片），共計 **1.4MB**，真實暴露前端 CDN 與客戶端頻寬瓶頸！
+> 2. **LCP 為 980ms**：遠優於 2.5 秒的 Google 綠色良好標準。
+> 3. **CLS 僅 0.000646**：表明 Next.js 在渲染商品詳情與圖片時版面極為穩定，完全沒有畫面突兀跳動的劣質體驗。
+
+---
+
+#### 技能 5：`k6-playwright-converter` (Playwright 測試無痛轉譯)
+
+* **核心定位**：讀取團隊現有的 Playwright 或 Puppeteer E2E 功能測試代碼，精準提取選擇器與業務流程，無痛轉譯為相容 k6 高併發架構與 Web Vitals 採樣的混合壓測腳本。
+* **常見觸發詞**：`"convert Playwright script"`, `"migrate E2E test to k6"`, `"transform ui test"`
+
+##### 實戰演示：將現有 Playwright E2E 功能測試升級為 k6 混合壓測
+
+一般 QA 團隊通常擁有如下撰寫的標準 Playwright 功能測試：
+
+```typescript
+// 原生 Playwright E2E 測試 (tests/astronomy.spec.ts)
+import { test, expect } from '@playwright/test';
+
+test('使用者應能瀏覽望遠鏡商品並檢視詳情', async ({ page }) => {
+  await page.goto('https://appenvdev.field-eng-demo.grafana.net');
+  await expect(page).toHaveTitle(/OTel demo/);
+
+  // 點擊第一個望遠鏡商品卡片
+  await page.locator('a[href^="/product/"]').first().click();
+  await expect(page.locator('h2')).toBeVisible();
+
+  // 驗證包含加入購物車按鈕
+  const addToCartBtn = page.locator('button', { hasText: /Add To Cart/i });
+  await expect(addToCartBtn).toBeEnabled();
+});
+```
+
+> **💬 使用者對話 Prompt**：
+> 「我們手邊有一段 Playwright 測試，驗證從首頁進入 Astronomy Shop (`https://appenvdev.field-eng-demo.grafana.net`) 並點選望遠鏡商品查看購物車按鈕。請使用 `k6-playwright-converter` 幫我無痛轉譯為相容 k6 高併發架構的 `k6/browser` 腳本，加入 think time 模擬真實使用者，並升級加入 Core Web Vitals 效能監控門檻！」
+
+##### 轉譯後生成的生產級 k6/browser 腳本
+
+```javascript
+import { browser } from 'k6/browser';
+import { check, sleep } from 'k6';
+
+export const options = {
+  scenarios: {
+    astronomy_e2e_journey: {
+      executor: 'shared-iterations',
+      iterations: 1,
+      options: {
+        browser: {
+          type: 'chromium',
+        },
+      },
+    },
+  },
+  thresholds: {
+    // 轉譯時自動注入性能門禁
+    browser_web_vital_lcp: ['p(95)<2500'],
+    browser_web_vital_cls: ['p(95)<0.1'],
+    checks: ['rate==1.00'],
+  },
+};
+
+const BASE_URL = __ENV.BASE_URL || 'https://appenvdev.field-eng-demo.grafana.net';
+
+export default async function () {
+  const page = await browser.newPage();
+
+  try {
+    // 1. 導航至首頁 (等同 page.goto)
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    const title = await page.title();
+    check(title, {
+      '首頁標題符合預期': (t) => t.includes('OTel demo'),
+    });
+
+    // 模擬使用者閱覽首頁商品 (1 秒 Think Time)
+    sleep(1);
+
+    // 2. 點選望遠鏡商品卡片 (等同 page.locator('...').first().click())
+    const productLink = page.locator('a[href^="/product/"]').first();
+    await productLink.click();
+    await page.waitForLoadState('networkidle');
+
+    // 3. 解決非同步 Check 陷阱：先 await 取出文字再進行 check 斷言
+    const headingText = await page.locator('h2').textContent();
+    check(headingText, {
+      '商品名稱標題正常顯示': (text) => text && text.trim().length > 0,
+    });
+
+    // 4. 驗證加入購物車按鈕存在且可用
+    const addToCartBtn = page.locator('button');
+    const btnText = await addToCartBtn.textContent();
+    check(btnText, {
+      '加入購物車按鈕已呈現': (text) => text && text.includes('Add To Cart'),
+    });
+  } finally {
+    // 自動補全軍規資源清理
+    await page.close();
+  }
+}
+```
+
+##### 四大轉譯關鍵架構剖析
+
+| 轉譯維度 | 原始 Playwright 測試 | 轉譯後 k6/browser 壓測 | 轉譯價值與避坑要點 |
+| :--- | :--- | :--- | :--- |
+| **執行架構** | `test('...', async ({ page }) => ...)` 單一功能斷言 | `options.scenarios` 宣告式模型 + `export default async` | 賦予其與 10,000 個 Protocol VU 同時併發執行的能力 |
+| **非同步斷言陷阱** | `await expect(locator).toHaveText(...)` 鏈式語法 | 先 `await locator.textContent()` 取值再 `check(val, ...)` | **致命坑點**：k6 原生 `check()` 不支援 Promise；若直接傳 Promise 物件進去會永遠判定為真（假通過），AI 自動重構為正確的兩段式求值 |
+| **資源清理** | 由 Playwright Runner 在測試後全域回收 | 強制注入 `try { ... } finally { await page.close() }` | 壓測高併發下若拋出例外，未關閉的 Chromium 進程會迅速耗盡伺服器 RAM 導致 OOM Crash |
+| **體驗維度升級** | 僅驗證「功能對與錯」(Functional Correctness) | 升級納入 `browser_web_vital_lcp` / `cls` 時延監控 | 讓功能測試無縫升級為兼具體驗品質的效能指標守門員 |
+
+---
+
+### 完整 11 大 AI 擴充技能庫全覽矩陣與進階維護指南
+
+除了上述 5 大核心工作流技能外，`k6 x agent` 還打包了 6 款進階的維護、診斷與雲端治理工具，構成完整的效能工程工具鏈：
+
+| 技能名稱 | 核心職責 | 典型觸發指令 / Prompt | 適用場景與技術亮點 |
+| :--- | :--- | :--- | :--- |
+| **`k6-docs`** | 官方知識庫權威檢索 | `"lookup thresholds syntax"`, `"k6 x docs javascript-api"` | 調用 `k6 x docs` 直接檢索二進位檔內建的最新官方文件，AI 絕不胡編濫造 |
+| **`k6-test-maintenance`** | 既有腳本審計與重構 | `"tighten thresholds"`, `"fix deprecated APIs"`, `"audit script"` | 分類 Class A (宣告式門檻收緊) vs Class B (執行期邏輯微調)，支援 AST `k6 inspect` 靜態預檢 |
+| **`k6-perf-test-website`** | 全站效能分析與混合工程 | `"performance test website"`, `"record HAR and convert"` | 提供 HAR 錄製過濾、`har-to-k6` 轉譯、99:1 混合架構組裝與 LG Monitor 本機 CPU 防自殘監控 |
+| **`k6-cloud-investigate-test`** | 雲端壓測記錄與日誌排查 | `"investigate test run 12345"`, `"why did cloud test fail"` | 透過 `gcx api` 調取 Loki `{test_run_id}` 日誌，破解「Zero Observation Trap」零觀測樣本假通過盲點 |
+| **`k6-manage`** | 雲端測試資產安全治理 | `"list cloud test runs"`, `"update cloud script safely"` | 實踐安全編輯黃金迴圈（GET -> Backup -> Edit -> Validate -> PUT -> SHA256 驗證） |
+| **`k6-trend-analysis`** | 多版本趨勢與效能退化偵測 | `"compare last 5 runs"`, `"detect latency regression"` | 橫跨多版本比對 P95/P99 延遲與錯誤率，自動定位效能退化是應用代碼、資料庫還是網路問題 |
+
+#### 6 大進階維護工具深度實戰指南
+
+##### 1. `k6-docs`：官方知識庫權威檢索（杜絕 AI 幻覺）
+AI 在生成代碼時常因訓練資料過期而拼錯 Threshold 語法或在 browser 內調用不支援的 API。`k6-docs` 賦予 AI 直接調用 `k6 x docs` 子命令的能力：
+```bash
+# 終端機可直接查詢任意 k6 主題
+k6 x docs using-k6 thresholds
+k6 x docs javascript-api k6-http
+k6 x docs search "sharedarray"
+```
+AI 在生成腳本前會主動發起 MCP 查詢（例如 `get_documentation("best_practices")`），確保產出的每一行代碼完全符合當前安裝的 k6 版本規範！
+
+##### 2. `k6-test-maintenance`：腳本健康維護與門檻收緊
+在生產維運中，既有腳本往往隨著服務迭代而逐漸失修（例如端點更名、Thresholds 設定過於寬鬆）。該技能提供精準的變更分類控制：
+* **Class A（宣告式配置變更）**：例如將 `p(95)<1000` 根據歷史真實表現收緊為 `p(95)<250`。此類變更不影響執行期邏輯，AI 會自動計算 SHA-256 並執行 `k6 inspect` 預檢，無需啟動雲端耗費測試配額。
+* **Class B（執行期邏輯異動）**：例如更換請求 URL、修改 check 條件。AI 會強制要求使用者確認 Diff，並執行本地 1-VU 冒煙驗證後才允許發布。
+
+##### 3. `k6-perf-test-website`：網站全站效能分析與 99:1 混合工作流
+專門用於對全新外部網站進行端到端效能摸底。引導工程師依序執行：
+1. **HAR 錄製**：使用 Playwright 錄製使用者真實操作，並以 Regex 過濾掉 Google Analytics 等第三方雜訊。
+2. **轉譯清洗**：使用 `har-to-k6` 轉譯後，自動移除寫死的 Session Token，並將端點替換為 `__ENV.BASE_URL`。
+3. **本機防自殘監控 (LG Monitor)**：透過背景腳本 `run-with-monitor.sh` 即時監控本機 CPU 與記憶體，若 Idle < 10% 則自動警告使用者「本機負載機已成為瓶頸」，避免誤把自己的電腦卡死當成後端伺服器崩潰！
+
+##### 4. `k6-cloud-investigate-test`：Grafana Cloud 壓測排查與避坑
+排查雲端壓測記錄時，AI 會透過 `gcx api` 提取 Grafana Cloud 上的 Loki 結構化日誌。更重要的是，該技能內建了 **「Zero Observation Trap（零觀測樣本假通過）」** 陷阱防護：
+> 在 k6 中，如果一個 Threshold 對應的 Metric 完全沒有任何觀測值（例如腳本在執行到 check 之前就發生例外崩潰中斷），k6 預設會顯示 `✓ pass`！該技能會主動審計腳本，引導在 `catch` 區塊強制補上 `check(null, { "completed": false })`，徹底根除漏報風險。
+
+##### 5. `k6-manage`：Grafana Cloud 測試資產安全治理
+管理企業在 Grafana Cloud k6 (GCk6) 上託管的數百個壓測專案。嚴格遵循「安全編輯黃金迴圈」：
+$$\text{GET (下載原檔)} \longrightarrow \text{Backup (時間戳備份)} \longrightarrow \text{Edit (AI 局部重構)} \longrightarrow \text{k6 inspect (語法校驗)} \longrightarrow \text{PUT (推播更新)} \longrightarrow \text{SHA-256 (雜湊比對)}$$
+杜絕多人協作時手滑覆蓋他人腳本的嚴重生產事故。
+
+##### 6. `k6-trend-analysis`：多版本趨勢洞悉與效能回歸偵測
+在 CI/CD 中多次執行壓測後，該技能會自 Grafana Cloud 抓取最近 10 次執行的時間序列數據，自動輸出跨版本比較表格：
+```text
+| Commit  | Build Date | P95 Duration | Error Rate | 判定結果 |
+|---------|------------|--------------|------------|----------|
+| 3a89e1  | 2026-09-20 | 185ms        | 0.00%      | Baseline |
+| 4f12b8  | 2026-09-21 | 192ms        | 0.00%      | Pass     |
+| 9d78c3  | 2026-09-22 | 480ms (+150%)| 1.20%      | REGRESSION DETECTED! |
+```
+AI 會自動分析退化發生的端點，交叉比對資料庫連線池與 GC 延遲，為開發團隊產出第一手的效能回歸診斷摘要。
 
 ---
 
@@ -2498,6 +3044,70 @@ export default function () {
 
 ---
 
+#### 實作 7：實戰壓測真實旗艦網站 ── Astronomy Shop (OpenTelemetry Demo)
+
+除了 QuickPizza 外，專案更收錄了一份針對 Grafana 官方旗艦電商示範應用 ── **Astronomy Shop** (`https://appenvdev.field-eng-demo.grafana.net`) 的完整實戰演示腳本 [`k6/demos/ch6_otel_astronomy_shop.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch6_otel_astronomy_shop.js)：
+
+```bash
+# 執行 AI 規範生成的 Astronomy Shop 階梯負載與購物車壓測腳本
+k6 run k6/demos/ch6_otel_astronomy_shop.js
+```
+
+**核心實踐特色**：
+1. **`SharedArray` 記憶體最佳化**：跨 VU 唯讀映射 5 款熱門望遠鏡（Explorascope、Starsense、Eclipsmart 等），零冗餘拷貝。
+2. **完整電商核心旅程**：模擬「商品目錄瀏覽 (`GetProductCatalog`) $\to$ 單一規格查詢 (`GetProductDetail`) $\to$ 購物車寫入 (`AddToCart`)」全鏈路。
+3. **精準 Tagged Thresholds 門禁**：針對各端點單獨訂定 P95 門檻，第一時間揪出是目錄查詢慢還是購物車寫入慢。
+4. **隨機思考時間 (Think Time)**：以 `sleep(1 + Math.random() * 1)` 模擬真實人類操作間隔，徹底破解協調性漏測盲點。
+
+**終端真實執行輸出**：
+```text
+  █ THRESHOLDS 
+    checks..........................................: ✓ 'rate==1.00' rate=100.00%
+    http_req_duration...............................: ✓ 'p(95)<800'  p(95)=209.9ms
+      {name:AddToCart}..............................: ✓ 'p(95)<600'  p(95)=176.31ms
+      {name:GetProductCatalog}......................: ✓ 'p(95)<500'  p(95)=307.12ms
+      {name:GetProductDetail}.......................: ✓ 'p(95)<400'  p(95)=164.6ms
+    http_req_failed.................................: ✓ 'rate<0.01'  rate=0.00%
+
+  █ TOTAL RESULTS 
+    checks_succeeded...: 100.00% 72 out of 72
+    http_reqs..........: 36     3.385477/s
+    iterations.........: 12
+```
+
+如果你想進一步量測 Astronomy Shop 前端頁面的真實渲染體驗，可直接在終端機執行下列命令，啟動無頭 Chromium 採集 Core Web Vitals：
+```bash
+# 使用真實無頭 Chromium 採集 Astronomy Shop 望遠鏡頁面的 Core Web Vitals
+k6 run - << 'EOF'
+import { browser } from 'k6/browser';
+import { check } from 'k6';
+
+export const options = {
+  scenarios: {
+    ui: { executor: 'shared-iterations', iterations: 1, options: { browser: { type: 'chromium' } } },
+  },
+  thresholds: {
+    browser_web_vital_lcp: ['p(95)<2500'],
+    browser_web_vital_cls: ['p(95)<0.1'],
+  },
+};
+
+export default async function () {
+  const page = await browser.newPage();
+  try {
+    await page.goto('https://appenvdev.field-eng-demo.grafana.net/product/66VCHSJNUP', { waitUntil: 'networkidle' });
+    const title = await page.title();
+    check(title, { 'Title OK': (t) => t.includes('OTel demo') });
+  } finally {
+    await page.close();
+  }
+}
+EOF
+```
+終端將即時印出 `browser_web_vital_lcp`（~980ms）與 `browser_web_vital_cls`（~0.0006），體驗極致流暢！
+
+---
+
 ### 隨堂實作練習指引：AI 輔助壓測三部曲
 
 ![隨堂實作練習指引：AI 輔助壓測三部曲](assets/images/k6-ch6-slide-7.png)
@@ -2513,17 +3123,20 @@ export default function () {
   ```
 - **驗證標準**：`.cursor/rules/` 目錄下產生 11 個 `.mdc` 規則檔案，且 `.cursor/mcp.json` 正確註冊 `k6 x mcp`。
 
-#### 任務二：AI 逆向生成 QuickPizza 冒煙測試並閉環自癒
+#### 任務二：AI 逆向生成冒煙測試並閉環自癒 (QuickPizza 或 Astronomy Shop)
 - **任務目標**：利用內建 `k6-smoke-test` 技能與 MCP 工具，逆向生成冒煙測試並由 AI 本機跑通 1 VU 冒煙。
-- **實作 Prompt**：
-  > "針對 QuickPizza 的 `/api/quotes` 與 `/api/config` 端點撰寫 1 VU 冒煙測試腳本，包含 check 斷言與 `http.url` 標籤，並請使用 `validate_script` 驗證腳本合法性。"
+- **實作 Prompt (可擇一實作)**：
+  * **選項 A (QuickPizza)**：
+    > "針對 QuickPizza 的 `/api/quotes` 與 `/api/config` 端點撰寫 1 VU 冒煙測試腳本，包含 check 斷言與 `http.url` 標籤，並請使用 `validate_script` 驗證腳本合法性。"
+  * **選項 B (Astronomy Shop 旗艦商城)**：
+    > "針對 Astronomy Shop (`https://appenvdev.field-eng-demo.grafana.net`) 的商品目錄 `/api/products` 與詳情 `/api/products/OLJCESPC7Z` 端點撰寫 1 VU 冒煙測試腳本，要求零錯誤率門檻與 tags 標籤防高基數，並調用 `validate_script` 完成自癒預檢。"
 - **驗證標準**：AI 產生合規腳本並調用 `validate_script` 驗證通過，無語法錯誤與動態 URL 拼接。
 
-#### 任務三：Playwright 登入測試無痛轉譯為 k6 混合壓測
+#### 任務三：Playwright 測試無痛轉譯為 k6 混合壓測與 Web Vitals 量測
 - **任務目標**：利用 `k6-playwright-converter` 技能將 E2E 測試升級為具備真實瀏覽器性能量測的混合壓測腳本。
 - **實作 Prompt**：
-  > "請將這段 Playwright 登入測試轉譯為 k6 browser 腳本，加入 `finally { await page.close() }` 軍規保護，並設定 99:1 混合流量模型。"
-- **驗證標準**：產出標準 `k6/browser` 語法，加入 `try...finally` 關閉瀏覽器，並具備 Web Vitals 採樣。
+  > "請將 Astronomy Shop 的 Playwright 商品瀏覽測試（訪問首頁並點擊望遠鏡卡片）轉譯為 k6 browser 腳本，加入 `finally { await page.close() }` 軍規保護，並設定 LCP < 2500ms 與 CLS < 0.1 體驗門檻。"
+- **驗證標準**：產出標準 `k6/browser` 語法，加入 `try...finally` 關閉瀏覽器，並具備 Core Web Vitals 採樣與驗證。
 
 ---
 

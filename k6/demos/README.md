@@ -17,6 +17,8 @@
 | **Ch5** | [`ch5_dashboard_and_html_summary.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch5_dashboard_and_html_summary.js) | 原生 Web Dashboard (`localhost:5665`) 即時監控、`handleSummary(data)` Hook 匯出獨立 HTML 報表與 JSON | `K6_WEB_DASHBOARD=true k6 run k6/demos/ch5_dashboard_and_html_summary.js` |
 | **Ch5** | [`ch5_prometheus_remote_write.sh`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch5_prometheus_remote_write.sh) | Prometheus Remote Write 時序資料推播、Git Commit ID / Branch 標籤綁定、破除壓測孤島 | `./k6/demos/ch5_prometheus_remote_write.sh` |
 | **Ch5** | [`ch5_xk6_docker_build.sh`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch5_xk6_docker_build.sh) | Docker 確定性編譯 xk6 擴充套件，掛載 `-v $(pwd):/xk6` 輸出自訂二進位檔 | `./k6/demos/ch5_xk6_docker_build.sh` |
+| **Ch6** | [`ch6_quickpizza_smoke_agent.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch6_quickpizza_smoke_agent.js) | AI 逆向生成之 QuickPizza 極速冒煙測試，遵循 Check 軟斷言與 tags 標籤防高基數最佳實踐 | `k6 run k6/demos/ch6_quickpizza_smoke_agent.js` |
+| **Ch6** | [`ch6_otel_astronomy_shop.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch6_otel_astronomy_shop.js) | **Astronomy Shop (OTel Demo) 旗艦實戰**：SharedArray 跨 VU 共享、階梯負載、全鏈路購物車添加與精確 Tagged Thresholds | `k6 run k6/demos/ch6_otel_astronomy_shop.js` |
 
 ---
 
