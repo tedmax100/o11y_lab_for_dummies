@@ -60,7 +60,7 @@ export const options = {
 // 協定級執行函式
 // ----------------------------------------------------
 export function protocolScenario() {
-  const res = http.get('https://test.k6.io/contacts.php', {
+  const res = http.get('https://quickpizza.grafana.com/api/quotes', {
     tags: { scenario: 'protocol_flood' },
   });
 

@@ -182,9 +182,11 @@
 > 現在，讓我們切換到終端機，親自感受閉環與開放模型的差異！  
 > 【動作：切換至終端機】  
 > 我執行：`k6 run -e MODEL=closed k6/demos/ch2_closed_vs_open_model.js`  
-> 大家看！因為我們對著帶有 1 秒延遲的端點發送請求，閉環模型的 5 個 VU 全部被卡住，RPS 被狠狠壓制在個位數！  
+> 大家看！因為我們對著 QuickPizza 帶有 1 秒延遲的端點發送請求，閉環模型的 5 個 VU 全部被卡住，RPS 被狠狠壓制在 4 左右，15 秒只打出大約 65 筆請求！  
 > 接著我們切換為開放模型：`k6 run -e MODEL=open k6/demos/ch2_closed_vs_open_model.js`  
-> 大家看終端機！k6 發現端點變慢，底層的 Worker 迅速調派，VU 自動從 10 擴增到 40，硬生生把每秒 20 次請求的目標死死守住！這就是開放模型的強大威力！」
+> 大家看終端機！每個請求大約 1.2 秒，依照 Little's Law，20 RPS 乘上 1.2 秒大約需要 24 個 VU，腳本預先配置了 40 個 VU 當緩衝，於是每秒 20 次請求的目標被死死守住，總共約 300 筆請求，`dropped_iterations` 為 0！  
+> 最後我們故意把延遲拉高到 3 秒：`k6 run -e MODEL=open -e TARGET_URL=https://quickpizza.grafana.com/api/delay/3 k6/demos/ch2_closed_vs_open_model.js`  
+> 20 RPS 乘上 3 秒以上，需要超過 60 個 VU，但 `maxVUs` 只有 50——大家看，`dropped_iterations` 立刻變成紅字，門檻失敗、Exit Code 99！這就是開放模型替你拉響的容量警報！」
 
 ---
 

@@ -12,7 +12,7 @@
 | **Ch2** | [`ch2_closed_vs_open_model.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch2_closed_vs_open_model.js) | 協調性漏測 (Coordinated Omission)、閉環模型被拖垮 vs 開放模型 Little's Law 自動調度與 `dropped_iterations` | `k6 run -e MODEL=open k6/demos/ch2_closed_vs_open_model.js` |
 | **Ch2** | [`ch2_shared_array.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch2_shared_array.js) | `SharedArray` 唯讀共享記憶體神技，避免萬人併發時記憶體 OOM 崩潰 | `k6 run k6/demos/ch2_shared_array.js` |
 | **Ch3** | [`ch3_quality_gates_exit99.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch3_quality_gates_exit99.js) | 4 大自訂指標 (Counter/Gauge/Rate/Trend)、精準 Tagged Thresholds、`abortOnFail` 熔斷、Exit Code 99 卡關 | `k6 run -e FAIL_SLO=true k6/demos/ch3_quality_gates_exit99.js ; echo "CI Exit: $?"` |
-| **Ch4** | [`ch4_browser_quickpizza.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch4_browser_quickpizza.js) | `k6/browser` 驅動 Headless Chromium、QuickPizza 點餐互動、採集真實 Core Web Vitals (LCP/FID/CLS) | `k6 run k6/demos/ch4_browser_quickpizza.js` |
+| **Ch4** | [`ch4_browser_quickpizza.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch4_browser_quickpizza.js) | `k6/browser` 驅動 Headless Chromium、QuickPizza 點餐互動、採集真實 Core Web Vitals (LCP/INP/CLS) | `k6 run k6/demos/ch4_browser_quickpizza.js` |
 | **Ch4** | [`ch4_hybrid_99_to_1.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch4_hybrid_99_to_1.js) | **99:1 全鏈路混合壓測黃金架構**：99% Protocol 壓測後端 + 1% Browser 探測針測量高負載下的前端劣化 | `k6 run k6/demos/ch4_hybrid_99_to_1.js` |
 | **Ch5** | [`ch5_dashboard_and_html_summary.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch5_dashboard_and_html_summary.js) | 原生 Web Dashboard (`localhost:5665`) 即時監控、`handleSummary(data)` Hook 匯出獨立 HTML 報表與 JSON | `K6_WEB_DASHBOARD=true k6 run k6/demos/ch5_dashboard_and_html_summary.js` |
 | **Ch5** | [`ch5_prometheus_remote_write.sh`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch5_prometheus_remote_write.sh) | Prometheus Remote Write 時序資料推播、Git Commit ID / Branch 標籤綁定、破除壓測孤島 | `./k6/demos/ch5_prometheus_remote_write.sh` |
@@ -30,6 +30,6 @@
 2. **避免外網依賴**：
    - 若錄課環境無外網，可啟動專案的 `docker compose up -d`，並將 `TARGET_URL` 指向本機 `http://localhost:8080`。
 3. **高潮點展示 (Showstopper Moments)**：
-   - **Ch2**：展示開放模型在端點變慢時，VU 自動從 10 擴增到 40，守住 20 RPS！
+   - **Ch2**：展示開放模型在端點變慢時，依 Little's Law 預配置 40 VUs 守住 20 RPS（`dropped_iterations` = 0）；再把 `TARGET_URL` 改成 `/api/delay/3`，VU 池耗盡、`dropped_iterations` 飆紅並 Exit 99！
    - **Ch3**：故意讓門檻破功，印出醒目的 `Exit Code: 99`，點出 CI/CD pipeline 失敗卡關的原理。
    - **Ch4**：展示終端機中同時印出 HTTP 協定指標與 `browser_web_vital_lcp` 瀏覽器渲染指標。

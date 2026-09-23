@@ -36,7 +36,7 @@
   > 「很多學員會好奇：『k6 寫的是 JavaScript，效能真的會好嗎？』  
   > 這是一個極為關鍵的架構觀念：**k6 只有腳本解析層是 JavaScript，底層真正的執行引擎完全是由 Go 語言打造的！**  
   > 傳統 JVM 工具一個虛擬用戶 (VU) 綁定一條 OS 執行緒，堆疊開銷 1MB 到 2MB，幾千併發就把記憶體吃光並觸發 GC 暫停。  
-  > 而 k6 利用 Go 的 Goroutine，每個併發單位初始僅需 2KB 到 4KB。在一台 2 核心、4GB 記憶體的輕量伺服器上，k6 就能輕鬆驅動數萬個併發請求，且 CPU 負擔極低，一般 CI Runner 即可勝任。」
+  > 而 k6 利用 Go 的 Goroutine 排程，Goroutine 初始堆疊僅 2KB 到 4KB、Context Switch 成本極低。但要注意，一個 k6 VU 還帶著獨立的 JS Runtime，官方估算簡單腳本每個 VU 約 1 到 5MB；一台高規格機器可跑到三到四萬個 VU。實務上請先用 100 VU 實測記憶體再等比例推估。」
 
 ---
 
@@ -58,9 +58,9 @@
 * **心智模型**：利用 Model Context Protocol (MCP) 與 AI Agent，將數天的手寫腳本流程縮短為秒級逆向生成與自癒驗證。
 * **🎤 口播逐字稿**：
   > 「在手寫第一行腳本前，我們要看 2025/2026 最振奮人心的突破——**k6 CLI x AI 現代化工作流！**  
-  > Grafana 官方發布了 `@grafana/k6-mcp-server`，透過 Model Context Protocol (MCP) 串接 Cursor、Claude Desktop、VS Code Copilot 與 Antigravity。  
-  > AI 助手具備三大超能力：`validate_script`（AST 語法預檢）、`run_test`（對話內直接執行壓測並解析 P95 與錯誤）、`get_documentation`（動態檢索官方最新 API）。  
-  > 更具革命性的是 **Bootstrap with k6 x Agent**：給予專案 OpenAPI 規格或 HAR 錄製檔，Agent 自動逆向生成 Smoke、Load、Stress 完整情境，並自主調用 `run_test` 跑 1 VU 冒煙閉環自癒，秒級交付可立即上線的企業級測試套件！」
+  > 新版 k6 內建 MCP 子命令 `k6 x mcp`（無須 Node.js / npx），透過 Model Context Protocol (MCP) 串接 Claude Code、Cursor、VS Code Copilot 等 AI 助手。  
+  > AI 助手具備三大超能力：`validate_script`（以 1 VU、1 次迭代實際執行預檢）、`run_script`（對話內直接執行壓測並解析 P95 與錯誤）、`get_documentation`（動態檢索官方最新 API）。  
+  > 更具革命性的是 **Bootstrap with k6 x Agent**：給予專案 OpenAPI 規格或 HAR 錄製檔，Agent 自動逆向生成 Smoke、Load、Stress 完整情境，並自主調用 `validate_script` 跑 1 VU 冒煙閉環自癒，秒級交付可立即上線的企業級測試套件！」
 
 ---
 
@@ -606,19 +606,19 @@
 
 # Chapter 6: k6 x agent AI Agent Engineering
 **建議錄製時長**：18 ~ 22 分鐘 (共 7 頁投影片)  
-**章節主旨**：迎接 AI Agent 與 AI 編輯器時代，全面掌握 Grafana k6 原生子命令擴充套件（`k6 x agent`）。透過「自動安裝 5 大技能包」與「自動註冊 k6 MCP 伺服器」雙引擎架構，建立零配置、具備工程冪等性防護、支援 6 大編輯器與自癒驗證的現代化 AI 壓測工程工作流。
+**章節主旨**：迎接 AI Agent 與 AI 編輯器時代，全面掌握 Grafana k6 原生子命令擴充套件（`k6 x agent`）。透過「自動安裝 11 個技能包」與「自動註冊 k6 MCP 伺服器」雙引擎架構，建立零配置、具備工程冪等性防護、支援 6 大編輯器與自癒驗證的現代化 AI 壓測工程工作流。
 
 ---
 
 ### Slide 1: 封面與全景導覽 ── 從 Test as Code 躍升至 AI Agent 自主工程
-* **視覺焦點**：頂部【核心變革】Hero 卡片，中央三大支柱卡片（ENGINE 1: 5 大 Bundled Skills、ENGINE 2: 原生 k6 MCP 註冊、GOVERNANCE: 企業級安全與多環境適配），底部 `$ k6 x agent init --all` 一鍵起飛指令。
+* **視覺焦點**：頂部【核心變革】Hero 卡片，中央三大支柱卡片（ENGINE 1: Bundled Skills（投影片標示 5 大，口播補充共 11 個）、ENGINE 2: 原生 k6 MCP 註冊、GOVERNANCE: 企業級安全與多環境適配），底部 `$ k6 x agent init --all` 一鍵起飛指令。
 * **心智模型**：從手動編寫腳本與複雜 MCP 配置，邁向單一命令打通 AI 助手與本地 k6 工具鏈的自主工程範式。
 * **🎤 口播逐字稿**：
   > 「哈囉大家好，歡迎來到《現代化效能測試實戰》的第六章！  
   > 進入 AI 時代，我們寫壓測腳本的方式正在經歷翻天覆地的變革。過去在 AI 編輯器裡配置 k6 工作流，需要手寫 MCP JSON、配置 Node.js 依賴，而且 AI 往往會因為缺乏上下文而產生過期的語法或造成記憶體洩漏的動態 URL。  
   > Grafana 官方為此推出了原生的 AI 子命令擴充套件——`k6 x agent`。  
   > 只需執行一次指令，它就能自動完成『安裝 5 大專業技能包』與『註冊原生 k6 MCP 伺服器』！  
-  > 在這全新一章中，我們將帶大家拆解底層自動化雙引擎、工程冪等性守門員、常用 CLI 指令矩陣、5 大技能庫深度剖析，以及如何建立企業級的 AI 閉環自癒工作流！」
+  > 在這全新一章中，我們將帶大家拆解底層自動化雙引擎、工程冪等性守門員、常用 CLI 指令矩陣、11 個技能中精講 5 大核心技能，以及如何建立企業級的 AI 閉環自癒工作流！」
 
 ---
 
@@ -689,7 +689,7 @@
 * **心智模型**：透過實作驗證從環境配置、API 冒煙自癒到 E2E 轉譯的三大核心能力。
 * **🎤 口播逐字稿**：
   > 「最後，讓我們進入本章的隨堂實作！請大家打開筆電完成三大任務：  
-  > 任務一：在專案根目錄執行 `k6 x agent init cursor`（或 `claude-code`），接著輸入 `k6 x agent status`，確認 5 大技能與 MCP 正常連線；  
+  > 任務一：在專案根目錄執行 `k6 x agent init cursor`（或 `claude-code`），接著輸入 `k6 x agent status`，確認 11 個技能與 MCP 正常連線；  
   > 任務二：在 AI 對話窗輸入：『針對 QuickPizza 的 /api/pizza 端點撰寫 1 VU 冒煙測試腳本，包含 check 斷言與 http.url 標籤，並使用 validate_script 驗證』，親身體驗 AI 語法預檢與閉環跑通；  
   > 任務三：輸入：『將這段 Playwright 登入測試轉譯為 k6 browser 腳本，加入 finally page.close() 軍規保護，並設定 99:1 混合流量模型』，驗證前端瀏覽器真實採樣與後端高併發的完美協同！  
   > 完成這三項實戰，你已正式掌握現代化可觀測性與新一代 AI Agent 壓測工程的全套實戰技能！祝大家壓測順利，打造出堅如磐石的高效能系統！」

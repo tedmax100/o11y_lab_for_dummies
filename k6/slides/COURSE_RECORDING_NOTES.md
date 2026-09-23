@@ -50,7 +50,7 @@
   10. Slide 10: Module 1 核心重點複習 & 準備起飛
 * **講師避坑點**：
   - **全平台安裝 (Slide 3)**：強調 k6 為 Go 編譯之單一二進位檔（免 Node.js/Go 依賴）；Windows 用戶推薦搭配 WSL2 Ubuntu；CI/CD Runner 推薦官方 Docker 映像檔。
-  - **AI 現代化工作流 (Slide 4)**：重點解說 `@grafana/k6-mcp-server` 與三大工具（`run_test`、`validate_script`、`get_documentation`），強調 Agent 能讀取 OpenAPI/HAR 逆向生成測試情境，並以 1 VU 冒煙閉環自癒，將傳統數天手寫流程壓縮至秒級交付！
+  - **AI 現代化工作流 (Slide 4)**：重點解說 `k6 x mcp`（新版 k6 內建子命令，無須 npx）與核心工具（`validate_script`、`run_script`、`get_documentation`），強調 Agent 能讀取 OpenAPI/HAR 逆向生成測試情境，並以 1 VU 冒煙閉環自癒，將傳統數天手寫流程壓縮至秒級交付！
   - **check() 軟斷言 (Slide 7)**：口播預告「如果需要讓 CI/CD 失敗中斷，我們會在 Chapter 3 介紹 Thresholds」。
   - **http.url 記憶體防護 (Slide 8)**：務必加重語氣警示新手常犯的動態 ID 字串拼接，會導致 Prometheus 高基數維度爆炸 (OOM)。
   - **Live Demo (Slide 9)**：執行 `k6 run k6/demos/ch1_lifecycle_and_checks.js`，引導學員觀察 Init $\rightarrow$ Setup $\rightarrow$ VU 1&2 $\rightarrow$ Teardown 印出順序。

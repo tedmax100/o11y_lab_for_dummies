@@ -22,7 +22,7 @@ Duration: 3
 ```
 [Chapter 1: 核心哲學] ──> [Chapter 2: 流量建模] ──> [Chapter 3: 品質門禁] ──> [Chapter 4: 混合壓測] ──> [Chapter 5: 可觀測性閉環] ──> [Chapter 6: AI Agent 工程]
   - Test as Code           - 5大流量模式             - RED Method              - HAR 錄製轉譯            - 原生 Web Dashboard         - k6 x agent 雙引擎
-  - Goroutine 架構         - 協調性漏測              - P95/P99 尾端延遲        - 401 死資料陷阱          - HTML 靜態報告 (Port=-1)    - 5大 Bundled Skills
+  - Goroutine 架構         - 協調性漏測              - P95/P99 尾端延遲        - 401 死資料陷阱          - HTML 靜態報告 (Port=-1)    - 11個 Bundled Skills
   - 4階段生命週期          - 開放模型 (Little's Law) - 4大自訂指標             - k6/browser Chromium     - xk6 Docker 確定性編譯      - 原生 k6 x mcp 註冊
   - Group & Check          - SharedArray 記憶體優化  - Exit Code 99 卡關       - 99:1 全鏈路黃金架構     - Prometheus Remote Write    - Owner Tag 冪等性防護
   - http.url 防指標爆炸    - dropped_iterations 告警 - abortOnFail 熔斷        - Flight Pre-check        - CPU CFS Throttling 對齊    - 6大編輯器全面支援
@@ -31,10 +31,10 @@ Duration: 3
 ### 你將學到什麼
 
 - **Testing as Code**：告別 XML 點擊操作，使用標準 ES6 JavaScript 撰寫高維護性的測試腳本。
-- **Go 語言並發威力**：理解 Goroutine 如何在單機上以極低記憶體驅動數萬並發用戶。
+- **Go 語言並發威力**：理解 Goroutine 如何在單機上以遠低於傳統執行緒模型的資源驅動數萬並發用戶。
 - **科學化流量建模**：破解「協調性漏測 (Coordinated Omission)」盲點，運用利特爾法則（Little's Law）配置開放模型。
 - **精準品質門禁 (Quality Gates)**：設定 P95/P99 尾端延遲 SLO，以 **Exit Code 99** 在 CI/CD 中自動阻斷不良發布。
-- **全鏈路混合壓測 (Hybrid Testing)**：打造 **99:1 黃金配比**，兼顧後端高壓與前端 Core Web Vitals (LCP/FID/CLS) 真實渲染體驗。
+- **全鏈路混合壓測 (Hybrid Testing)**：打造 **99:1 黃金配比**，兼顧後端高壓與前端 Core Web Vitals (LCP/INP/CLS) 真實渲染體驗。
 - **可觀測性閉環**：接入 Prometheus Remote Write 與 Grafana，實現 API 延遲突波與 Kubernetes CPU CFS Throttling 雙時間軸對齊除錯。
 
 ### 實驗環境要求
@@ -42,7 +42,7 @@ Duration: 3
 - **作業系統**：Linux、macOS 或 Windows (WSL2)
 - **硬體建議**：至少 4 核心 CPU、8GB RAM
 - **必要工具**：
-  - `k6` CLI (v0.46.0+ 或更新版本)
+  - `k6` CLI v2.x（本課程以 v2.2.0 錄製與實測）
   - `Docker` 與 `Docker Compose`
   - 現代 Chromium 核心瀏覽器（Google Chrome / Chromium）
 
@@ -76,9 +76,12 @@ k6 雖然腳本寫的是 JavaScript，但其底層執行引擎完全由 **Go 語
 | 評估維度 | 傳統 JVM 工具 (JMeter) | Grafana k6 (Go 引擎) |
 | :--- | :--- | :--- |
 | **併發模型** | One OS Thread per Virtual User (VU) | Go Goroutine 輕量級協程 |
-| **單 VU 記憶體開銷** | 1MB ~ 2MB (Thread Stack) | **僅約 2KB ~ 4KB** |
+| **單 VU 記憶體開銷** | 數 MB（Thread Stack + JVM 物件） | **簡單腳本約 1MB ~ 5MB**（每個 VU 含一個獨立 Goja JS Runtime） |
 | **Context Switch 開銷** | 高 (由作業系統核心頻繁排程) | 極低 (由 Go Runtime 在使用者空間高效調度) |
-| **單機併發能力** | 約 1,000 ~ 2,000 VUs 即達硬體瓶頸 | **單台普通機器可輕鬆驅動 30,000+ VUs** |
+| **單機併發能力** | 約 1,000 ~ 2,000 VUs 即達硬體瓶頸 | **單台高規格機器可達 30,000 ~ 40,000 VUs** |
+
+Negative
+: **常見誤解**：Goroutine 本身的初始堆疊只有約 2KB~4KB，但一個 k6 VU **不等於**一個 Goroutine——每個 VU 都有自己的 JS Runtime、模組與資料。官方文件（Running large tests）給的估算是**簡單腳本每 VU 約 1~5MB**（1,000 VUs ≈ 1~5GB），瀏覽器 VU 更高。規劃壓測機前，建議先用 100 VUs 實測記憶體再等比例放大。
 
 ### k6 全平台安裝指南 (Installing k6)
 
@@ -154,7 +157,7 @@ docker run --rm -v $(pwd):/app -w /app grafana/k6 run script.js
 k6 version
 ```
 
-輸出範例：`k6 v0.50.0 (go1.22.1, linux/amd64)`，確認出現版本資訊即代表安裝成功！
+輸出範例：`k6 v2.2.0 (commit/00a9a1b7f5, go1.26.5, linux/amd64)`，確認出現版本資訊即代表安裝成功！
 
 ---
 
@@ -164,44 +167,40 @@ k6 version
 
 #### 1. 什麼是 k6 MCP Server？
 
-Model Context Protocol (MCP) 是一項開放協議，允許大語言模型安全地存取本地工具與上下文。Grafana 官方發布了 `@grafana/k6-mcp-server`，讓 AI 助手具備以下能力：
+Model Context Protocol (MCP) 是一項開放協議，允許大語言模型安全地存取本地工具與上下文。在新版 k6（本課程使用 v2.2.0）中，MCP 伺服器直接以**子命令 `k6 x mcp`** 形式提供（透過 Automatic Extension Resolution 按需下載，無須 Node.js/npm），讓 AI 助手具備以下能力：
 - 取得官方最新 k6 API 與最佳實踐文檔。
 - 在代碼編輯器中自動語法靜態檢驗。
 - 直接驅動 k6 執行壓測並即時解析測試指標。
 
 #### 2. 快速設定 k6 MCP Server
 
-在支援 MCP 的工具（如 Cursor、Claude Desktop 或 VS Code 擴充套件）的設定檔中，加入以下設定即可一鍵啟用（無需手動下載二進位檔，`npx` 會自動拉取執行）：
+在支援 MCP 的工具（如 Claude Code、Cursor 或 VS Code Copilot）的設定檔中，註冊本機 k6 子命令即可：
 
 ```json
 {
   "mcpServers": {
     "k6": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@grafana/k6-mcp-server"
-      ]
+      "command": "k6",
+      "args": ["x", "mcp"]
     }
   }
 }
 ```
 
-> 如果環境中未安裝 Node.js，亦可前往官方 Releases 下載對應 OS 的獨立編譯版本並直接配置執行路徑。
+> 不想手動改設定檔？Chapter 6 介紹的 `k6 x agent init <editor>` 會自動幫你寫好這份設定，並一併安裝 k6 AI 技能包。
 
 #### 3. MCP 工具庫 (Tools)、提示詞 (Prompts) 與資源 (Resources)
 
 k6 MCP Server 為 AI 助手賦予了三類關鍵能力：
 
-- **工具 (Tools)**：
-  - `run_test`：允許 AI 助手直接在本機驅動 k6 執行指定的測試腳本，自動獲取並結構化解析 RPS、P95 延遲、錯誤碼等指標反饋。
-  - `validate_script`：在執行壓測前，由底層 AST 解析器對腳本進行靜態檢查，提早揪出 ES6 模組引用錯誤、生命週期階段錯置或 Thresholds 宣告不合規。
-  - `get_documentation`：動態向 k6 官方文檔庫檢索最新 API 規格（如 `k6/browser`、`k6/experimental/redis` 等），確保 AI 產出的代碼絕不幻覺過時的 API。
-- **提示詞模板 (Prompts)**：
-  - 內建產生常規負載測試（依據特定 RPS 與坡度自動編寫腳本）。
-  - 將 OpenAPI/Swagger 規格或瀏覽器 HAR 錄製檔轉譯為 k6 測試情境。
-  - 診斷效能門禁違規（分析為何延遲超過閾值並給出具體優化建議）。
-- **資源 (Resources)**：即時提供官方範例庫、常用設定片段與各行業流量建模的最佳實踐模板。
+- **工具 (Tools)**（共 6 個，Chapter 6 有完整實作）：
+  - `validate_script`：在正式壓測前，以 1 VU / 1 次迭代實際執行腳本，提早揪出語法錯誤、模組引用錯誤或端點無法連線等問題。
+  - `run_script`：允許 AI 助手直接在本機以指定 VU 與 duration 驅動 k6 執行測試，並回傳 RPS、P95 延遲、錯誤率等指標。
+  - `get_documentation` / `list_sections`：檢索與瀏覽 k6 官方文件（如 `k6/browser`、thresholds 語法），降低 AI 產出過時 API 的機率。
+  - `info`：取得本機 k6 版本與 Grafana Cloud 登入狀態。
+  - `search_terraform`：搜尋 Grafana Terraform Provider 中的 k6 Cloud 資源。
+- **提示詞模板 (Prompts)**：提供撰寫複雜 k6 腳本的起手式模板。
+- **資源 (Resources)**：提供官方腳本撰寫最佳實踐 (Best Practices) 等參考資料。
 
 #### 4. 使用 AI Agent 自主逆向生成完整測試套件 (Bootstrap with k6 x Agent)
 
@@ -210,15 +209,15 @@ k6 MCP Server 為 AI 助手賦予了三類關鍵能力：
 利用 **Bootstrap with k6 x Agent** 工作流，AI 代理能自主完成全套工程交付：
 
 ```
-[專案代碼/OpenAPI/HAR 規格] ──> [AI Agent 自主解析] ──> [生成全情境壓測腳本] ──> [validate_script + run_test (1 VU 冒煙)] ──> [自動自癒微調] ──> [生產就緒測試套件]
+[專案代碼/OpenAPI/HAR 規格] ──> [AI Agent 自主解析] ──> [生成全情境壓測腳本] ──> [validate_script (1 VU 冒煙) + run_script] ──> [自動自癒微調] ──> [生產就緒測試套件]
 ```
 
 1. **資產自動探索 (Asset Discovery)**：Agent 讀取專案中的 `openapi.yaml` 或前端網路請求錄製檔（`.har`）。
 2. **情境自主建模 (Autonomous Modeling)**：自動拆解出 Smoke、Load、Stress 測試情境，並配置合理的 P95 閾值門禁。
-3. **閉環驗證與自癒 (Self-Healing Loop)**：Agent 自動調用 `validate_script` 校驗語法，並以 1 個 VU 發動 `run_test` 驗證真實 API 通訊；一旦遇到 401 Unauthorized 或 422 Unprocessable Entity，Agent 自行修正請求標頭與 Body 格式，直到全數 Pass！
+3. **閉環驗證與自癒 (Self-Healing Loop)**：Agent 自動調用 `validate_script` 以 1 個 VU 驗證語法與真實 API 通訊；一旦遇到 401 Unauthorized 或 422 Unprocessable Entity，Agent 自行修正請求標頭與 Body 格式，再以 `run_script` 執行，直到全數 Pass！
 
 Positive
-: 透過 k6 CLI 與 AI 助手的深度融合，效能測試從「少數效能專家的專屬重擔」，變成了「每位開發者在 IDE 內隨手即可生成的日常防線」！在後續的 **Chapter 6** 中，我們將專章深入探索 `k6 x agent` 如何以原生雙引擎一鍵配置 5 大技能包與原生 MCP 伺服器！
+: 透過 k6 CLI 與 AI 助手的深度融合，效能測試從「少數效能專家的專屬重擔」，變成了「每位開發者在 IDE 內隨手即可生成的日常防線」！在後續的 **Chapter 6** 中，我們將專章深入探索 `k6 x agent` 如何以原生雙引擎一鍵配置 11 個 AI 技能包與原生 MCP 伺服器！
 
 ---
 
@@ -241,7 +240,7 @@ export function setup() {
 
 // 3. VU Code / Default (預設執行階段：每個 VU 在測試期間依頻率反覆迴圈執行)
 export default function (data) {
-  const res = http.get('https://test.k6.io', {
+  const res = http.get('https://quickpizza.grafana.com', {
     headers: { Authorization: `Bearer ${data.authToken}` },
   });
   check(res, { 'status is 200': (r) => r.status === 200 });
@@ -351,7 +350,7 @@ Positive
 | :--- | :--- | :--- | :--- |
 | `noConnectionReuse` | `--no-connection-reuse` | 布林（預設 `false`） | **停用 HTTP 連線複用 (Keep-Alive)**。每次請求強制建立全新 TCP/TLS 握手，考驗伺服器高頻建連能力。 |
 | `insecureSkipTLSVerify` | `--insecure-skip-tls-verify` | 布林（預設 `false`） | **跳過 SSL 憑證檢查**。在開發或 Staging 環境遇到自簽憑證或無效 HTTPS 時必備。 |
-| `rps` | `--rps` | 數值（如 `500`） | **每秒最大請求數上限**。限制全域每秒發出的 HTTP 請求，防止壓測本機把受測系統徹底癱瘓。 |
+| `rps` | `--rps` | 數值（如 `500`） | **每秒最大請求數上限**（⚠️ 官方不建議使用：它只是粗略節流且不計入重導向等細節）。需要控制 RPS 時，請改用 Chapter 2 的 `constant-arrival-rate` / `ramping-arrival-rate` 開放模型執行器。 |
 | `userAgent` | `--user-agent` | 字串（如 `'k6-load-tester/1.0'`） | **自訂 User-Agent**。方便受測後端透過存取日誌過濾並辨識壓測流量。 |
 
 ##### D. 觀察性、除錯與報表輸出 (Observability & Debugging)
@@ -375,6 +374,9 @@ Positive
 ![k6 CLI 終端實機執行展示 (3 大情境動態輪播)](assets/images/k6-ch1-cli-options.gif)
 
 打開終端機，依序執行專案為您準備好的 3 組實戰指令，親身體驗生命週期、CLI 覆蓋與通訊除錯：
+
+Negative
+: **前置條件**：`ch1_lifecycle_and_checks.js` 預設打向本專案的 API Gateway（`http://localhost:8080`，含 `/health` 與 `/api/process` 端點）。請先在專案根目錄執行 `docker compose up -d` 啟動實驗環境，否則所有 check 與 thresholds 都會失敗。
 
 #### 步驟 1：依照腳本內預設 Options 執行 (vus: 2, iterations: 4)
 
@@ -826,15 +828,15 @@ export const options = {
 };
 
 export function browseWorkflow() {
-  http.get('https://test.k6.io/products');
+  http.get('https://api.example.com/products');
 }
 
 export function searchWorkflow() {
-  http.get('https://test.k6.io/search?q=phone');
+  http.get('https://api.example.com/search?q=phone');
 }
 
 export function checkoutWorkflow() {
-  http.post('https://test.k6.io/checkout', JSON.stringify({ item_id: 101 }), {
+  http.post('https://api.example.com/checkout', JSON.stringify({ item_id: 101 }), {
     headers: { 'Content-Type': 'application/json' },
   });
 }
@@ -936,8 +938,8 @@ k6 run -e MODEL=closed k6/demos/ch2_closed_vs_open_model.js
 ```
 
 > **👀 觀察重點**：
-> 配置為 5 個 VU 執行 15 秒。由於每個請求延遲 1 秒，5 個 VU 只能輪流等待。
-> 終端機顯示的實際吞吐量僅有 **~4.9 RPS**，發出總請求數僅約 75 筆。閉環模型在延遲面前主動放水！
+> 配置為 5 個 VU 執行 15 秒，目標端點為 QuickPizza 的 `/api/delay/1`（伺服器固定延遲 1 秒，含網路往返實測約 1.2 秒）。5 個 VU 只能輪流等待。
+> 終端機顯示的實際吞吐量僅有 **~4 RPS**，發出總請求數僅約 65 筆（v2.2.0 實測）。閉環模型在延遲面前主動放水！
 
 ##### 步驟 1-B：執行開放模型 (觀察 Little's Law 自動調派)
 
@@ -947,14 +949,16 @@ k6 run -e MODEL=open k6/demos/ch2_closed_vs_open_model.js
 
 > **👀 觀察重點**：
 > 目標強制鎖定為 **20 RPS** (`constant-arrival-rate`)。
-> 依據利特爾法則 `L = 20 × 1s = 20 VUs`，k6 自動動態拉升並行 VU 數量至 20~25 個，堅定維持每秒 20 次請求的抵達率！總請求數達到 300 筆，精準重現真實世界的排隊衝擊！
+> 依據利特爾法則 `L = 20 × 1.2s ≈ 24 VUs`，腳本預先配置 `preAllocatedVUs: 40`（多留的緩衝用來吸收冷啟動 TLS 握手拉長的首輪延遲），堅定維持每秒 20 次請求的抵達率！總請求數達到約 300 筆、`dropped_iterations` 為 0，精準重現真實世界的排隊衝擊！
+>
+> 💡 **加碼實驗**：把 `preAllocatedVUs` 改回 10 再跑一次，會看到 k6 在測試途中臨時擴充 VU 來不及，出現少量 `dropped_iterations`——這就是 Little's Law 精算預配置的價值。
 
 #### 實作 2：刻意誘發 `dropped_iterations` 容量告警
 
 修改或以命令列調整 `maxVUs` 為極小值，觀察 k6 的過載防線：
 
 ```bash
-k6 run -e MODEL=open -e TARGET_URL=https://httpbin.test.k6.io/delay/2 k6/demos/ch2_closed_vs_open_model.js
+k6 run -e MODEL=open -e TARGET_URL=https://quickpizza.grafana.com/api/delay/3 k6/demos/ch2_closed_vs_open_model.js
 ```
 
 > **👀 觀察重點**：
@@ -1668,7 +1672,7 @@ export async function browserScenario() {
   try {
     await page.goto('https://quickpizza.grafana.com');
     await page.locator('button[name="pizza-please"]').click();
-    sleep(1);
+    await page.waitForTimeout(1000); // 瀏覽器 async 函式中勿用 sleep()，它會阻塞 event loop
   } finally {
     await page.close(); // 確保無頭進程正常釋放
   }
@@ -2111,7 +2115,7 @@ Duration: 20
 
 過去手動配置 AI 壓測工作流需要繁複設定 MCP JSON、手寫 Prompt Rules、配置 Node.js 依賴，且 AI 常因缺乏上下文產生過期語法或造成記憶體洩漏的動態 URL。
 
-`k6 x agent` 是 Grafana k6 官方原生內建的 AI 子命令擴充套件（Subcommand Extension，開源專案 [xk6-subcommand-agent](https://github.com/grafana/xk6-subcommand-agent)），專為一鍵配置 AI 編輯器與 Agent 壓測工作流而設計。只需在專案根目錄執行一次命令，它就會自動完成 **「安裝 5 大 AI 技能包」** 與 **「註冊原生 k6 MCP 伺服器」** 兩大設定！
+`k6 x agent` 是 Grafana k6 官方原生內建的 AI 子命令擴充套件（Subcommand Extension，開源專案 [xk6-subcommand-agent](https://github.com/grafana/xk6-subcommand-agent)），專為一鍵配置 AI 編輯器與 Agent 壓測工作流而設計。只需在專案根目錄執行一次命令，它就會自動完成 **「安裝 11 個 AI 技能包」** 與 **「註冊原生 k6 MCP 伺服器」** 兩大設定！
 
 - 🌐 **Grafana 官方配置指南**：[Bootstrap with k6 x agent (Grafana Docs)](https://grafana.com/docs/k6/latest/set-up/configure-ai-assistant/bootstrap-with-k6-x-agent/)
 - 🐙 **GitHub 官方開源儲存庫**：[https://github.com/grafana/xk6-subcommand-agent](https://github.com/grafana/xk6-subcommand-agent)
@@ -2133,7 +2137,7 @@ Duration: 20
 #### 2. 自動化引擎 2：自動註冊 k6 MCP 伺服器 (Auto-Register MCP)
 - **一鍵配置原生協議**：自動將 `k6 x mcp` 寫入編輯器設定檔（如 `.mcp.json`、`.cursor/mcp.json` 或 `.vscode/mcp.json`），免除手動翻找設定。
 - **零外部執行環境依賴**：直接呼叫 k6 原生子命令執行檔，完全無需預裝 Node.js、npm 或全域套件，環境乾淨且效能極高。
-- **AST 靜態語法預檢 (`validate_script`)**：賦予 AI 靜態檢查能力：執行前由 AST 預檢語法結構、生命週期階段與 Thresholds 宣告合規性，杜絕低階錯誤。
+- **1 VU 冒煙預檢 (`validate_script`)**：賦予 AI 預檢能力：以 1 VU、1 次迭代實際執行腳本，回報語法錯誤、執行期例外與可行的修正建議，杜絕低階錯誤。
 - **本機閉環自癒 (`run_script`)**：賦予 AI 執行能力：直接在聊天室驅動本地壓測，即時結構化解析 RPS、P95 延遲與 HTTP 狀態碼自癒修正。
 
 ---
@@ -2196,7 +2200,7 @@ k6 x agent skills list
 
 ### 內建 11 大專業 AI 技能庫深度剖析
 
-![內建 5 大 AI 技能深度剖析：專家級壓測工作流](assets/images/k6-ch6-slide-5.png)
+![內建 11 個 AI 技能，精講 5 個核心工作流](assets/images/k6-ch6-slide-5.png)
 
 執行 `init` 後，`k6 x agent` 會自動將 11 個專業壓測技能寫入編輯器的 Rules 目錄（如 `.cursor/rules/*.mdc` 或 `.claude/skills/*/SKILL.md`）。這些技能並非一般的簡短提示詞，而是 Grafana 官方效能工程團隊將數十年的壓測經驗、最佳實踐、AST 語法規範與自癒修復邏輯固化而成的**專家系統知識庫**。
 
@@ -2214,7 +2218,7 @@ k6 x agent skills list
 
 ---
 
-### 內建 5 大 AI 技能深度剖析：專家級壓測工作流
+### 11 個技能精講 5 個：專家級壓測核心工作流
 
 在 11 大技能庫中，以下 5 大技能涵蓋了從「需求規劃」、「冒煙快篩」、「生產級負載」、「前端體驗」到「E2E 測試轉譯」的日常核心研發工作流。讓我們透過具體對話 Prompt、AI 推理思考與可執行的生產級腳本，一步步深度拆解：
 
@@ -2642,7 +2646,7 @@ test('使用者應能瀏覽望遠鏡商品並檢視詳情', async ({ page }) => 
 
 ```javascript
 import { browser } from 'k6/browser';
-import { check, sleep } from 'k6';
+import { check } from 'k6';
 
 export const options = {
   scenarios: {
@@ -2677,8 +2681,8 @@ export default async function () {
       '首頁標題符合預期': (t) => t.includes('OTel demo'),
     });
 
-    // 模擬使用者閱覽首頁商品 (1 秒 Think Time)
-    sleep(1);
+    // 模擬使用者閱覽首頁商品 (1 秒 Think Time；async 瀏覽器流程中用 waitForTimeout 取代 sleep)
+    await page.waitForTimeout(1000);
 
     // 2. 點選望遠鏡商品卡片 (等同 page.locator('...').first().click())
     const productLink = page.locator('a[href^="/product/"]').first();
@@ -2957,8 +2961,8 @@ head -n 7 .cursor/rules/k6-smoke-test.mdc
 
 ```bash
 # k6 x mcp 伺服器原生提供 6 大標準工具：
-# 1. validate_script: 執行 AST 靜態解析與 1 VU 冒煙先驗，偵測網路與語法問題
-# 2. run_script: 以指定的 VU 與 duration 執行測試，回傳 stdout 與 metrics
+# 1. validate_script: 以 1 VU、1 次迭代實際執行腳本，偵測語法、執行期與網路問題
+# 2. run_script: 以指定的 VU 與 duration 執行測試，回傳 stdout 與 metrics（上限 50 VUs / 5 分鐘）
 # 3. get_documentation: 精準擷取 k6 官方 Markdown 文件內容
 # 4. list_sections: 樹狀瀏覽 k6 文件章節結構
 # 5. info: 取得 local k6 binary 與 Grafana Cloud 登入狀態

@@ -29,7 +29,7 @@ export const options = {
 };
 
 export default function () {
-  const res = http.get('https://test.k6.io');
+  const res = http.get('https://quickpizza.grafana.com');
   check(res, {
     '狀態碼為 200': (r) => r.status === 200,
   });

@@ -56,7 +56,8 @@ export default function () {
   });
 
   // 模擬發送帶有該用戶資料的請求
-  const res = http.get(`https://test.k6.io/?user=${currentUser.userId}`);
+  // 使用 http.url 聚合動態參數，避免每個 userId 產生獨立的 URL 標籤 (高基數)
+  const res = http.get(http.url`https://quickpizza.grafana.com/api/json?user=${currentUser.userId}`);
   
   check(res, {
     '請求成功 200': (r) => r.status === 200,

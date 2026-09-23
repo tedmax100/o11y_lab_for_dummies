@@ -73,7 +73,7 @@ export default function () {
 
   // Group 1: 核心交易流程 (打上 critical 標籤)
   group('01_核心結帳交易', () => {
-    const res = http.get('https://test.k6.io/contacts.php', {
+    const res = http.get('https://quickpizza.grafana.com/api/quotes', {
       tags: { api_type: 'critical', feature: 'checkout' },
     });
 
@@ -92,7 +92,7 @@ export default function () {
 
   // Group 2: 背景統計流程 (打上 background 標籤)
   group('02_背景報表查詢', () => {
-    const res = http.get('https://test.k6.io/news.php', {
+    const res = http.get('https://quickpizza.grafana.com/api/delay/1', { // 報表端點：固定慢 1 秒
       tags: { api_type: 'background', feature: 'report' },
     });
 

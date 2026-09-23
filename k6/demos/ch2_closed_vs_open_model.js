@@ -20,7 +20,7 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 const MODEL = __ENV.MODEL || 'open'; // 可切換 'closed' 或 'open'
-const TARGET_URL = __ENV.TARGET_URL || 'https://httpbin.test.k6.io/delay/1'; // 模擬有延遲的端點
+const TARGET_URL = __ENV.TARGET_URL || 'https://quickpizza.grafana.com/api/delay/1'; // 模擬有延遲的端點 (QuickPizza 固定延遲 1 秒)
 
 // 依據環境變數動態切換 Scenario
 export const options = {
@@ -45,8 +45,8 @@ export const options = {
         rate: 20,              // 目標：每秒精準產生 20 次迭代 (20 RPS)
         timeUnit: '1s',
         duration: '15s',
-        preAllocatedVUs: 10,   // 預先配置的 Goroutine (基準併發)
-        maxVUs: 50,            // 應對延遲飆高時的最大緩衝池 (根據 Little's Law: 20 RPS * 2s = 40 VUs)
+        preAllocatedVUs: 40,   // Little's Law：20 RPS × ~1.2s ≈ 24 VUs；冷啟動 TLS 握手會拉長首輪延遲，預留到 40
+        maxVUs: 50,            // 延遲飆高時的最大緩衝池 (延遲 2.5s 內仍撐得住：20 × 2.5 = 50 VUs)
       },
     } : {}),
   },

@@ -12,7 +12,7 @@
 - [ ] 螢幕解析度設為 1920x1080 (16:9)，字體適度放大（終端機 16~18pt）。
 - [ ] 開啟 VS Code，載入專案目錄 `/home/nathan/Project/o11y_lab_for_dummies`。
 - [ ] 終端機切換至專案根目錄，確認 `k6 version` 正常可用。
-- [ ] 確認 Node.js / npx 可用以演示 k6 MCP Server (`npx -y @grafana/k6-mcp-server`)。
+- [ ] 確認 `k6 x mcp --help` 可正常執行（新版 k6 以 `k6 x` 子命令提供 MCP，無須 Node.js / npx）。
 - [ ] 簡報全螢幕播放停在第 1 頁封面。
 
 ---
@@ -48,7 +48,7 @@
 ### 【Slide 2: 極致資源利用率：為什麼 k6 單機就能榨出數萬併發？】 (預估時間: 03:00 - 05:00)
 
 * **畫面焦點**：對比圖：上方為傳統 Java OS Thread 臃腫的排隊與垃圾回收（GC）卡頓；下方為 Go Goroutine 輕量、密集的協程矩陣。
-* **螢幕動作**：【動作：圈選 Java 執行緒的 1MB 標註，隨後指向 Go Goroutine 的 2KB 標註】。
+* **螢幕動作**：【動作：圈選 Java 執行緒的 1MB 標註，隨後指向 Go Goroutine 的 2KB 標註，並口頭補充「一個 k6 VU 實際約 1~5MB」】。
 
 **【口播逐字稿】**：
 > 「這時候，很多有經驗的工程師通常會提出一個直覺的質疑：『老師，既然 k6 是用 JavaScript 寫的，那它的效能真的撐得住高併發嗎？Node.js 在處理密集計算時不是很容易卡住嗎？』  
@@ -58,7 +58,9 @@
 > 我們來看這張架構對比圖。在傳統基於 JVM 的壓測工具中，通常採用『One Thread per VU』的模式——也就是一個虛擬用戶（Virtual User, VU），就對應一條作業系統層級的原生執行緒（OS Thread）。每條執行緒光是記憶體堆疊（Stack Size）就要預先分配 1MB 到 2MB。如果你想模擬 5,000 個虛擬用戶，光是執行緒本身的記憶體開銷就高達 5GB 到 10GB！機器很快就會因為記憶體不足（OOM）而崩潰，更不用提作業系統在數千條執行緒之間頻繁進行 Context Switch（上下文切換）所造成的嚴重 CPU 耗損與 GC 停頓。  
 > 
 > 而 k6 徹底拋棄了傳統執行緒模型，改為全面利用 Go 語言的核心武器——**Goroutine（輕量級協程）**。  
-> 每個 Goroutine 的初始記憶體消耗只有大約 2KB 到 4KB，並且由 Go Runtime 的排程器在使用者空間高效調度。這代表什麼？這代表在同一台 2 核心、4GB 記憶體的輕量伺服器上，傳統工具跑到 1,000 個 VU 就開始喘不過氣，而 k6 卻能輕輕鬆鬆推升到上萬個併發，同時維持極低的 CPU 使用率與極其平穩的記憶體曲線。產生相同 RPS 流量時，大幅節省壓測機台費用，一般 CI Runner 即可勝任！」
+> 每個 Goroutine 的初始堆疊只有大約 2KB 到 4KB，並且由 Go Runtime 的排程器在使用者空間高效調度，Context Switch 的成本遠低於 OS 執行緒。  
+> 
+> 不過這裡我要特別澄清一個很常見的誤解：**一個 k6 VU 並不等於一個 2KB 的 Goroutine。** 每個 VU 都帶著自己獨立的 JavaScript Runtime、載入的模組與資料，所以官方文件給的估算是：簡單腳本每個 VU 大約 1 到 5MB，1,000 個 VU 大約需要 1 到 5GB 記憶體。k6 真正的優勢在於排程輕量、CPU 效率高，官方數據是一台高規格機器可以跑到三到四萬個 VU。所以實務建議是：先用 100 個 VU 實測記憶體，再等比例推估你需要多大的壓測機！」
 
 ---
 
@@ -85,7 +87,7 @@
 
 ### 【Slide 4: 壓測進入 AI 時代：k6 CLI x AI 現代化工作流】 (預估時間: 07:00 - 09:30)
 
-* **畫面焦點**：左側展示 k6 MCP Server 配置與三大工具（run_test, validate_script, get_documentation）；右側展示 Bootstrap with k6 x Agent 自主生成的三大步驟流程圖。
+* **畫面焦點**：左側展示 k6 MCP Server 配置與核心工具（validate_script, run_script, get_documentation）；右側展示 Bootstrap with k6 x Agent 自主生成的三大步驟流程圖。
 * **螢幕動作**：【動作：游標指向左側 MCP JSON 配置，接著移至右側 Agent 閉環自癒流程圖】。
 
 **【口播逐字稿】**：
@@ -93,13 +95,13 @@
 > 
 > 以往我們導入壓測，最花時間的往往不是跑測試那 5 分鐘，而是前面花整整兩三天去翻找 Swagger API 文件、手寫驗證 Token、設計亂數資料池、還有除錯各種語法錯誤。很多工程師光是看到幾十支 API 要寫腳本就想放棄。  
 > 
-> 但現在，Grafana 官方正式支援了 **Model Context Protocol (MCP)**！大家看左邊這個區塊，官方推出了 `@grafana/k6-mcp-server`。無論你平常使用的是 Cursor、Claude Desktop、VS Code Copilot，還是 Google Antigravity，你只要在設定檔裡加上一行 `npx -y @grafana/k6-mcp-server`，AI 助手瞬間就擁有了三大神級超能力：  
-> 第一，`validate_script`：在代碼真正執行前，AI 能用底層 AST 語法樹靜態檢查你的腳本，確保沒有把 HTTP 請求寫在禁區，或者配置了錯誤的 Thresholds。  
-> 第二，`run_test`：AI 助手可以直接在聊天視窗中幫你驅動本機 k6 跑測試，並且自動解析 P95 延遲、錯誤率，立刻在對話中為你做出專家級診斷。  
+> 但現在，Grafana 官方正式支援了 **Model Context Protocol (MCP)**！而且在新版 k6（本課程使用 v2.2）中，MCP 伺服器直接以 k6 的子命令 `k6 x mcp`，不用裝 Node.js、不用 npx。無論你平常使用的是 Claude Code、Cursor 還是 VS Code Copilot，只要在 MCP 設定檔裡註冊 `k6 x mcp`——或者更省事，用 Chapter 6 會教的 `k6 x agent init` 一鍵寫好——AI 助手瞬間就擁有了三大核心超能力：  
+> 第一，`validate_script`：在正式壓測前，AI 會用 1 個 VU、跑 1 次迭代實際執行你的腳本，把語法錯誤、執行期例外、打不通的端點全部先抓出來。  
+> 第二，`run_script`：AI 助手可以直接在聊天視窗中幫你驅動本機 k6 跑測試，並且自動解析 P95 延遲、錯誤率，立刻在對話中為你做出專家級診斷。  
 > 第三，`get_documentation`：AI 隨時向官方文檔庫調閱最新的 API，杜絕大模型憑空捏造過期語法的問題。  
 > 
 > 更厲害的是右邊這套——**Bootstrap with k6 x Agent** 自主生成工作流！  
-> 現在你只要把專案裡的 OpenAPI 規格檔、或是瀏覽器 DevTools 導出的 `.har` 錄製檔丟給 AI Agent。Agent 會自主規劃：第一步掃描端點，第二步自動逆向生成 Smoke、Load、Stress 完整腳本；最精彩的是第三步——**閉環自癒驗證**！Agent 會自己調用 `run_test` 跑 1 個 VU 的冒煙測試，如果發現某個 API 回傳 401 或 422，Agent 會自己看錯誤訊息、自己修正 Request Header 與 Body，直到整套測試完全 Pass！  
+> 現在你只要把專案裡的 OpenAPI 規格檔、或是瀏覽器 DevTools 導出的 `.har` 錄製檔丟給 AI Agent。Agent 會自主規劃：第一步掃描端點，第二步自動逆向生成 Smoke、Load、Stress 完整腳本；最精彩的是第三步——**閉環自癒驗證**！Agent 會自己調用 `validate_script` 跑 1 個 VU 的冒煙測試，如果發現某個 API 回傳 401 或 422，Agent 會自己看錯誤訊息、自己修正 Request Header 與 Body，直到整套測試完全 Pass！  
 > 
 > 原本要手刻三天的壓測工程套件，現在兩分鐘之內就能自動逆向生成交付。這就是現代 AI 賦能為效能工程帶來的革命性飛躍！」
 
