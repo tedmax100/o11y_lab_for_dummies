@@ -21,7 +21,9 @@ import { check, sleep } from 'k6';
 
 export const options = {
   vus: 3,
-  duration: '5s',
+  // Web Dashboard 預設每 10s 聚合一次，跑太短會出現
+  // "report generation was skipped (not enough data)"，也來不及打開瀏覽器觀看
+  duration: __ENV.DURATION || '30s',
   thresholds: {
     http_req_failed: ['rate<0.05'],
     http_req_duration: ['p(95)<800'],

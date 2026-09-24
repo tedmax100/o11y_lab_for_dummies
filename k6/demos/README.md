@@ -1,6 +1,18 @@
 # Grafana k6 線上課程配套實機演示腳本全集 (Course Live Demo Suite)
 
-本目錄包含 5 大章節錄課時專屬的**實機 Live Demo 腳本與驗證工具**。每個腳本均對應簡報中的核心心智模型與避坑警示，可直接在終端機執行展示。
+本目錄包含 6 大章節錄課時專屬的**實機 Live Demo 腳本與驗證工具**。每個腳本均對應簡報中的核心心智模型與避坑警示，可直接在終端機執行展示。
+
+---
+
+## ✅ 開錄前預檢：`preflight.sh`
+
+```bash
+./k6/demos/preflight.sh                 # 全部章節：檢查相依服務 + 實際跑一次每支 demo，比對 exit code
+./k6/demos/preflight.sh ch2 ch3         # 只檢查指定章節
+./k6/demos/preflight.sh --check-only    # 只檢查環境，不跑 k6
+```
+
+會檢查 k6 版本、QuickPizza / Astronomy Shop 連線、`localhost:8080` API Gateway、Prometheus Remote Write receiver、Grafana、Chromium、`grafana/xk6` 映像檔快取、`k6 x agent` / `k6 x mcp`，並確認 Ch2 `delay/3`、Ch3 `FAIL_SLO` / `ABORT_TEST` 真的回傳 **Exit 99**。demo 產出的報表寫到暫存目錄，不會弄髒專案。
 
 ---
 

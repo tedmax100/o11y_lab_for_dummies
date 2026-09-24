@@ -13,7 +13,23 @@
 - [ ] 開啟 VS Code，載入專案目錄 `/home/nathan/Project/o11y_lab_for_dummies`。
 - [ ] 終端機切換至專案根目錄，確認 `k6 version` 正常可用。
 - [ ] 確認 `k6 x mcp --help` 可正常執行（新版 k6 以 `k6 x` 子命令提供 MCP，無須 Node.js / npx）。
+- [ ] 專案根目錄執行 `docker compose up -d`（Slide 9 Demo 打 `localhost:8080` 的 API Gateway）。
+- [ ] 瀏覽器分頁預先開好 Codelab `#0` 與 `#1`（C 段使用）。
 - [ ] 簡報全螢幕播放停在第 1 頁封面。
+
+---
+
+## 🎞️ 錄製分段 Run Sheet
+
+> **標記圖例**：✂️ 分段點（停錄、開新片段）· 🖥️ 切到終端機 · 📘 切到 Codelab · 🌐 切到瀏覽器 (Grafana / Dashboard) · 🎞️ 切回投影片
+> **開錄前**：在專案根目錄執行 `./k6/demos/preflight.sh ch1`，全部 PASS 才開錄。
+
+| 片段 | 內容 | 畫面 | 預估 | 備註 |
+| :-- | :-- | :-- | :-: | :-- |
+| **A 觀念** | Slide 1 → Slide 9 前半（代碼導讀） | 🎞️ 投影片 | 17 分 | 照逐字稿，可分 2~3 段錄 |
+| **B Demo** | Slide 9 後半：`k6 run k6/demos/ch1_lifecycle_and_checks.js` | 🖥️ 終端機 | 2 分 | **需先 `docker compose up -d`**（打 `localhost:8080`） |
+| **C Codelab** | Codelab [#0 課程導讀](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#0) + [#1 Chapter 1](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#1) 實作演練 | 📘 Codelab | 4 分 | 全系列第一次露出 Codelab，順便教怎麼用 |
+| **D 收尾** | Slide 10 總結 + 第二章預告 | 🎞️ 投影片 | 1.5 分 | |
 
 ---
 
@@ -81,7 +97,7 @@
 > 
 > 最後是 **Docker 容器化方案**：如果你是在公司的 CI/CD Runner 上跑，或者本機根本不想安裝任何軟體，Grafana 官方維護了極度輕量的 `grafana/k6` 映像檔。你只要用 `docker run --rm -i grafana/k6 run - < script.js`，甚至連掛載硬碟都不用，直接將腳本透過 Stdin 管道灌進去就能立刻開跑！  
 > 
-> 安裝完成後，打開終端機敲入 `k6 version`，看到版本號如 `k6 v0.50.0+`，恭喜你，你的環境就已經完全就緒了！」
+> 安裝完成後，打開終端機敲入 `k6 version`，看到版本號如 `k6 v2.2.0`（本課程錄製版本），恭喜你，你的環境就已經完全就緒了！」
 
 ---
 
@@ -190,6 +206,8 @@
 > 4. 最後搭配 `check()` 軟性斷言，驗證狀態碼與 Response Body。  
 > 
 > 接下來，讓我們親眼見證它的執行！  
+> ✂️ **【分段點 A → B】** 停錄；切到終端機（字體 18pt、prompt 精簡），開新片段從下一行開始唸。  
+> 
 > 【動作：切換至終端機】  
 > 我在專案目錄下準備好了一份完整的演示腳本：`k6/demos/ch1_lifecycle_and_checks.js`。我們直接在終端機輸入：  
 > `k6 run k6/demos/ch1_lifecycle_and_checks.js`  
@@ -198,6 +216,12 @@
 > 大家看終端機的即時輸出！  
 > 首先，Init 階段印出初始化訊息；緊接著，`setup()` 函式全域啟動，準備測試 Token；隨後，VU 1 與 VU 2 同時並行，在兩個不同的 group 中完成健康檢查與核心業務 API 調用；最後，測試平穩結束，`teardown()` 乾淨俐落地印出收尾日誌！  
 > 整個過程不到兩秒鐘，控制台下方印出了漂亮的統計摘要——包含請求總數、P95 延遲、check 成功率。這就是現代化效能測試的極致流暢體驗！」
+
+---
+
+✂️ **【分段點 B → C】** 停錄；打開瀏覽器 Codelab，照文末〈📘 Codelab 導覽講稿〉錄 C 段。
+
+✂️ **【分段點 C → D】** C 段錄完，切回投影片 Slide 10 開新片段。
 
 ---
 
@@ -216,3 +240,47 @@
 > 不過，大家請思考一個問題：在剛才的演示中，我們只用了固定的 2 個 VU。但在真實世界中，流量是活的！促銷搶購時的萬人尖峰、日常的早晚高峰、還有半夜的平緩流量，這些截然不同的流量模型該如何用代碼科學化地定義？更重要的是，為什麼傳統的虛擬用戶壓測，會隱瞞系統 90% 的真實延遲，陷入可怕的『協調性漏測』陷阱？  
 > 
 > 所有的答案，我們都在第二章《Scientific k6 Traffic Modeling》為大家揭曉。感謝大家，我們第二章見！」
+
+---
+
+## 📘 Codelab 導覽講稿（C 段，約 4 分鐘）
+
+> **畫面**：瀏覽器全螢幕開啟 Codelab，縮放 125%，隱藏書籤列。
+> **網址**：[https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#0](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#0) → [#1](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#1)
+
+### C-1｜第一次打開 Codelab：怎麼用這份講義（#0 課程簡介與導讀）
+
+* **螢幕動作**：【📘 開啟 `#0`，滑鼠指向左側章節列表，再指向右上角的預估時間】
+
+**【口播逐字稿】**：
+> 「剛才的 Demo 大家都看到了，接下來換你們自己動手。這門課的每一章，除了投影片，都有一份配套的 **Codelab 互動講義**，網址我放在影片下方的說明欄。
+>
+> 大家看左邊這一排，就是全系列的章節目錄：第 0 頁是課程導讀，第 1 到第 6 頁剛好對應影片的第一到第六章，最後一頁是總結。每一頁右上角都有預估的實作時間。
+> 我的建議是這樣分工：**影片負責讓你聽懂『為什麼』，Codelab 負責讓你照著做『怎麼做』**。影片看完一章，就打開對應那一頁，照著指令一步一步敲。
+>
+> 【動作：往下捲到「實驗環境要求」】
+> 開始之前，請先確認三樣東西：k6 v2.x、Docker 與 Docker Compose，還有一個 Chrome 或 Chromium 瀏覽器（第四章會用到）。
+> 然後把專案 clone 下來，在專案根目錄執行 `docker compose up -d`，把實驗室環境跑起來。
+>
+> 這裡偷偷教大家一個小工具：專案裡有一支 `./k6/demos/preflight.sh`，這是我自己錄影前一定會跑的預檢腳本。你們也可以跑，例如 `./k6/demos/preflight.sh ch1`，它會幫你檢查環境、實際跑一次範例、比對結束碼，全部綠燈就代表你的環境跟我錄影時一模一樣。」
+
+### C-2｜Chapter 1 實作演練（#1）
+
+* **螢幕動作**：【📘 點左側「Chapter 1」，直接捲到小節「實作演練：執行第一支生命週期測試與 CLI Options 實戰」；先圈紅色 Negative 提示框】
+
+**【口播逐字稿】**：
+> 「我們跳到第 1 頁，直接拉到最下面的『實作演練』。
+>
+> 先看這個紅色框框，這是前置條件：第一章的範例腳本打的是本機的 API Gateway `localhost:8080`，所以一定要先把 docker compose 跑起來，否則你會看到所有 check 都失敗、thresholds 也失敗——那不是你寫錯，是服務沒開。
+>
+> 這一節有三個步驟，每一步都在練一個 CLI 技巧：
+> **步驟 1**，用腳本裡預設的 options 直接跑，重點是觀察輸出的順序：Init、Setup、VU Code、Teardown，跟剛剛投影片講的生命週期對起來。
+> **步驟 2**，加上 `--vus 10 --duration 30s`。注意，腳本裡明明寫的是 2 個 VU，但 CLI 旗標會覆蓋腳本設定。這在 CI 裡非常好用：同一支腳本，smoke 跟 load 只差在命令列參數。
+> **步驟 3**，`--vus 1 --iterations 1 --http-debug`，只跑一次，但把每一個 HTTP 請求和回應的 Header 全部印出來。以後你的腳本一出現 401、403，第一件事就是加這個旗標。
+>
+> 【動作：捲回本頁上方「k6 執行設定與常用 Options 全指南」停 2 秒】
+> 另外，這一頁中間有一份 Options 全指南，影片裡我不逐條念，大家當作字典查就好。
+>
+> 好，三個步驟都跑完、確認生命週期順序看懂了，我們回到投影片做本章總結。」
+
+* **螢幕動作**：【🎞️ 切回投影片 Slide 10】

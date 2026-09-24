@@ -21,6 +21,21 @@
 
 ---
 
+## 🎞️ 錄製分段 Run Sheet
+
+> **標記圖例**：✂️ 分段點（停錄、開新片段）· 🖥️ 切到終端機 · 📘 切到 Codelab · 🌐 切到瀏覽器 (Grafana / Dashboard) · 🎞️ 切回投影片
+> **開錄前**：在專案根目錄執行 `./k6/demos/preflight.sh ch4`，全部 PASS 才開錄。
+
+| 片段 | 內容 | 畫面 | 預估 | 備註 |
+| :-- | :-- | :-- | :-: | :-- |
+| **A 觀念** | Slide 1 → Slide 8 | 🎞️ 投影片 | 17 分 | Slide 3 若想示範 DevTools 錄製，**先錄好**再剪進來，不要現場錄 HAR |
+| **B Demo** | Slide 9：`k6 run k6/demos/ch4_hybrid_99_to_1.js` | 🖥️ 終端機 | 2.5 分 | Chromium 第一次啟動慢，**preflight 已兼暖機**；實際數字會與投影片不同，口播用「大約」 |
+| **A2 觀念** | Slide 10 起飛前 Checklist | 🎞️ 投影片 | 1.5 分 | |
+| **C Codelab** | Slide 11 前半 → Codelab [#4 Chapter 4](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#4) 三個實作點 | 📘 Codelab | 3.5 分 | 本章實作分散在三個小節，照講稿跳 |
+| **D 收尾** | Slide 11 後半：第五章預告 | 🎞️ 投影片 | 0.5 分 | |
+
+---
+
 ## 🎙️ 逐頁口播逐字稿與操作指引
 
 ### 【Slide 1: 模組封面與四大核心柱石】 (預估時間: 00:00 - 02:00)
@@ -188,12 +203,16 @@
 
 **【口播逐字稿】**：
 > 「現在，讓我們立刻在終端機見證這個奇蹟！  
+> ✂️ **【分段點 A → B】** 停錄；切到終端機開新片段。  
+> 
 > 【動作：切換至終端機】  
 > 請大家看我的操作，我直接執行：  
 > `k6 run k6/demos/ch4_hybrid_99_to_1.js`  
 > 
 > 【動作：手指指向終端機雙線進度】  
 > 大家看控制台！背景的 `protocol_flood` 正在以每秒 27 次的速度狂轟 API；而在測試啟動 2 秒後，我們的無頭 Chromium 探針優雅進場，模擬真實使用者造訪 QuickPizza 商城、點擊推薦披薩按鈕！  
+> 
+> 🎞️ **【切回投影片 Slide 9】** 終端機的數字每次都會略有不同，接下來改用投影片上的數據講解。  
 > 
 > 測試完畢！請大家看簡報第 9 頁的真實執行數據：  
 > 左邊是我們**後端協定層的戰果**：在 10 秒內打出了 **280 次 API 請求**，平均延遲僅 98ms，P95 延遲 193.65ms，錯誤率為漂亮的 **0.00%**，140 個業務斷言全部綠燈！證明後端微服務在滿載壓力下依然穩如泰山！  
@@ -206,6 +225,10 @@
 > 
 > 請大家看底部的核心洞察：**『後端扛得住，前端流暢不卡頓！』**  
 > 我們只用了一台普通筆電，沒有花費昂貴的雲端算力，就同時驗證了後端資料庫極限與前端真實人眼視覺體驗！這就是 99:1 混合架構帶給企業的極致價值！」
+
+---
+
+✂️ **【分段點 B → A2】** 停錄；切回投影片 Slide 10。
 
 ---
 
@@ -237,6 +260,46 @@
 > 任務二：執行 `k6/demos/ch4_browser_quickpizza.js`，親眼看著 Chromium 在背景採集出 LCP 與 TTFB 前端指標；  
 > 任務三：執行 `k6/demos/ch4_hybrid_99_to_1.js`，觀察多場景疊加時，背景協定流量與前端探針是如何協同運作的。  
 > 
+> 📘 **【切到 Codelab #4】** 念完三個任務後停在這裡，切到 Codelab 錄〈📘 Codelab 導覽講稿〉，錄完再 ✂️ 切回本頁唸下一段預告。  
+> 
 > 當我們掌握了前端與後端的全鏈路壓測數據後，最後一塊關鍵拼圖來了：  
 > 這些寶貴的效能數據，該如何匯出成美觀的 HTML 報告分享給團隊？又該如何把數據推播進企業級的 Prometheus 與 Grafana 儀表板，與系統硬體指標進行雙時間軸對齊？  
-> 歡迎進入全系列課程的最終高潮——第五章：《k6 Observability and Modular Architecture》。我們下節課見！」
+> 歡迎進入第五章：《k6 Observability and Modular Architecture》。我們下節課見！」
+
+---
+
+## 📘 Codelab 導覽講稿（C 段，約 3.5 分鐘）
+
+> **網址**：[https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#4](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#4)
+> **提示**：本章實作分散在三個小節，依序跳轉即可；左側目錄只到章節層級，請用捲動或 `Ctrl+F` 搜尋小節標題。
+
+### C-1｜任務一：HAR 清理後的腳本
+
+* **螢幕動作**：【📘 點左側「Chapter 4」，捲到「HAR 三大清理法則」→「程式碼對比：Raw HAR vs 清理後生產級腳本」】
+
+**【口播逐字稿】**：
+> 「Codelab 第 4 頁的實作不像前幾章集中在最後，而是跟著觀念走，我帶大家跳三個地方。
+>
+> 第一個在『HAR 三大清理法則』。這裡把 `recording_raw.js` 跟 `recording_cleaned.js` 左右對照：raw 版本裡有 Google Analytics、有寫死的 Bearer Token；清理後的版本把第三方請求刪掉、在 `setup()` 裡動態登入拿 Token。
+> 【動作：捲到「實作演練：驗證清理後的 HAR 腳本」】
+> 往下就是實作指令 `k6 run k6/demos/recording_cleaned.js`，下面附了真實的輸出，你跑完的 checks 應該要是 100%。如果你看到 401，恭喜你親身踩到了投影片講的死資料陷阱，回頭檢查 `setup()`。」
+
+### C-2｜任務二：k6/browser 單元測試
+
+* **螢幕動作**：【📘 捲到「k6 Browser：真實 Chromium 渲染與 Core Web Vitals」→ 圈紅色 Negative 框 →「瀏覽器單元測試實作」】
+
+**【口播逐字稿】**：
+> 「第二個在『k6 Browser』這一節。先看這個紅色框，**`page.close()` 一定要放在 `finally` 裡**，不然每次失敗都會留下一個殭屍 Chromium 程序，跑久了你的壓測機記憶體會被吃光。
+> 下面的『瀏覽器單元測試實作』就是 `ch4_browser_quickpizza.js`。跑的時候注意兩件事：第一次啟動 Chromium 會比較慢，這是正常的；跑完請在輸出裡找 `browser_web_vital_lcp` 跟 `browser_web_vital_fcp`，這就是真實瀏覽器量到的前端指標。」
+
+### C-3｜任務三：99:1 混合壓測
+
+* **螢幕動作**：【📘 捲到「99:1 全鏈路混合壓測黃金架構」→「混合壓測多情境腳本架構」→「實作演練：執行 99:1 混合全鏈路壓測」】
+
+**【口播逐字稿】**：
+> 「第三個就是我剛剛 Demo 的 99:1。請先別急著跑，先看上面的『多情境腳本架構』：一個 `scenarios` 裡放兩個場景，`protocol_flood` 用 10 個 VU 轟 API，`browser_sample` 只放 1 個瀏覽器 VU 當探針，兩邊的 threshold 用 `{scenario:...}` 標籤分開管。
+> 看懂了再跑 `k6 run k6/demos/ch4_hybrid_99_to_1.js`。你的數字不會跟我一模一樣，沒關係，重點是兩邊的門檻都要綠燈。
+>
+> 好，三個任務都完成，我們回到投影片。」
+
+* **螢幕動作**：【🎞️ 切回投影片 Slide 11，唸「當我們掌握了前端與後端……」預告段】

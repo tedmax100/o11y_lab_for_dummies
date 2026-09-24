@@ -16,6 +16,22 @@
 
 ---
 
+## 🎞️ 錄製分段 Run Sheet
+
+> **標記圖例**：✂️ 分段點（停錄、開新片段）· 🖥️ 切到終端機 · 📘 切到 Codelab · 🌐 切到瀏覽器 (Grafana / Dashboard) · 🎞️ 切回投影片
+> **開錄前**：在專案根目錄執行 `./k6/demos/preflight.sh ch3`，全部 PASS 才開錄。
+
+| 片段 | 內容 | 畫面 | 預估 | 備註 |
+| :-- | :-- | :-- | :-: | :-- |
+| **A 觀念** | Slide 1 → Slide 8 前半 | 🎞️ 投影片 | 15 分 | |
+| **B1 Demo** | Slide 8 後半：`FAIL_SLO=false` → `FAIL_SLO=true ; echo $?` | 🖥️ 終端機 | 2 分 | 高潮點：`CI Exit Code: 99`，終端機放大 |
+| **A2 觀念** | Slide 9 abortOnFail | 🎞️ 投影片 | 1.5 分 | |
+| **B2 Demo（選用）** | `ABORT_TEST=true` 熔斷，約 2 秒就腰斬 | 🖥️ 終端機 | 1 分 | 投影片只講觀念，現場跑一次效果很好 |
+| **C Codelab** | Slide 10 前半 → Codelab [#3 Chapter 3](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#3) 實作演練 | 📘 Codelab | 3 分 | |
+| **D 收尾** | Slide 10 後半：第四章預告 | 🎞️ 投影片 | 0.5 分 | |
+
+---
+
 ## 🎙️ 逐頁口播逐字稿與操作指引
 
 ### 【Slide 1: 模組封面與核心架構】 (預估時間: 00:00 - 01:45)
@@ -178,6 +194,8 @@
 > **但只要有任何一項門檻破功，k6 就會立刻向作業系統回傳傳奇代碼：99！**  
 > 
 > 我們直接在終端機做實機驗證！  
+> ✂️ **【分段點 A → B1】** 停錄；切到終端機開新片段。  
+> 
 > 【動作：切換至終端機】  
 > 我準備了一支腳本：`k6/demos/ch3_quality_gates_exit99.js`。  
 > 首先，我們讓門檻正常通過：  
@@ -188,6 +206,10 @@
 > 【動作：按下 Enter，觀察終端機輸出】  
 > 大家請看螢幕！k6 抓到了 Threshold 違規，印出醒目的紅字，而在最後一行，Linux Shell 印出了：`CI Exit Code: 99`！  
 > 就在這一瞬間，你的 CI/CD Pipeline 會立刻中斷，有問題的代碼被死死擋在生產環境大門之外！這就是自動化效能防線的真正威力！」
+
+---
+
+✂️ **【分段點 B1 → A2】** 停錄；切回投影片 Slide 9。
 
 ---
 
@@ -206,6 +228,17 @@
 
 ---
 
+✂️ **【分段點 A2 → B2（選用）】** 若要現場示範熔斷，切到終端機，唸下面這段：
+
+> 🖥️ 「光講不夠，我們直接讓它熔斷一次。我把 `ABORT_TEST` 打開，這會讓業務成功率一開始就掉到 95% 以下：  
+> `k6 run -e ABORT_TEST=true k6/demos/ch3_quality_gates_exit99.js ; echo "CI Exit Code: $?"`  
+> 【動作：按下 Enter】  
+> 大家看，原本要跑 20 次迭代，才兩秒左右就被腰斬，紅字寫著 `at least one has abortOnFail enabled, stopping test prematurely`，結束碼一樣是 99。在一小時的耐久測試裡，這兩秒跟六十分鐘的差別，就是你的雲端帳單。」
+
+✂️ **【分段點 B2 → C】** 停錄；切回投影片 Slide 10 開新片段。
+
+---
+
 ### 【Slide 10 (原S2): 隨堂實作練習指引】 (預估時間: 18:45 - 20:00)
 
 * **畫面焦點**：Module 3 實作任務清單卡片（建立電商工作流、實作 Trend/Rate、設定 Tags、驗證 Exit Code 99）。
@@ -218,5 +251,35 @@
 > 任務二：嘗試修改裡面的門檻數值，例如將延遲門檻縮小，並親自執行 `echo $?`，確認你的環境能精準捕獲 Exit Code 99；  
 > 任務三：嘗試加入 `abortOnFail: true`，體驗一次即時熔斷的極速反饋。  
 > 
+> 📘 **【切到 Codelab #3】** 念完三個任務後停在這裡，切到 Codelab 錄〈📘 Codelab 導覽講稿〉，錄完再 ✂️ 切回本頁唸下一段預告。  
+> 
 > 完成實作後，我們已經具備了後端 API 壓測的完整防線。但是在現代的 Web 應用中，後端 API 快，就代表使用者真的覺得快嗎？如果前端有肥大的 React/Vue 單頁應用、昂貴的 DOM 渲染，該怎麼測？  
 > 歡迎進入第四章：《Precision k6 Hybrid Testing——混合壓測與全鏈路觀測》。我們下節課見！」
+
+---
+
+## 📘 Codelab 導覽講稿（C 段，約 3 分鐘）
+
+> **網址**：[https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#3](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#3)
+> **螢幕動作**：【📘 點左側「Chapter 3」，捲到小節「手把手實作演練：驗證品質門禁、標籤分組與熔斷機制」】
+
+**【口播逐字稿】**：
+> 「剛才投影片上的三個任務，在 Codelab 第 3 頁都有完整的指令和預期輸出。大家拉到最下面的『手把手實作演練』。
+>
+> 這裡同一支腳本，靠兩個環境變數切出三種情境，請**依序**跑，而且每一個指令後面都已經幫你接好了 `echo "CI Exit Code: $?"`：
+>
+> 【動作：圈選實作 1】
+> **實作 1**，`FAIL_SLO=false`，全部綠燈、結束碼 0。這一步請把重點放在輸出裡的**標籤分組**：你會看到 `{api_type:critical}`、`{group:::01_核心結帳交易}` 各自有獨立的 p95，還有四種自訂指標 Counter、Gauge、Rate、Trend 各長什麼樣子。
+>
+> 【動作：圈選實作 2】
+> **實作 2**，`FAIL_SLO=true`。我們把 critical 端點的門檻故意縮到 1 毫秒。請注意觀察：**只有 critical 那一條打紅叉，background 報表端點還是綠的**。這就是用 tag 做分級治理的價值——次要端點變慢，不會誤殺整條發版流水線。結束碼 99。
+>
+> 【動作：圈選實作 3】
+> **實作 3**，`ABORT_TEST=true`，就是我剛剛示範的熔斷。
+>
+> 【動作：捲到本頁中段「CI/CD 自動卡關核心：Exit Code 99 傳遞鏈」的 YAML】
+> 做完三個實作，請再往上捲一點，這裡有現成的 GitHub Actions 和 GitLab CI 範例 YAML。我非常建議大家今天就把它貼進自己的專案 pipeline 試一次，看它在 99 的時候真的把 deploy 擋下來。
+>
+> 最後底部的『SRE 避坑指南』第一條請背下來：**check 只是輔助，threshold 才是法律**。好，回到投影片。」
+
+* **螢幕動作**：【🎞️ 切回投影片 Slide 10，唸「完成實作後……」預告段】

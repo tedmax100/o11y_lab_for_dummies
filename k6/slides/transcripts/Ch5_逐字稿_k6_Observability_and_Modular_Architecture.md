@@ -19,6 +19,25 @@
 
 ---
 
+## 🎞️ 錄製分段 Run Sheet
+
+> **標記圖例**：✂️ 分段點（停錄、開新片段）· 🖥️ 切到終端機 · 📘 切到 Codelab · 🌐 切到瀏覽器 (Grafana / Dashboard) · 🎞️ 切回投影片
+> **開錄前**：在專案根目錄執行 `./k6/demos/preflight.sh ch5`，全部 PASS 才開錄。
+
+| 片段 | 內容 | 畫面 | 預估 | 備註 |
+| :-- | :-- | :-- | :-: | :-- |
+| **A 觀念** | Slide 1 → Slide 2 | 🎞️ 投影片 | 3.5 分 | |
+| **B1 Demo** | Web Dashboard：`K6_WEB_DASHBOARD=true k6 run …` → 🌐 `localhost:5665` | 🖥️ + 🌐 | 1.5 分 | 腳本跑 30 秒，Enter 後**立刻**切到瀏覽器 |
+| **A2 觀念** | Slide 3 → Slide 6 | 🎞️ 投影片 | 9 分 | |
+| **B2 Demo** | xk6：只秀 `bin/k6-custom version`，**不現場編譯** | 🖥️ 終端機 | 0.5 分 | 錄影前先跑 `ch5_xk6_docker_build.sh` |
+| **A3 觀念** | Slide 7 | 🎞️ 投影片 | 2 分 | |
+| **B3 Demo** | `./k6/demos/ch5_prometheus_remote_write.sh` → 🌐 Grafana `k6-live-metrics` | 🖥️ + 🌐 | 2.5 分 | **需 docker compose**；開錄前 10 分鐘先起，Grafana 才有曲線 |
+| **A4 觀念** | Slide 8 → Slide 10 | 🎞️ 投影片 | 7 分 | Slide 8 是全課高潮 |
+| **C Codelab** | Slide 11 前半 → Codelab [#5 Chapter 5](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#5) 實作演練 | 📘 Codelab | 3 分 | |
+| **D 收尾** | Slide 11 後半：第六章預告 | 🎞️ 投影片 | 0.5 分 | |
+
+---
+
 ## 🎙️ 逐頁口播逐字稿與操作指引
 
 ### 【Slide 1: 模組封面與全景預覽】 (預估時間: 00:00 - 01:45)
@@ -55,6 +74,17 @@
 > 
 > k6 就會在背景自動啟動一個極輕量的本機 Web 伺服器，預設監聽在 `http://127.0.0.1:5665`。  
 > 打開瀏覽器，你就能看到即時動態刷新的折線圖！它會即時呈現當前的 RPS、P95 延遲、錯誤率，甚至會動態繪製出各個 HTTP 階段（connecting, waiting, receiving）的細部耗時拆解。當你在本地微調腳本或進行小規模探測時，這個內建儀表板就是你最高效的視覺化利器！」
+
+---
+
+✂️ **【分段點 A → B1】** 停錄；切到終端機。
+
+> 🖥️ 「我們直接開起來看。  
+> `K6_WEB_DASHBOARD=true k6 run k6/demos/ch5_dashboard_and_html_summary.js`  
+> 【動作：按下 Enter，立刻切到 🌐 瀏覽器開 `http://127.0.0.1:5665`】  
+> 大家看，RPS、P95、VU 數的曲線正在即時長出來。這支腳本跑 30 秒，我什麼監控系統都沒架，只有一個 k6 執行檔。」
+
+✂️ **【分段點 B1 → A2】** 停錄；切回投影片 Slide 3。
 
 ---
 
@@ -129,6 +159,16 @@
 
 ---
 
+✂️ **【分段點 A2 → B2】** 停錄；切到終端機（`bin/k6-custom` 需事先編譯好）。
+
+> 🖥️ 「編譯要花幾分鐘，我已經先用剛才那行 Docker 指令編好了。我們直接驗收成果：  
+> `./bin/k6-custom version`  
+> 大家看輸出的 Extensions 區塊，多了一行 `xk6-sql`。一個執行檔，原生支援資料庫壓測。」
+
+✂️ **【分段點 B2 → A3】** 停錄；切回投影片 Slide 7。
+
+---
+
 ### 【Slide 7 (原S8): Prometheus Remote Write 與 Commit Tag 綁定】 (預估時間: 12:45 - 15:00)
 
 * **畫面焦點**：展示指令 `k6 run -o experimental-prometheus-rw --tag commit_id=$(git rev-parse --short HEAD)`，展示資料流入 Prometheus 的架構圖。
@@ -146,6 +186,18 @@
 > 大家想想看這能帶來什麼威力？  
 > 每次你在 CI/CD 執行壓測，我們動態將當前 Git 的短版 Commit Hash 作為標籤注入指標中。  
 > 當你打開 Grafana 儀表板時，最上方會出現一個下拉選單：你可以點選『Commit abc1234』與『Commit def5678』，兩個不同版本的延遲波形圖立刻重疊在一起！前後兩個發布版本的效能退化（Regression）瞬間無所遁形！這才叫真正的專業級效能工程治理！」
+
+---
+
+✂️ **【分段點 A3 → B3】** 停錄；切到終端機（Prometheus / Grafana 需已啟動）。
+
+> 🖥️ 「我們實際推一次。  
+> `./k6/demos/ch5_prometheus_remote_write.sh`  
+> 大家看最上面這幾行，腳本自動抓了我現在的 commit id 和 branch，當作標籤注入。  
+> 【動作：跑完後切到 🌐 `http://localhost:3000/d/k6-live-metrics/`】  
+> 打開 Grafana 的 k6 儀表板，右上角的下拉選單就是 `commit_id`。選我剛剛這個 commit，曲線就是剛才那次壓測。下次換一個 commit 再跑，兩條線疊在一起，退化一目了然。」
+
+✂️ **【分段點 B3 → A4】** 停錄；切回投影片 Slide 8。
 
 ---
 
@@ -224,7 +276,38 @@
 > 任務二：執行我們為大家準備好的腳本：`./k6/demos/ch5_prometheus_remote_write.sh`，親眼看著壓測指標帶上你當前的 Git Commit Hash，即時推入 Prometheus；  
 > 任務三：打開本機的 Grafana 儀表板，搜尋你剛剛注入的標籤，親自體驗一次現代化效能對齊的極致快感！  
 > 
-> 各位工程師夥伴，恭喜大家完整走完了五大章節的全部旅程！  
-> 我們從最初的 k6 哲學出發，穿越了科學流量建模、征服了品質門禁、實踐了全鏈路混合壓測，最後抵達了現代化可觀測性的核心殿堂。效能工程不是一門理論，而是一門需要大家親自動手實踐的藝術。  
+> 📘 **【切到 Codelab #5】** 念完三個任務後停在這裡，切到 Codelab 錄〈📘 Codelab 導覽講稿〉，錄完再 ✂️ 切回本頁唸下一段。  
 > 
-> 非常榮幸能陪伴大家走過這趟充實的學習之旅。期待大家將這套方法論帶回你的工作崗位，守護每一次產品發布，打造出堅不可摧的高效能系統！我是講師，我們在未來的架構世界中，頂峰相見！」
+> 到這裡，我們從 k6 哲學出發，穿越了科學流量建模、征服了品質門禁、實踐了全鏈路混合壓測，也讓壓測數據走出了終端機、進入了 Grafana。
+>
+> 但是回頭看，這五章裡最花時間的是什麼？是翻 API 文件、手寫腳本、一次又一次地修語法錯誤。如果這些苦工，可以交給一個懂 k6 最佳實踐、還能自己跑測試、自己修 bug 的 AI 助手呢？
+>
+> 歡迎進入最終章——第六章：《k6 x agent：AI 驅動的效能測試新紀元》。我們下一章見！」
+
+---
+
+## 📘 Codelab 導覽講稿（C 段，約 3 分鐘）
+
+> **網址**：[https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#5](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#5)
+> **螢幕動作**：【📘 點左側「Chapter 5」，捲到小節「手把手實作演練：可觀測性全鏈路閉環」】
+
+**【口播逐字稿】**：
+> 「Codelab 第 5 頁，拉到『手把手實作演練：可觀測性全鏈路閉環』，這裡有四個實作，剛好對應今天的四個 Demo。
+>
+> 【動作：圈選實作 1】
+> **實作 1**，Web Dashboard。腳本會跑 30 秒，Enter 按下去就趕快打開 5665 這個網址，跑完之後 dashboard 會跟著關掉。
+>
+> 【動作：圈選實作 2】
+> **實作 2** 是 CI 用的：`K6_WEB_DASHBOARD_PORT=-1` 不開伺服器，只在結束時吐出一份 HTML。跑完請確認資料夾裡多了**三個檔案**：官方格式的 `offline_report.html`，還有 `handleSummary` 自己產的 `custom_report.html` 和 `summary.json`。
+> 這裡提醒一個我自己踩過的坑：**如果測試跑太短，官方 HTML 報告會被跳過**，終端機會印一行 `report generation was skipped (not enough data)`。範例腳本已經調成 30 秒，你自己的腳本如果很短，記得加上 `K6_WEB_DASHBOARD_PERIOD=1s`。
+>
+> 【動作：圈選實作 3】
+> **實作 3**，xk6 Docker 編譯。第一次要下載 Go 相依套件，大概要幾分鐘，請耐心等；編完用 `bin/k6-custom version` 驗收。
+>
+> 【動作：圈選實作 4，再往下指向 Grafana 網址與帳密】
+> **實作 4**，Prometheus Remote Write。前提是 docker compose 已經起來。跑完打開這個 Grafana 網址，帳密是 admin / admin，右上角用 `commit_id` 篩選。建議你改一行程式、commit、再跑一次，就能在同一張圖上看到兩個版本的對比。
+>
+> 【動作：捲到下方「推薦延伸閱讀」停 2 秒】
+> 最下面是我寫的三篇延伸文章，xk6 插件開發、k6 browser、還有一篇完整的上手實戰，想深入的同學可以慢慢看。好，我們回到投影片。」
+
+* **螢幕動作**：【🎞️ 切回投影片 Slide 11，唸第六章預告段】
