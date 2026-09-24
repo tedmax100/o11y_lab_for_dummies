@@ -48,7 +48,7 @@
 ### 【Slide 2: 極致資源利用率：為什麼 k6 單機就能榨出數萬併發？】 (預估時間: 03:00 - 05:00)
 
 * **畫面焦點**：對比圖：上方為傳統 Java OS Thread 臃腫的排隊與垃圾回收（GC）卡頓；下方為 Go Goroutine 輕量、密集的協程矩陣。
-* **螢幕動作**：【動作：圈選 Java 執行緒的 1MB 標註，隨後指向 Go Goroutine 的 2KB 標註，並口頭補充「一個 k6 VU 實際約 1~5MB」】。
+* **螢幕動作**：【動作：圈選 Java 執行緒的「1MB+ stack per thread」，隨後指向 k6 的「~1–5MB per VU」與括號內「goroutine 本身僅 ~2KB」註記】。
 
 **【口播逐字稿】**：
 > 「這時候，很多有經驗的工程師通常會提出一個直覺的質疑：『老師，既然 k6 是用 JavaScript 寫的，那它的效能真的撐得住高併發嗎？Node.js 在處理密集計算時不是很容易卡住嗎？』  
@@ -186,7 +186,7 @@
 > 「好，理論我們都掌握了，現在請大家把目光聚焦在這份精華代碼上。這就是一個將我們剛才所學融會貫通的生產級骨架：  
 > 1. 最上方宣告了生命週期的 `options`，配置 5 個 VU、壓測時長 10 秒；  
 > 2. 進入 `default function`，使用 `group('User_Profile_Flow')` 做業務封裝；  
-> 3. 發送請求時，使用 ``http.url`https://test.k6.io/contacts.php?id=${userId}` `` 做好動態指標收斂；  
+> 3. 發送請求時，使用 ``http.url`https://quickpizza.grafana.com/api/json?id=${userId}` `` 做好動態指標收斂；  
 > 4. 最後搭配 `check()` 軟性斷言，驗證狀態碼與 Response Body。  
 > 
 > 接下來，讓我們親眼見證它的執行！  

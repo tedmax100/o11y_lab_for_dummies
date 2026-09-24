@@ -30,7 +30,7 @@
 ---
 
 ### Slide 2: 極致資源利用率 - Goroutine vs 傳統執行緒
-* **視覺焦點**：Java Thread (1MB+) vs Go Goroutine (2KB~4KB) 記憶體與架構對照圖。
+* **視覺焦點**：Java Thread (1MB+ per thread) vs k6 VU (~1–5MB per VU，goroutine 本身僅 ~2KB) 記憶體與架構對照圖。
 * **心智模型**：k6 底層由 Go 語言編寫，利用 Goroutines 實現極高併發與極低記憶體佔用。
 * **🎤 口播逐字稿**：
   > 「很多學員會好奇：『k6 寫的是 JavaScript，效能真的會好嗎？』  
@@ -628,7 +628,7 @@
 * **🎤 口播逐字稿**：
   > 「我們首先來看 `k6 x agent` 底層最關鍵的自動化雙引擎：  
   > 左側是『引擎一：自動安裝內建 AI 技能』：它會將官方維護的 `SKILL.md` 或 Cursor 的 `.mdc` Rules 寫入專屬目錄。當你在對話框中輸入『write a smoke test』，AI 助手不再瞎猜，而是精準載入官方規範，從根本杜絕字串拼接引發的 High Cardinality 記憶體爆炸，讓全團隊的 AI 生成標準完全齊平！  
-  > 右側是『引擎二：自動註冊 k6 MCP 伺服器』：自動將 `k6 x mcp` 寫入編輯器的 MCP 設定檔。最亮眼的特點是它由 Go 原生編譯直接驅動，免裝 Node.js 或 npm！同時解鎖了 `validate_script`（AST 靜態預檢）與 `run_script`（本機 1 VU 冒煙驗證與自癒修復）兩大核心工具。手動 7 步配置縮短為 1 秒一鍵搞定！」
+  > 右側是『引擎二：自動註冊 k6 MCP 伺服器』：自動將 `k6 x mcp` 寫入編輯器的 MCP 設定檔。最亮眼的特點是它由 Go 原生編譯直接驅動，免裝 Node.js 或 npm！同時解鎖了 `validate_script`（以 1 VU 實際執行的冒煙預檢）與 `run_script`（本機執行壓測與自癒修復）兩大核心工具。手動 7 步配置縮短為 1 秒一鍵搞定！」
 
 ---
 
