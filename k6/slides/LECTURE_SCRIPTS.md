@@ -150,55 +150,44 @@
 
 ---
 
-### Slide 3: 階梯式負載與冒煙測試 (Smoke & Load Testing)
-* **視覺焦點**：Smoke Test 曲線 (1 VU, 短時間) vs Load Test 階梯曲線 (Ramp-up, Plateau, Ramp-down)。
-* **心智模型**：Smoke 驗功能與腳本正確性，Load 驗證一般峰值下的穩定度。
+### Slide 3: 5 大壓測模式概念 (Five Load Patterns)
+* **視覺焦點**：五個流量波形並列：Smoke、Load、Stress、Spike、Soak，重點對比 Stress 與 Spike 的形狀差異。
+* **心智模型**：先決定「要回答什麼問題」，再挑波形：驗證腳本、驗證日常峰值、找破壞點、測突發彈性、抓時間型洩漏。
 * **🎤 口播逐字稿**：
-  > 「首先看最基本的兩種型態：  
-  > **Smoke Testing（冒煙測試）**：通常只用 1 個 VU 跑幾分鐘，目的不是壓垮系統，而是在上線或大幅修改後，確認 API 路由、鑑權 Token、資料庫連線是通的。  
-  > 接著是 **Load Testing（常規負載測試）**：我們透過 `stages` 陣列定義三個階段：先用 5 分鐘緩慢爬坡 (Ramp-up) 避免熱點瞬間擊穿，接著在高負載高原期維持 15 分鐘觀察系統穩定性，最後平緩降速 (Ramp-down) 觀察連線資源是否正常釋放。」
+  > 「Smoke 用 1～2 個 VU 確認腳本與環境是通的；Load 是平頂梯形，驗證日常尖峰是否達到由 SLO 推導的門檻；Stress 是階梯一路往上，目的是找到破壞點；Spike 是垂直閃電，考驗自動擴展與恢復；Soak 在常態負載下長跑，專抓記憶體洩漏與連線池枯竭——而且 Soak 要看斜率，全程綠燈也可能是失敗的 Soak。」
 
 ---
 
-### Slide 4: 壓力測試與尖峰測試 (Stress & Spike Testing)
-* **視覺焦點**：Stress Test (衝向極限拐點) vs Spike Test (瞬間垂直衝天)。
-* **心智模型**：Stress 找破壞點 (Breaking Point)，Spike 測自動擴展 (HPA) 與恢復彈性。
+### Slide 4: 手把手寫出 5 大壓測型態 (stages 腳本範例)
+* **視覺焦點**：左側各模式小圖，右側對應的 `stages` 陣列，高亮 Spike Test 的暴衝寫法。
+* **心智模型**：`stages` 的每一格是「在 duration 內，把 VU 線性調整到 target」。
 * **🎤 口播逐字稿**：
-  > 「當系統通過常規負載後，接下來就要進入極限挑戰：  
-  > **Stress Testing（壓力測試）**：不斷持續加壓，直到系統出現吞吐量下降、錯誤率飆升的拐點。它的目標只有一個：『找出系統在哪個併發數下會崩潰』，並評估自癒能力。  
-  > **Spike Testing（尖峰突發測試）**：模擬名人發文、限量搶購，流量在數十秒內暴增數十倍。這考驗的是你的 Kubernetes HPA 自動水平擴展反應速度，以及快取與消息隊列的抗震能力。」
+  > 「`stages` 是一個物件陣列，每一格有 `duration` 和 `target`，k6 會在時間內把 VU 數線性拉到目標。以 Load Test 為例：5 分鐘爬到 100、維持 20 分鐘、再 5 分鐘降回 0；Spike Test 則是在 10 秒內從 20 一口氣拉到 1,000。  
+  > 但這套看似美好的寫法，背後藏著一個巨大的數據謊言——下一頁揭曉。」
 
 ---
 
-### Slide 5: 協調性漏測的致命盲點 (Coordinated Omission)
-* **視覺焦點**：車流因車禍被堵在收費站，後方統計車流速度時出現「嚴重失真」的圖解。
-* **心智模型**：當伺服器變慢時，閉環模型發不出請求，導致統計到的延遲數據「看起來很漂亮」，實際上卻是假象！
+### Slide 5: 擺脫數據謊言 (Closed Model vs Open Model & 協調性漏測)
+* **視覺焦點**：左側閉環模型在收費站塞車、吞吐量暴跌；右側開放模型按時抵達、真實暴露延遲。
+* **心智模型**：閉環模型在系統變慢時會自動少送請求，把長尾延遲藏起來——這就是 Coordinated Omission。
 * **🎤 口播逐字稿**：
-  > 「現在進入本章最精采、也是最高階的觀念：**協調性漏測 (Coordinated Omission)**，這是知名效能專家 Gil Tene 提出的經典理論。  
-  > 傳統的壓測（例如只指定 10 個 VU）是**閉環模型 (Closed Loop)**。每個虛擬用戶必須等待前一個請求回應，才會發出下一個請求。  
-  > 這會造成什麼災難？當後端突然卡頓 5 秒時，你的 10 個 VU 全部被卡住！在這 5 秒內，根本沒有新的請求送出。測試工具最後算出來的延遲可能只有幾百毫秒，但真實世界的使用者早就蜂擁而至，在外部排隊排到抓狂了！閉環模型無意中『協調』並隱瞞了系統最致命的延遲。」
+  > 「`vus` 和 `stages` 都是閉環模型：VU 要等到回應才送下一個請求。API 正常 10ms 時，10 個 VU 能打出 1,000 RPS；一旦死鎖讓回應變成 5 秒，請求就雪崩到每秒 2 次。真實使用者不會因為你卡住就停手，但閉環工具會——報表看起來一切安好，實際上系統早就被打穿了。」
 
 ---
 
-### Slide 6: 閉環 vs 開放模型對決 (Closed vs Open Model)
-* **視覺焦點**：Closed Model (VU 阻塞 RPS 暴跌) vs Open Model (抵達率固定，自動加派 VU)。
-* **心智模型**：真實使用者的到達是獨立事件 (Open System)，測試工具必須能夠解耦 VU 與 RPS。
+### Slide 6: 開放模型實戰 (ramping-arrival-rate)
+* **視覺焦點**：`executor: 'ramping-arrival-rate'` 配置，標注 `startRate`、`timeUnit`、`preAllocatedVUs`、`maxVUs`。
+* **心智模型**：宣告「每秒抵達多少請求」，而不是「有幾個 VU」；排程與執行解耦。
 * **🎤 口播逐字稿**：
-  > 「解決協調性漏測的唯一途徑，就是採用**開放模型 (Open Model)**。  
-  > 在開放模型中，我們不再問『有幾個虛擬用戶』，而是宣告『每秒鐘抵達系統的請求數 (Arrival Rate) 必須是 500 RPS』！  
-  > 當後端變慢時，k6 不會傻傻等著，它會啟動新的 Worker/Goroutine 強制繼續按照既定頻率發送請求。這樣才能真實模擬使用者湧入，並精準抓到隊列堆積後的長尾延遲 (Tail Latency)。」
+  > 「開放模型不管後端快慢，都維持固定的抵達率。後端快的時候少量 VU 就夠；後端卡住時，k6 會從儲備池調派更多 VU 撐住抵達率，讓排隊與長尾延遲原原本本地暴露出來。」
 
 ---
 
-### Slide 7: Little's Law 精算與 Ramping Arrival Rate
-* **視覺焦點**：數學公式 $L = \lambda W$，`preAllocatedVUs` 與 `maxVUs` 設定對照。
-* **心智模型**：Little's Law：在系統中的並行量 = 抵達率 $\lambda$ × 平均駐留時間 $W$。
+### Slide 7: VU 精算心法 (Little's Law 與記憶體防暴衝)
+* **視覺焦點**：公式 L = λ × W，搭配 `preAllocatedVUs` 與 `maxVUs` 的換算範例。
+* **心智模型**：需要的 VU 數 = 目標 RPS × 平均回應時間；maxVUs 要預留延遲劣化時的緩衝。
 * **🎤 口播逐字稿**：
-  > 「要設定好開放模型，你必須學會利特爾法則（Little's Law）：$L = \lambda W$。  
-  > 假設你的目標是每秒 100 個請求（$\lambda = 100$），系統預期平均耗時 200 毫秒（$W = 0.2$ 秒），那麼你在系統中平均只需要 $100 \times 0.2 = 20$ 個並行 VU。  
-  > 因此在 k6 的 `ramping-arrival-rate` 執行器中：  
-  > 我們把 `preAllocatedVUs` 設為 20；但萬一伺服器延遲飆升到 1 秒呢？這時就需要 100 個 VU！所以我們給予 `maxVUs: 150` 作為彈性池。  
-  > 透過這套公式，你的壓測資源配置就具備了嚴謹的數學依據，不再靠猜測！」
+  > 「目標 200 RPS、平均回應 100ms，L = 200 × 0.1 = 20，所以 `preAllocatedVUs` 設 20；萬一延遲劣化到 1 秒，需要 200 個 VU，`maxVUs` 就保守設 250。每一個參數都有數學依據，不再憑感覺猜。」
 
 ---
 
@@ -275,12 +264,11 @@
 ---
 
 ### Slide 4: k6 內建核心指標全覽 (Built-in Metrics)
-* **視覺焦點**：k6 內建指標分類與 6 個延遲細分指標 (blocked, connecting, tls, sending, waiting, receiving)。
-* **心智模型**：了解延遲到底是塞在網路握手、伺服器計算 (TTFB)，還是回傳資料過大。
+* **視覺焦點**：三大類內建指標：HTTP 狀態（http_reqs / http_req_failed / http_req_duration）、流量與網路（data_sent / data_received）、執行進度（vus / vus_max / iterations）。
+* **心智模型**：不用寫程式就有的指標；HTTP 三兄弟直接對應 RED，也是最常設門檻的對象。
 * **🎤 口播逐字稿**：
-  > 「k6 把一次 HTTP 請求拆成六個細分指標：等待連線槽位（含 DNS）的 `http_req_blocked`、TCP 握手的 `http_req_connecting`、TLS 握手的 `http_req_tls_handshaking`，以及送出請求的 `http_req_sending`、最關鍵的伺服器處理時間 `http_req_waiting` (TTFB)、下載回應的 `http_req_receiving`。  
-  > 注意：`http_req_duration` 只等於後三段（sending + waiting + receiving），前三段的連線時間不計入。  
-  > 如果你的 duration 飆高，但 waiting 很低、receiving 很高，問題八成出在你的 API 回傳了過於龐大的無效 JSON Payload！」
+  > 「k6 跑完會自動輸出三類內建指標：HTTP 狀態對應 RED 的 Rate、Errors、Duration；流量與網路告訴你資料量與頻寬；執行進度告訴你這次壓測有沒有照計畫執行。  
+  > 指標有了，下一頁我們來看：終端機那一大段摘要到底該怎麼讀。」
 
 ---
 

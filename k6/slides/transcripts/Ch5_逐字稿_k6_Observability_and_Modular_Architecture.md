@@ -353,7 +353,8 @@
 > 「Codelab 第 5 頁，拉到『手把手實作演練：可觀測性全鏈路閉環』，這裡有四個實作，剛好對應今天的四個 Demo。
 >
 > 【動作：圈選實作 1】
-> **實作 1**，Web Dashboard。腳本會跑 30 秒，Enter 按下去就趕快打開 5665 這個網址，跑完之後 dashboard 會跟著關掉。
+> **實作 1**，Web Dashboard。腳本會跑 30 秒，Enter 按下去就趕快打開 5665 這個網址，跑完之後 dashboard 會跟著關掉。  
+> 觀察重點第 4 點是判讀練習：在 Overview 看 VUs 和請求速率是不是同步上升，再切到 Timings 找最大的那一段。記得，上排那個 Duration 大數字是平均值，不是 P95。
 >
 > 【動作：圈選實作 2】
 > **實作 2** 是 CI 用的：`K6_WEB_DASHBOARD_PORT=-1` 不開伺服器，只在結束時吐出一份 HTML。跑完請確認資料夾裡多了**三個檔案**：官方格式的 `offline_report.html`，還有 `handleSummary` 自己產的 `custom_report.html` 和 `summary.json`。
@@ -363,9 +364,10 @@
 > **實作 3**，xk6 Docker 編譯。第一次要下載 Go 相依套件，大概要幾分鐘，請耐心等；編完用 `bin/k6-custom version` 驗收。
 >
 > 【動作：圈選實作 4，再往下指向 Grafana 網址與帳密】
-> **實作 4**，Prometheus Remote Write。前提是 docker compose 已經起來。跑完打開這個 Grafana 網址，帳密是 admin / admin，右上角用 `commit_id` 篩選。建議你改一行程式、commit、再跑一次，就能在同一張圖上看到兩個版本的對比。
+> **實作 4**，Prometheus Remote Write。前提是 docker compose 已經用最新設定起來——Prometheus 必須開啟 native histograms，不然 k6 推送會收到 500；錄影前跑一次 `preflight.sh ch5` 就會幫你檢查。跑完打開這個 Grafana 網址，帳密是 admin / admin，右上角用 `commit_id` 篩選。這裡的 P95 是用 native histogram 算出來的真正 P95，不是把好幾條 P95 再取平均。建議你改一行程式、commit、再跑一次，就能在同一張圖上看到兩個版本的對比。  
+> 跑完實作 4，請回頭對照本頁的『看懂儀表板』和『Soak 判讀』兩個小節，練習在自己的曲線上找拐點。
 >
 > 【動作：捲到下方「推薦延伸閱讀」停 2 秒】
-> 最下面是我寫的三篇延伸文章，xk6 插件開發、k6 browser、還有一篇完整的上手實戰，想深入的同學可以慢慢看。好，我們回到投影片。」
+> 最下面是我寫的三篇延伸文章，xk6 插件開發、k6 browser、還有一篇完整的上手實戰；另外還有一篇 iThome 鐵人賽的 Soak 判讀好文，今天 Soak 那一頁的思路就參考自它。想深入的同學可以慢慢看。好，我們回到投影片。」
 
 * **螢幕動作**：【🎞️ 切回投影片 Slide 14，唸第六章預告段】

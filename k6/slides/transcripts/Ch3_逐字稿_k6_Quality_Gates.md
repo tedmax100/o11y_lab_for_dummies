@@ -99,22 +99,19 @@
 
 ### 【Slide 4 (原S5): k6 內建核心指標全覽】 (預估時間: 06:15 - 08:30)
 
-* **畫面焦點**：`http_req_duration` 的精密時間軸拆解：blocked $\rightarrow$ connecting $\rightarrow$ tls_handshaking $\rightarrow$ sending $\rightarrow$ waiting (TTFB) $\rightarrow$ receiving。
-* **螢幕動作**：【動作：由左至右滑動解析各個網路階段】。
+* **畫面焦點**：三大類內建指標卡片——HTTP 狀態（`http_reqs`、`http_req_failed`、`http_req_duration`）、流量與網路（`data_sent`、`data_received`）、執行進度（`vus`、`vus_max`、`iterations`）；底部註記「這些指標會自動輸出於終端機，也是設定 Thresholds 的主要標的」。
+* **螢幕動作**：【動作：由左至右依序圈選三張卡片】。
 
 **【口播逐字稿】**：
-> 「既然 Duration 這麼重要，那當 Duration 飆高時，我們該如何抽絲剝繭找原因？  
-> k6 非常貼心地把單次 HTTP 請求細剖成了六個階段：  
+> 「k6 每跑完一次測試，都會自動吐出一整組內建指標。你不需要寫任何一行程式，它們就在那裡。我把它們分成三類：  
 > 
-> 1. **blocked**：請求發送前，在作業系統連線佇列中等待可用 TCP Socket 的時間；  
-> 2. **connecting**：與目標伺服器進行 TCP 三向交握（SYN-ACK）的網路耗時；  
-> 3. **tls_handshaking**：HTTPS 憑證協商與金鑰交換的加密耗時；  
-> 4. **sending**：將 HTTP 請求 Header 與 Body 資料透過網卡推送出去的傳輸耗時；  
-> 5. **waiting（核心重點！）**：又稱 **TTFB (Time to First Byte)**！這是從客戶端把請求發送完畢，到收到伺服器吐出第一個 Byte 的等待時間。這段時間伺服器在幹嘛？它在跑業務代碼、在查資料庫、在呼叫第三方服務！如果你的 API 延遲飆高，有 80% 的機率是卡在 waiting；  
-> 6. **receiving**：伺服器吐出資料後，客戶端把整個 Response Body 下載完畢的時間。  
+> **第一類，HTTP 狀態**：`http_reqs` 是總請求數和每秒請求數，也就是 RED 裡的 Rate；`http_req_failed` 是失敗率，對應 Errors；`http_req_duration` 是每個請求的耗時，對應 Duration。這三個就是你最常拿來設門檻的指標。  
 > 
-> 如果有一天你發現 waiting 只有 20ms，但 duration 高達 2 秒，receiving 佔滿了 1.9 秒，這代表什麼？這代表後端計算極快，但它愚蠢地把幾十萬筆沒做分頁的資料一口氣丟給前端！透過這六大指標，你甚至不用看後端代碼，就能在第一時間精準定位架構病因。  
-> 不過要特別注意：這六段**並不全部**算在 `http_req_duration` 裡，這個常見誤解我們等一下在 Slide 6 專門拆解。」
+> **第二類，流量與網路**：`data_sent` 和 `data_received`，代表壓測期間送出和收到了多少資料。它能幫你判斷回應是不是太肥，或者壓測機的網卡是不是快被打滿了。  
+> 
+> **第三類，執行進度**：`vus` 是當下有多少虛擬用戶在跑，`vus_max` 是上限，`iterations` 是完整跑完幾輪腳本。這一類回答的是：『這次壓測本身有沒有照計畫執行？』  
+> 
+> 指標有了，下一個問題是：測試結束時終端機吐出一大段摘要，**到底該怎麼讀？** 下一頁我們用一份真實的摘要，一步一步拆給大家看。」
 
 ---
 
@@ -313,7 +310,8 @@
 > 這裡同一支腳本，靠兩個環境變數切出三種情境，請**依序**跑，而且每一個指令後面都已經幫你接好了 `echo "CI Exit Code: $?"`：
 >
 > 【動作：圈選實作 1】
-> **實作 1**，`FAIL_SLO=false`，全部綠燈、結束碼 0。這一步請把重點放在輸出裡的**標籤分組**：你會看到 `{api_type:critical}`、`{group:::01_核心結帳交易}` 各自有獨立的 p95，還有四種自訂指標 Counter、Gauge、Rate、Trend 各長什麼樣子。
+> **實作 1**，`FAIL_SLO=false`，全部綠燈、結束碼 0。這一步請把重點放在輸出裡的**標籤分組**：你會看到 `{api_type:critical}`、`{group:::01_核心結帳交易}` 各自有獨立的 p95，還有四種自訂指標 Counter、Gauge、Rate、Trend 各長什麼樣子。  
+> 跑完之後，請照剛才投影片的 **5 步驟判讀**，把這份摘要從頭到尾讀一次；再加上 `--summary-mode=full` 重跑，看看 6 個細分延遲裡哪一段最大。觀察重點第 4 點就是這個練習。
 >
 > 【動作：圈選實作 2】
 > **實作 2**，`FAIL_SLO=true`。我們把 critical 端點的門檻故意縮到 1 毫秒。請注意觀察：**只有 critical 那一條打紅叉，background 報表端點還是綠的**。這就是用 tag 做分級治理的價值——次要端點變慢，不會誤殺整條發版流水線。結束碼 99。
@@ -324,6 +322,7 @@
 > 【動作：捲到本頁中段「CI/CD 自動卡關核心：Exit Code 99 傳遞鏈」的 YAML】
 > 做完三個實作，請再往上捲一點，這裡有現成的 GitHub Actions 和 GitLab CI 範例 YAML。我非常建議大家今天就把它貼進自己的專案 pipeline 試一次，看它在 99 的時候真的把 deploy 擋下來。
 >
-> 最後底部的『SRE 避坑指南』第一條請背下來：**check 只是輔助，threshold 才是法律**。好，回到投影片。」
+> 最後底部的『SRE 避坑指南』第一條請背下來：**check 只是輔助，threshold 才是法律**。  
+> 另外，本頁開頭的『SLI、SLO、SLA 與 k6 Thresholds』請一定要讀：**壓測通過 threshold，不代表上線後就符合 SLO**。好，回到投影片。」
 
 * **螢幕動作**：【🎞️ 切回投影片 Slide 12，唸「完成實作後……」預告段】

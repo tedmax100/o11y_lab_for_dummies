@@ -196,6 +196,13 @@ if need_ch ch5; then
   else
     record PASS "Prometheus Remote Write receiver" "已啟用 (HTTP ${rw_code})"
   fi
+  # ch5_prometheus_remote_write.sh 以 native histogram 推送 Trend；Prometheus 沒開這個 feature 會回 HTTP 500
+  prom_features="$(curl -s -m 5 "${PROM_URL}/api/v1/status/flags" 2>/dev/null | grep -o '"enable-feature":"[^"]*"')"
+  if [[ "${prom_features}" == *native-histograms* ]]; then
+    record PASS "Prometheus native histograms" "已啟用"
+  else
+    record FAIL "Prometheus native histograms" "未啟用 ← 需 --enable-feature=native-histograms（docker compose up -d prometheus 重建）"
+  fi
   check_http "Grafana ${GRAFANA_URL}" "${GRAFANA_URL}/api/health" FAIL "請先 docker compose up -d"
   if command -v docker >/dev/null && docker info >/dev/null 2>&1; then
     record PASS "Docker daemon" "運作中"
