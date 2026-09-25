@@ -19,14 +19,7 @@ Duration: 3
 
 本教學為全系列 **6 大章節線上課程**的完整互動式實作指引，帶領你從零打造現代化、代碼化（Testing as Code）的企業級效能防線。
 
-```
-[Chapter 1: 核心哲學] ──> [Chapter 2: 流量建模] ──> [Chapter 3: 品質門禁] ──> [Chapter 4: 混合壓測] ──> [Chapter 5: 可觀測性閉環] ──> [Chapter 6: AI Agent 工程]
-  - Test as Code           - 5大流量模式             - RED Method              - HAR 錄製轉譯            - 原生 Web Dashboard         - k6 x agent 雙引擎
-  - Goroutine 架構         - 協調性漏測              - P95/P99 尾端延遲        - 401 死資料陷阱          - HTML 靜態報告 (Port=-1)    - 11個 Bundled Skills
-  - 4階段生命週期          - 開放模型 (Little's Law) - 4大自訂指標             - k6/browser Chromium     - xk6 Docker 確定性編譯      - 原生 k6 x mcp 註冊
-  - Group & Check          - SharedArray 記憶體優化  - Exit Code 99 卡關       - 99:1 全鏈路黃金架構     - Prometheus Remote Write    - Owner Tag 冪等性防護
-  - http.url 防指標爆炸    - dropped_iterations 告警 - abortOnFail 熔斷        - Flight Pre-check        - CPU CFS Throttling 對齊    - 6大編輯器全面支援
-```
+![課程路線圖：Chapter 1 核心哲學 → Chapter 2 流量建模 → Chapter 3 品質門禁 → Chapter 4 混合壓測 → Chapter 5 可觀測性閉環 → Chapter 6 AI Agent 工程，以及各章重點](assets/images/k6-diagram-course-roadmap.png)
 
 ### 你將學到什麼
 
@@ -209,9 +202,7 @@ k6 MCP Server 為 AI 助手賦予了三類關鍵能力：
 
 利用 **Bootstrap with k6 x Agent** 工作流，AI 代理能自主完成全套工程交付：
 
-```
-[專案代碼/OpenAPI/HAR 規格] ──> [AI Agent 自主解析] ──> [生成全情境壓測腳本] ──> [validate_script (1 VU 冒煙) + run_script] ──> [自動自癒微調] ──> [生產就緒測試套件]
-```
+![Bootstrap with k6 x Agent 工作流：專案代碼/OpenAPI/HAR 規格 → AI Agent 自主解析 → 生成全情境壓測腳本 → validate_script（1 VU 冒煙）＋ run_script → 自動自癒微調 → 生產就緒測試套件](assets/images/k6-diagram-agent-workflow.png)
 
 1. **資產自動探索 (Asset Discovery)**：Agent 讀取專案中的 `openapi.yaml` 或前端網路請求錄製檔（`.har`）。
 2. **情境自主建模 (Autonomous Modeling)**：自動拆解出 Smoke、Load、Stress 測試情境，並配置合理的 P95 閾值門禁。
@@ -309,9 +300,7 @@ K6_VUS=10 K6_DURATION=30s k6 run script.js
 
 當同一個 Option 同時在多處被設定時，k6 依照嚴格的**覆蓋原則（由高至低）**進行解析：
 
-```
-[1. CLI Flags (最高)] ──> [2. Environment Variables] ──> [3. In-script options] ──> [4. Default Values (最低)]
-```
+![Options 設定優先順序由高至低：CLI Flags → Environment Variables → In-script options → Default Values](assets/images/k6-diagram-options-precedence.png)
 
 | 優先層級 | 設定方式 | 範例 | 說明 |
 | :--- | :--- | :--- | :--- |
@@ -590,45 +579,17 @@ Negative
 
 #### 收費站車禍心智模型 (The Tollbooth Analogy)
 
-想像一座高速公路收費站，平時**每秒通行 1 輛車**，平均耗時 1 秒：
+想像一座高速公路收費站，平時**每秒通行 1 輛車**，平均耗時 1 秒（平均延遲 1s、RPS = 1）。突然，收費閘道當機**卡死整整 100 秒**：
 
-```
-【正常通行】
-車流: ───[車3]───[車2]───[車1]───> [收費站 (耗時 1s)] ───> 通行順暢 (平均延遲 1s, RPS = 1)
-```
+![收費站卡死 100 秒：閉環模型只送出 1 個請求、延遲 100 秒；開放模型 100 個請求全部受害，等待 100 秒到 1 秒不等](assets/images/k6-diagram-tollbooth.png)
 
-突然，收費閘道當機**卡死整整 100 秒**：
-
-```
-【情況 A：傳統閉環模型 (Closed Loop Model)】
-車流: ──────────────[車1 卡住 100s]───> [收費站 (故障卡死)]
-(測試工具規定：必須等「車1」通過後，才允許出發下一輛「車2」！)
-結果：在整整 100 秒的故障期間，全系統只發送了 1 次請求。
-測試報表顯示：「總共 1 筆請求，延遲 100s，平均 RPS 接近 0。」
-看似只有一個人受到影響！
-```
-
-```
-【情況 B：真實世界與開放模型 (Open Model)】
-車流: ───[車100]──[車99]...[車3]──[車2]──[車1 卡住 100s]───> [收費站 (故障卡死)]
-真實世界的使用者根本不知道前方卡死，後續車輛每秒以固定頻率（Arrival Rate）持續抵達！
-第 1 輛車：等待 100 秒。
-第 2 輛車：等待 99 秒。
-第 3 輛車：等待 98 秒。
-...
-第 100 輛車：等待 1 秒。
-結果：100 個人全被堵在路上！真實的總累積等待時間高達 5,050 秒，平均排隊延遲高達 50.5 秒！
-```
+閉環模型的報表只記錄到「1 筆請求、延遲 100 秒」，看起來只有一個人受影響；真實世界（開放模型）裡，後續車輛仍以固定頻率抵達，**100 個人全被堵在路上**，總等待 5,050 秒、平均延遲 50.5 秒。
 
 #### 閉環模型 (Closed Loop Model) 的數學缺陷
 
 在傳統壓測工具（包括 k6 使用 `vus: 10` 或 JMeter 預設 Thread Group）中，虛擬用戶的執行邏輯本質是閉環的：
 
-```text
-                   VU (虛擬用戶數)
-RPS (吞吐量) = ────────────────────────────
-                Response Time (延遲) + Sleep
-```
+![閉環模型吞吐量 RPS = VUs ÷（回應時間 + sleep）：10 個 VU 時，回應 50ms 可打出 200 RPS，回應 5s 只剩 2 RPS](assets/images/k6-diagram-closed-loop-rps.png)
 
 - **正常狀態**：當後端服務響應飛快（`50ms = 0.05s`、`Sleep = 0`）時，10 個 VU 每秒可打出：  
   `10 / 0.05s = 200 RPS`
@@ -719,32 +680,13 @@ export const options = {
 
 排程器嚴格按照設定的 `rate` 計時發起新迭代。但如果受測服務嚴重變慢，導致所有已分配的 VU（包含 `preAllocatedVUs` 以及動態擴展的 `maxVUs`）**全部處於連線等待中、無一可用**，此時排程器別無選擇，只能**強制拋棄該次迭代發送**！
 
-```
-[排程器: 嘀嗒! 該發送 Request #501] 
-       │
-       ▼
-[檢查 VU 池] ──> (preAllocatedVUs 已用完) ──> (maxVUs 50/50 全部被卡死在等待後端 DB 回應)
-       │
-       ▼
-❌ 無可用 VU！被迫拋棄！──> dropped_iterations 計數 +1！
-```
+![dropped_iterations 發生機制：排程器時間到要發送第 501 個迭代 → 檢查 VU 池，preAllocatedVUs 用完、maxVUs 50/50 全部卡在等待後端 → 沒有可用 VU，丟棄迭代，dropped_iterations +1](assets/images/k6-diagram-dropped-iterations-mechanism.png)
 
 #### 根因二分診斷法 (Two-Branch Troubleshooting)
 
 當壓測報告出現 `dropped_iterations > 0` 時，請遵循以下決策樹進行排查：
 
-```
-                     dropped_iterations > 0
-                               │
-       ┌───────────────────────┴───────────────────────┐
-       ▼                                               ▼
-【分支 A：受測後端崩潰】                       【分支 B：壓測機資源配置失衡】
-特徵：http_req_duration 延遲暴增、             特徵：後端延遲完全正常 (<50ms)，
-      504 Gateway Timeout 或連線重置。              但 dropped_iterations 仍然增加。
-根因：後端伺服器 CPU/DB 飽和，連線堆積，        根因：maxVUs 設太小，無法支撐目標 RPS；
-      VU 耗盡是後端故障引發的連鎖反應。             或壓測主機本身 CPU 100%/記憶體耗盡。
-解法：優化後端瓶頸、加大 DB 連線池。           解法：依據 Little's Law 調高 maxVUs。
-```
+![dropped_iterations > 0 的二分診斷：分支 A 受測後端崩潰（延遲暴增，優化後端、加大連線池）；分支 B 壓測機資源配置失衡（延遲正常，依 Little's Law 調高 maxVUs）](assets/images/k6-diagram-dropped-iterations-diagnosis.png)
 
 Positive
 : **CI/CD 自動防線宣告**：在生產級腳本中，務必將 `dropped_iterations` 納入 Thresholds，嚴格要求零丟失：
@@ -845,13 +787,7 @@ k6 為了在多核心 CPU 上榨乾極限壓測效能，底層採用了獨特的
 - 若你在腳本頂層以標準 JavaScript 方式載入一份 50MB 的測試資料（例如 `JSON.parse(open('./users.json'))`）：
 - **每個 VU 實例化時，都會深拷貝一份該物件到自己的 JS Heap 中！**
 
-```
-【傳統 Array 記憶體雪崩】
-VU 1  (JS Runtime) ──> 獨立拷貝 50MB
-VU 2  (JS Runtime) ──> 獨立拷貝 50MB
-...
-VU 1000 (JS Runtime) ──> 獨立拷貝 50MB ───> 總記憶體消耗 50GB！直接引發 OOM Crash！
-```
+![載入 50 MB 測試資料時的總記憶體：傳統 Array 為 50 MB × VU 數（1,000 VU 即 50 GB），SharedArray 全部 VU 共用一份（約 60～100 MB）](assets/images/k6-diagram-sharedarray-memory.png)
 
 #### 記憶體消耗極端對照表
 
@@ -1379,13 +1315,7 @@ function generateMarkdownSummary(data) {
 
 #### k6 Exit Code 規範
 
-```text
-[k6 測試執行結束] 
-        │
-        ├─── 所有宣告之 Thresholds 門檻全數通過 ───> Exit Code: 0  (CI 通過，允許上線)
-        │
-        └─── 只要有任何一條 Threshold 門檻違規 ───> Exit Code: 99 (CI 失敗，自動阻斷部署！)
-```
+![k6 Exit Code 規範：所有 Thresholds 通過回傳 Exit Code 0（CI 通過）；任一 Threshold 違規回傳 Exit Code 99（CI 失敗，阻斷部署）](assets/images/k6-diagram-exit-code-chain.png)
 
 #### 1. GitHub Actions 流水線實戰配置
 
@@ -1704,11 +1634,7 @@ k6 run k6/demos/ch4_browser_quickpizza.js
 - **99% Protocol Load (協定負載)**：使用輕量 VU 模擬巨量流量（例如 10,000 RPS），將後端 API、資料庫連線池與微服務網關打至滿載極限。
 - **1% Browser Probe (瀏覽器探針)**：在系統遭受協定負載狂轟濫炸時，派出一隻真實 Chromium 探針模擬真實用戶進入首頁與結帳，測量極限壓力下的真實前端 **LCP/INP** 是否惡化！
 
-```
-                                      ┌─── 99% Protocol Load (1000 VU) ───> 後端 API 與資料庫滿載
-[全鏈路混合壓測 Hybrid Script] ───────┤
-                                      └─── 1% Browser Probe (1 VU Chromium) ──> 即時採集風暴下的 LCP/CLS
-```
+![99:1 混合壓測架構：Hybrid Script 同時發出 99% Protocol Load（1000 VU，把後端打到滿載）與 1% Browser Probe（1 VU Chromium，採集風暴下的 LCP/CLS）](assets/images/k6-diagram-hybrid-99-1.png)
 
 #### 混合壓測多情境腳本架構
 
@@ -1804,20 +1730,7 @@ Duration: 30
 
 在現代雲原生架構下，效能測試不應是單獨的「黑盒跑分」，而應是**全視角可觀測性 (Unified Observability) 的核心觸發源**。壓測產生的負載指標，必須與後端微服務的**分散式追蹤 (Tracing)**、**日誌 (Logs)** 以及**主機與容器指標 (Metrics)** 在同一個時間軸上無縫對齊：
 
-```text
-                        ┌─────────────────────────────────┐
-                        │   Grafana 統一可觀測性監控中心    │
-                        │   (Unified Observability Hub)   │
-                        └────────────────┬────────────────┘
-                                         │ (時間軸同步 / 共享十字準星)
-       ┌─────────────────────────────────┼─────────────────────────────────┐
-       ▼                                 ▼                                 ▼
-【應用層分散式追蹤】              【系統基礎設施時序】              【k6 壓測客戶端時序】
-OpenTelemetry Collector          Prometheus (cAdvisor / Node)      Prometheus Remote Write
-- Trace ID / Span 鏈路耗時        - Pod CPU CFS Throttling 限流     - http_req_duration (P95/P99)
-- Database SQL 慢查詢            - 記憶體 WorkingSet / OOMKilled   - 即時吞吐量 (RPS)
-- 跨微服務下游 RPC 呼叫           - 網路連線池 Socket 佔用           - dropped_iterations 容量告警
-```
+![Grafana 統一可觀測性監控中心以共享時間軸串起三類數據：OpenTelemetry 分散式追蹤、Prometheus 基礎設施時序、k6 Prometheus Remote Write 壓測時序](assets/images/k6-diagram-grafana-unified-hub.png)
 
 ---
 
@@ -1945,17 +1858,7 @@ xk6 的底層設計極其精妙：
 2. **Go-to-JS Bridge 反射機制**：xk6 透過 Goja JS 引擎的 Type Reflection，自動將 Go 結構體、方法包裝成符合 ES6 標準的 JavaScript 類別與模組。
 3. **極致效能與敏捷開發並存**：壓測工程師依然使用熟悉的 JavaScript 撰寫測試腳本，但在執行時，底層是 Go 原生編譯後的機器碼與輕量 Goroutine 在發起網路通訊，效能零損耗！
 
-```text
-[ 壓測工程師編寫的 JavaScript 腳本 ]
-  import sql from 'k6/x/sql';
-  sql.query("SELECT * FROM users WHERE id = ?", 101);
-                     │
-                     ▼ (Goja JS Runtime)
-[ Go-to-JS Bridge 模組橋接層 ]
-                     │
-                     ▼ (Go Native Code)
-[ Go 原生驅動程式 (database/sql, lib/pq, pgx) ] ──> [ 直接壓測 PostgreSQL / MySQL 資料庫 ]
-```
+![xk6 Go-to-JS Bridge 架構：JavaScript 腳本經 Goja JS Runtime 呼叫 Go-to-JS Bridge，再由 Go 原生驅動程式直接壓測 PostgreSQL / MySQL](assets/images/k6-diagram-xk6-bridge.png)
 
 #### 擴充套件雙引擎分類
 
@@ -2167,10 +2070,7 @@ Negative
 
 某電商平台進行促銷壓測時，在下午 `14:02:00`，k6 回報的 API P95 延遲突然出現**垂直暴衝**：從原本平穩的 `45ms` 瞬間飆高至 `2,200ms`！
 
-```text
-[14:02:00]  k6 API P95 延遲曲線   ──> 突然垂直暴衝至 2.2 秒！
-[14:02:00]  K8s Pod CPU CFS 限流 ──> 同一秒飆高至 85%！
-```
+![共享十字準星示意：14:02:00 同一秒，k6 API P95 從 45ms 暴衝到 2,200ms，Pod CPU CFS Throttling 飆到 85%](assets/images/k6-diagram-crosshair-1402.png)
 
 #### 傳統盲猜 vs 雙十字準星秒級破案
 
