@@ -236,7 +236,7 @@
 ---
 
 # Chapter 3: k6 Quality Gates & SLO Enforcement
-**建議錄製時長**：18 ~ 20 分鐘  
+**建議錄製時長**：22 ~ 25 分鐘 (共 12 頁投影片)  
 **章節主旨**：從 Google SRE 的 RED 方法論出發，建立百分位數 (p95/p99) 門禁，運用 4 大自訂指標，並以 Exit Code 99 實現 CI/CD 自動卡關。
 
 ---
@@ -275,16 +275,34 @@
 ---
 
 ### Slide 4: k6 內建核心指標全覽 (Built-in Metrics)
-* **視覺焦點**：`http_req_duration` 的細部拆解 (blocked, connecting, tls, sending, waiting, receiving)。
+* **視覺焦點**：k6 內建指標分類與 6 個延遲細分指標 (blocked, connecting, tls, sending, waiting, receiving)。
 * **心智模型**：了解延遲到底是塞在網路握手、伺服器計算 (TTFB)，還是回傳資料過大。
 * **🎤 口播逐字稿**：
-  > 「k6 的 `http_req_duration` 不是一個黑盒子，它被精密細分為好幾個階段：  
-  > 包含 DNS 解析與等待連線的 `http_req_connecting`、TLS 握手的 `tls_handshaking`、最關鍵的伺服器內部處理時間 `http_req_waiting` (TTFB)，以及傳輸回應內容的 `http_req_receiving`。  
+  > 「k6 把一次 HTTP 請求拆成六個細分指標：等待連線槽位（含 DNS）的 `http_req_blocked`、TCP 握手的 `http_req_connecting`、TLS 握手的 `http_req_tls_handshaking`，以及送出請求的 `http_req_sending`、最關鍵的伺服器處理時間 `http_req_waiting` (TTFB)、下載回應的 `http_req_receiving`。  
+  > 注意：`http_req_duration` 只等於後三段（sending + waiting + receiving），前三段的連線時間不計入。  
   > 如果你的 duration 飆高，但 waiting 很低、receiving 很高，問題八成出在你的 API 回傳了過於龐大的無效 JSON Payload！」
 
 ---
 
-### Slide 5: 四大自訂指標型態 (Custom Metrics)
+### Slide 5: 看懂 k6 結尾摘要 (5 步驟判讀 SOP)
+* **視覺焦點**：左側標註 ①～⑤ 的終端機摘要，右側 5 張判讀步驟卡。
+* **心智模型**：判決 → 正確性 → 分佈形狀 → 壓測有效性 → 頻寬。門檻全綠不代表結果可信。
+* **🎤 口播逐字稿**：
+  > 「摘要不要從頭讀到尾，要照順序帶著問題讀：先看 THRESHOLDS 判決，再看 checks 正確性，接著看 HTTP 分佈形狀——中位數和 P95 差超過 3 倍就是長尾；然後看 EXECUTION，`dropped_iterations` 大於 0 或 vus 碰到 vus_max，代表流量根本沒打滿；最後看 NETWORK 頻寬。  
+  > 這個例子五步走完，結論是：後端在約 50 RPS 就飽和了。」
+
+---
+
+### Slide 6: 延遲拆解 (http_req_duration 只算後 3 段)
+* **視覺焦點**：6 格時間軸，左 3 格灰色不計入 duration，右 3 格紫色計入；下方 4 張診斷卡。
+* **心智模型**：`http_req_duration = sending + waiting + receiving`；連線層問題只會拉長 `iteration_duration`。
+* **🎤 口播逐字稿**：
+  > 「很多人以為 duration 包含建立連線的時間，其實沒有。blocked、connecting、tls_handshaking 都不算在 duration 裡，所以連線層的問題只盯 duration 是看不到的。  
+  > waiting 高是最常見的後端瓶頸，receiving 高是 Payload 太大。除錯時記得加 `--summary-mode=full`，才看得到這六個細分指標。」
+
+---
+
+### Slide 7: 四大自訂指標型態 (Custom Metrics)
 * **視覺焦點**：Counter、Gauge、Rate、Trend 四種圖示與使用情境。
 * **心智模型**：不僅監控 HTTP 網路層，更能監控業務語意層（如訂單成交數、自訂計算耗時）。
 * **🎤 口播逐字稿**：
@@ -296,7 +314,7 @@
 
 ---
 
-### Slide 6: 斷言三部曲完整對照 (check vs thresholds vs expect)
+### Slide 8: 斷言三部曲完整對照 (check vs thresholds vs expect)
 * **視覺焦點**：三者對照表（層級、是否中斷、輸出效果）。
 * **心智模型**：`check` 是代碼軟斷言，`thresholds` 是全域硬門禁，`expect` 是 BDD 風格語法。
 * **🎤 口播逐字稿**：
@@ -307,7 +325,7 @@
 
 ---
 
-### Slide 7: 精準控制 API SLO (Thresholds 與 Tags 組合技)
+### Slide 9: 精準控制 API SLO (Thresholds 與 Tags 組合技)
 * **視覺焦點**：帶有 `{ api_type: 'critical' }` 標籤的宣告式門檻代碼。
 * **心智模型**：不同等級的 API 要有不同的 SLO，不可一體適用。
 * **🎤 口播逐字稿**：
@@ -317,7 +335,7 @@
 
 ---
 
-### Slide 8: CI/CD 自動卡關實務 (Exit Code 99 傳遞鏈)
+### Slide 10: CI/CD 自動卡關實務 (Exit Code 99 傳遞鏈)
 * **視覺焦點**：GitLab CI / GitHub Actions 流水線紅叉，終端機 `echo $?` 印出 `99`。
 * **心智模型**：Unix 標準回傳碼 99 是 CI/CD 識別效能門禁破功的核心機制。
 * **🎤 口播逐字稿**：
@@ -330,7 +348,7 @@
 
 ---
 
-### Slide 9: 模組綜合實戰 (架構化 SLO 代碼)
+### Slide 11: 模組綜合實戰 (架構化 SLO 代碼)
 * **視覺焦點**：帶有 `abortOnFail: true` 的專業級腳本配置。
 * **心智模型**：熔斷機制 (Circuit Breaker)，錯誤率飆高時及時止損。
 * **🎤 口播逐字稿**：
@@ -340,7 +358,7 @@
 
 ---
 
-### Slide 10: 隨堂實作練習指引 (Lab Guide)
+### Slide 12: 隨堂實作練習指引 (Lab Guide)
 * **視覺焦點**：三個實作任務清單。
 * **🎤 口播逐字稿**：
   > 「本章的理論到此告一段落。請大家打開本章對應的 Lab Guide，動手完成三個任務：  
@@ -480,7 +498,7 @@
 ---
 
 # Chapter 5: k6 Observability and Modular Architecture
-**建議錄製時長**：18 ~ 22 分鐘 (共 11 頁投影片)  
+**建議錄製時長**：25 ~ 28 分鐘 (共 13 頁投影片)  
 **章節主旨**：串聯 Grafana 可觀測性宇宙，運用 Web Dashboard、Prometheus Remote Write 與 Git Commit Tag 解除數據孤島，並掌握 xk6 擴充套件編譯架構與講師深度專欄。
 
 ---
@@ -556,7 +574,25 @@
 
 ---
 
-### Slide 8: Grafana 全視角對齊 (CPU CFS Throttling 破除孤島)
+### Slide 8: 看懂儀表板 (6 種經典曲線型態)
+* **視覺焦點**：3×2 迷你折線圖：健康線性、飽和平台、崩潰懸崖、尾巴張開、緩慢爬坡、週期鋸齒。
+* **心智模型**：永遠把負載軸（VUs / RPS）與反應軸（P95・P99 / 錯誤率）疊在一起看，找出拐點。
+* **🎤 口播逐字稿**：
+  > 「摘要告訴你 P95 是多少，曲線告訴你它從什麼時候開始變壞。最重要的是第二種『飽和平台』：VUs 還在加，RPS 卻走平，同時 P95 開始爬——拐點當下的 RPS 就是系統容量。  
+  > 其他型態：崩潰懸崖是延遲和錯誤率一起暴衝；尾巴張開是只有 P99 發散；緩慢爬坡是負載不變延遲卻上升，代表資源洩漏；週期鋸齒要去查排程、GC 和快取 TTL。」
+
+---
+
+### Slide 9: 儀表板判讀 4 步驟 SOP
+* **視覺焦點**：左側 4 步驟；右上 Web Dashboard 分頁地圖；右下三個判讀陷阱。
+* **心智模型**：確認壓力打出去 → 找拐點 → Timings 定位哪一段 → Grafana 十字準星對齊後端。
+* **🎤 口播逐字稿**：
+  > 「四步驟：先確認壓力真的打出去，再找拐點時間，接著用 Timings 分頁定位哪一段變慢，最後帶著拐點時間到 Grafana 對齊後端指標。  
+  > 三個陷阱：Overview 數字卡的 Duration 是平均值不是 P95；Grafana 的 P95 面板是把 P95 再取平均，只是近似值；RPS 走平但後端很閒，瓶頸可能在壓測機自己。」
+
+---
+
+### Slide 10: Grafana 全視角對齊 (CPU CFS Throttling 破除孤島)
 * **視覺焦點**：Grafana 雙十字準星對齊圖：上方 k6 API 延遲飆高，下方 Kubernetes CPU 限流線 (CFS Throttling)。
 * **心智模型**：透過時間軸對齊，一眼看出延遲飆高的根本底層硬體原因。
 * **🎤 口播逐字稿**：
@@ -568,7 +604,7 @@
 
 ---
 
-### Slide 9: 企業導入實作 Checklist (Takeaway)
+### Slide 11: 企業導入實作 Checklist (Takeaway)
 * **視覺焦點**：企業落地 5 大關鍵步驟（代碼化管理、SLO 明確化、CI/CD 卡關、全鏈路混合、可觀測性閉環）。
 * **心智模型**：從個人測試走向團隊工程治理的行動指南。
 * **🎤 口播逐字稿**：
@@ -581,7 +617,7 @@
 
 ---
 
-### Slide 10: 推薦延伸閱讀 (Author's Deep-Dive Articles)
+### Slide 12: 推薦延伸閱讀 (Author's Deep-Dive Articles)
 * **視覺焦點**：三大專欄卡片（xk6 插件開發、k6-browser 前端混壓、OTel CI/CD 全鏈路實戰）。
 * **心智模型**：課程建立體系框架，講師專欄深入前線自訂實戰，雙軌並進。
 * **🎤 口播逐字稿**：
@@ -593,7 +629,7 @@
 
 ---
 
-### Slide 11: 隨堂練習指引 (Hands-on Practice)
+### Slide 13: 隨堂練習指引 (Hands-on Practice)
 * **視覺焦點**：Ch5 實作指引任務與全系列結業致詞。
 * **🎤 口播逐字稿**：
   > 「最後的隨堂任務，請大家按照指引：  

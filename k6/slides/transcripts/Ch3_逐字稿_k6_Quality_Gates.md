@@ -2,17 +2,17 @@
 
 > **課程名稱**：現代化效能測試實戰：從 k6 到雲原生可觀測性  
 > **章節名稱**：Module 3: 效能指標解讀與 SLO 門檻自動化 (k6 Quality Gates)  
-> **預估時長**：18 ~ 20 分鐘  
+> **預估時長**：22 ~ 25 分鐘  
 > **配套簡報**：[`k6/slides/Ch3_k6_Quality_Gates.pptx`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/slides/Ch3_k6_Quality_Gates.pptx)  
 > **配套演示**：[`k6/demos/ch3_quality_gates_exit99.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch3_quality_gates_exit99.js) (自訂指標、Tagged Thresholds、abortOnFail 與 Exit Code 99 驗證)
 
 ---
 
 ## 🎬 錄製前準備檢核清單 (Pre-recording Checklist)
-- [ ] 簡報切換至 Chapter 3 封面（請確認投影片為新順序：Lab Guide 已在最後第 10 頁）。
+- [ ] 簡報切換至 Chapter 3 封面（請確認投影片為新順序：Lab Guide 已在最後第 12 頁）。
 - [ ] 終端機預先測試指令：`k6 run -e FAIL_SLO=false k6/demos/ch3_quality_gates_exit99.js`（驗證通過）。
 - [ ] 終端機預先測試指令：`k6 run -e FAIL_SLO=true k6/demos/ch3_quality_gates_exit99.js ; echo "CI Exit Code: $?"`（驗證 Exit Code 99）。
-- [ ] 講述提示：講到 Slide 8 Exit Code 99 時語氣要有力量，突顯「自動化卡關」的威力。
+- [ ] 講述提示：講到 Slide 10 Exit Code 99 時語氣要有力量，突顯「自動化卡關」的威力。
 
 ---
 
@@ -23,12 +23,12 @@
 
 | 片段 | 內容 | 畫面 | 預估 | 備註 |
 | :-- | :-- | :-- | :-: | :-- |
-| **A 觀念** | Slide 1 → Slide 8 前半 | 🎞️ 投影片 | 15 分 | |
-| **B1 Demo** | Slide 8 後半：`FAIL_SLO=false` → `FAIL_SLO=true ; echo $?` | 🖥️ 終端機 | 2 分 | 高潮點：`CI Exit Code: 99`，終端機放大 |
-| **A2 觀念** | Slide 9 abortOnFail | 🎞️ 投影片 | 1.5 分 | |
+| **A 觀念** | Slide 1 → Slide 10 前半 | 🎞️ 投影片 | 19.5 分 | Slide 5–6 是結果判讀，放慢講 |
+| **B1 Demo** | Slide 10 後半：`FAIL_SLO=false` → `FAIL_SLO=true ; echo $?` | 🖥️ 終端機 | 2 分 | 高潮點：`CI Exit Code: 99`，終端機放大 |
+| **A2 觀念** | Slide 11 abortOnFail | 🎞️ 投影片 | 1.5 分 | |
 | **B2 Demo（選用）** | `ABORT_TEST=true` 熔斷，約 2 秒就腰斬 | 🖥️ 終端機 | 1 分 | 投影片只講觀念，現場跑一次效果很好 |
-| **C Codelab** | Slide 10 前半 → Codelab [#3 Chapter 3](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#3) 實作演練 | 📘 Codelab | 3 分 | |
-| **D 收尾** | Slide 10 後半：第四章預告 | 🎞️ 投影片 | 0.5 分 | |
+| **C Codelab** | Slide 12 前半 → Codelab [#3 Chapter 3](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#3) 實作演練 | 📘 Codelab | 3 分 | |
+| **D 收尾** | Slide 12 後半：第四章預告 | 🎞️ 投影片 | 0.5 分 | |
 
 ---
 
@@ -113,11 +113,53 @@
 > 5. **waiting（核心重點！）**：又稱 **TTFB (Time to First Byte)**！這是從客戶端把請求發送完畢，到收到伺服器吐出第一個 Byte 的等待時間。這段時間伺服器在幹嘛？它在跑業務代碼、在查資料庫、在呼叫第三方服務！如果你的 API 延遲飆高，有 80% 的機率是卡在 waiting；  
 > 6. **receiving**：伺服器吐出資料後，客戶端把整個 Response Body 下載完畢的時間。  
 > 
-> 如果有一天你發現 waiting 只有 20ms，但 duration 高達 2 秒，receiving 佔滿了 1.9 秒，這代表什麼？這代表後端計算極快，但它愚蠢地把幾十萬筆沒做分頁的資料一口氣丟給前端！透過這六大指標，你甚至不用看後端代碼，就能在第一時間精準定位架構病因。」
+> 如果有一天你發現 waiting 只有 20ms，但 duration 高達 2 秒，receiving 佔滿了 1.9 秒，這代表什麼？這代表後端計算極快，但它愚蠢地把幾十萬筆沒做分頁的資料一口氣丟給前端！透過這六大指標，你甚至不用看後端代碼，就能在第一時間精準定位架構病因。  
+> 不過要特別注意：這六段**並不全部**算在 `http_req_duration` 裡，這個常見誤解我們等一下在 Slide 6 專門拆解。」
 
 ---
 
-### 【Slide 5 (原S6): 超越 HTTP：四大自訂指標型態】 (預估時間: 08:30 - 11:00)
+### 【Slide 5 (新增): 看懂 k6 結尾摘要：5 步驟判讀 SOP】 (預估時間: 08:30 - 11:00)
+
+* **畫面焦點**：左側深色終端機是一份「有問題」的結尾摘要，右側 5 張卡片是判讀順序 ①～⑤，底部是本例結論。
+* **螢幕動作**：【動作：依 ①→⑤ 順序，逐一把游標從左邊終端機的 ◀ 標記移到右邊對應卡片】。
+
+**【口播逐字稿】**：
+> 「認識了這麼多指標，接下來是最實用的問題：測試跑完，終端機吐出一大段摘要，**你到底該怎麼讀？**  
+> 新手最常犯的錯，是從第一行讀到最後一行，或者瞄一眼綠色勾勾就收工。資深工程師會帶著問題，照固定順序讀，一共五步。  
+> 
+> **第一步，看 THRESHOLDS，這是判決書。** 只回答一個問題：過關了沒？這份摘要的 `p(95)<500` 打了紅色叉叉，實際 812 毫秒。只要有一個叉，k6 就會以 Exit Code 99 結束。記下是哪個指標違規，後面每一步都在找「為什麼」。  
+> 
+> **第二步，看 checks，檢查功能正確性。** 成功率 99.58%，往下看是 `status is 200` 失敗了 25 次。提醒大家：check 是軟斷言，失敗不會讓 CI 失敗，要擋就得另外加 checks 門檻。  
+> 
+> **第三步，看 HTTP 群組，讀出分佈的形狀。** 不要只看一個數字！中位數 98 毫秒，P95 卻是 812 毫秒，差了 8 倍，這就是嚴重的長尾。經驗法則：P95 除以中位數超過 3 倍，就是長尾。另外，如果整體延遲比 `expected_response:true` 那行還快，代表錯誤回應在『快速失敗』，把延遲數字美化了。  
+> 
+> **第四步，看 EXECUTION，這次壓測本身有效嗎？** 這一步最多人忽略。`dropped_iterations` 是 37，而且 vus 的最大值 60，剛好碰到 vus_max 60。這代表 VU 池被用光了，**我們設定的 50 RPS 根本沒打出去**。流量沒打滿，結論就要打折扣。  
+> 
+> **第五步，看 NETWORK。** 38 MB 除以 2960 個請求，每筆回應大約 13 KB，合理。如果接收速率逼近壓測機的網卡上限，那瓶頸在壓測機，不在受測系統。  
+> 
+> 五步走完，結論就出來了：P95 違規、8 倍長尾、VU 池見底——**後端在大約 50 RPS 就已經飽和，慢請求把 VU 佔住，壓測端也補不上流量。** 這就是讀摘要和『看摘要』的差別。」
+
+---
+
+### 【Slide 6 (新增): 延遲拆解：http_req_duration 只算後 3 段】 (預估時間: 11:00 - 13:00)
+
+* **畫面焦點**：上方 6 格時間軸，左 3 格灰色（連線準備，不計入 duration），右 3 格紫色（`http_req_duration = sending + waiting + receiving`）；下方 4 張診斷卡；底部 `--summary-mode=full` 指令。
+* **螢幕動作**：【動作：先圈出上方兩個括號標籤，再由左至右掃過 4 張診斷卡，最後指向底部指令】。
+
+**【口播逐字稿】**：
+> 「剛才第三步如果發現延遲有問題，下一個問題就是：到底慢在哪一段？  
+> 這裡有一個非常多人搞錯的觀念，請大家看上面這條時間軸。k6 把一次請求拆成六段，但是 **`http_req_duration` 只算後面三段**：sending、waiting、receiving。左邊灰色的 blocked、connecting、tls_handshaking 是請求送出之前的連線準備時間，**完全不算在 duration 裡**。  
+> 
+> 這代表什麼？如果你的問題出在連線層，例如壓測機的本機埠耗盡、或每次請求都重新做 TLS 握手，**你只盯著 `http_req_duration` 是永遠看不到的**！它只會拉長 `iteration_duration`，以及真實使用者感受到的等待時間。  
+> 
+> 下面四張診斷卡：blocked 高，多半是壓測機本機埠耗盡、或沒有連線複用；connecting 或 tls 高，是每次都重建連線、或網路 RTT 太長。這兩種都是 duration 看不到的。  
+> 真正推高 duration 的是右邊兩張：**waiting，也就是 TTFB，是最常見的後端瓶頸**，慢查詢、連線池耗盡、CPU 飽和，都會反映在這裡，下一步就是拿 Tracing 去找最慢的 Span；receiving 高，代表 Payload 太大。  
+> 
+> 最後一個實用技巧：k6 預設的精簡摘要**不會列出這六個細分指標**。除錯的時候，請加上 `--summary-mode=full`。你可以自己驗證：把 sending、waiting、receiving 三個平均值加起來，剛好就等於 `http_req_duration` 的平均值。」
+
+---
+
+### 【Slide 7 (原S6): 超越 HTTP：四大自訂指標型態】 (預估時間: 13:00 - 15:30)
 
 * **畫面焦點**：四個生動的圖示矩陣：Counter（訂單計數器）、Gauge（即時水溫規/並行數）、Rate（成功率圓餅）、Trend（處理時長折線）。
 * **螢幕動作**：【動作：依序介紹四種指標類別】。
@@ -140,7 +182,7 @@
 
 ---
 
-### 【Slide 6 (原S7): 斷言三部曲完整對照】 (預估時間: 11:00 - 13:00)
+### 【Slide 8 (原S7): 斷言三部曲完整對照】 (預估時間: 15:30 - 17:30)
 
 * **畫面焦點**：三列橫向對比表：`check()` vs `thresholds` vs `expect()`，高亮標出層級、作用與是否具備 CI/CD 卡關能力。
 * **螢幕動作**：【動作：圈選 check 的軟斷言與 thresholds 的硬門禁】。
@@ -159,7 +201,7 @@
 
 ---
 
-### 【Slide 7 (原S8): 精準控制 API SLO：Thresholds 與 Tags 組合技】 (預估時間: 13:00 - 15:00)
+### 【Slide 9 (原S8): 精準控制 API SLO：Thresholds 與 Tags 組合技】 (預估時間: 17:30 - 19:30)
 
 * **畫面焦點**：程式碼展示：為不同標籤端點配置差異化 Thresholds，例如 `'http_req_duration{api_type:critical}': ['p(95)<300']`。
 * **螢幕動作**：【動作：圈選大括號內的 Tag 過濾條件】。
@@ -179,7 +221,7 @@
 
 ---
 
-### 【Slide 8 (原S9): CI/CD 自動卡關實務：Exit Code 99 傳遞鏈】 (預估時間: 15:00 - 17:00)
+### 【Slide 10 (原S9): CI/CD 自動卡關實務：Exit Code 99 傳遞鏈】 (預估時間: 19:30 - 21:30)
 
 * **畫面焦點**：GitLab CI / GitHub Actions 流程圖，壓測失敗時紅叉亮起，終端機放大顯示 `EXIT CODE: 99`。
 * **螢幕動作**：【動作：切換至終端機進行 Live Demo 實測 Exit Code 99】。
@@ -209,11 +251,11 @@
 
 ---
 
-✂️ **【分段點 B1 → A2】** 停錄；切回投影片 Slide 9。
+✂️ **【分段點 B1 → A2】** 停錄；切回投影片 Slide 11。
 
 ---
 
-### 【Slide 9 (原S10): 模組綜合實戰與即時熔斷】 (預估時間: 17:00 - 18:45)
+### 【Slide 11 (原S10): 模組綜合實戰與即時熔斷】 (預估時間: 21:30 - 23:15)
 
 * **畫面焦點**：架構化代碼模版，展示 `abortOnFail: true` 與 `delayAbortEval: '5s'` 配置。
 * **螢幕動作**：【動作：圈選 abortOnFail 參數】。
@@ -235,11 +277,11 @@
 > 【動作：按下 Enter】  
 > 大家看，原本要跑 20 次迭代，才兩秒左右就被腰斬，紅字寫著 `at least one has abortOnFail enabled, stopping test prematurely`，結束碼一樣是 99。在一小時的耐久測試裡，這兩秒跟六十分鐘的差別，就是你的雲端帳單。」
 
-✂️ **【分段點 B2 → C】** 停錄；切回投影片 Slide 10 開新片段。
+✂️ **【分段點 B2 → C】** 停錄；切回投影片 Slide 12 開新片段。
 
 ---
 
-### 【Slide 10 (原S2): 隨堂實作練習指引】 (預估時間: 18:45 - 20:00)
+### 【Slide 12 (原S2): 隨堂實作練習指引】 (預估時間: 23:15 - 24:30)
 
 * **畫面焦點**：Module 3 實作任務清單卡片（建立電商工作流、實作 Trend/Rate、設定 Tags、驗證 Exit Code 99）。
 * **螢幕動作**：【動作：切換至專案 demo 目錄指引學員開始上機】。
@@ -282,4 +324,4 @@
 >
 > 最後底部的『SRE 避坑指南』第一條請背下來：**check 只是輔助，threshold 才是法律**。好，回到投影片。」
 
-* **螢幕動作**：【🎞️ 切回投影片 Slide 10，唸「完成實作後……」預告段】
+* **螢幕動作**：【🎞️ 切回投影片 Slide 12，唸「完成實作後……」預告段】

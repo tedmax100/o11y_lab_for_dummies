@@ -24,6 +24,7 @@
    - **Ch3**：原 Slide 2（Lab Guide 實作指引）調整至全章最後一頁（Slide 10）。
    - **Ch4**：原 Slide 2（Flight Pre-check 起飛前清單）調整至 Slide 9（實作前檢核）。
    - **Ch5**：原 Slide 2（企業導入 Checklist Takeaway）調整至 Slide 9（實作前總結）。
+   - **結果判讀新增頁（原生文字方塊，由 `scripts/add_metric_reading_slides.py` 產生）**：Ch3 插入 Slide 5「看懂 k6 結尾摘要：5 步驟判讀 SOP」與 Slide 6「延遲拆解：http_req_duration 只算後 3 段」，原 Slide 5～10 順延為 7～12；Ch5 插入 Slide 8「看懂儀表板：6 種經典曲線型態」與 Slide 9「儀表板判讀 4 步驟 SOP」，原 Slide 8～11 順延為 10～13。上方各條所記的頁碼為當時編號。
 3. **圖片像素級技術勘誤 (Patching)**：
    - **Ch4 Slide 8**：修正 `options: { options: { browser: { type: 'chromium' } } }` 為標準 `browser: { type: 'chromium' }`。
    - **Ch5 Slide 10**：修正 Task 3 Docker 編譯指令中的 `-v $(pwd):/build` 為 `-v $(pwd):/xk6`。

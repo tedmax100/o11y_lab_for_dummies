@@ -33,6 +33,7 @@ Duration: 3
 - **Testing as Code**：告別 XML 點擊操作，使用標準 ES6 JavaScript 撰寫高維護性的測試腳本。
 - **Go 語言並發威力**：理解 Goroutine 如何在單機上以遠低於傳統執行緒模型的資源驅動數萬並發用戶。
 - **科學化流量建模**：破解「協調性漏測 (Coordinated Omission)」盲點，運用利特爾法則（Little's Law）配置開放模型。
+- **看懂測試結果**：用 5 步驟 SOP 判讀 k6 結尾摘要，並從儀表板的 6 種曲線型態找出系統飽和的「拐點」。
 - **精準品質門禁 (Quality Gates)**：設定 P95/P99 尾端延遲 SLO，以 **Exit Code 99** 在 CI/CD 中自動阻斷不良發布。
 - **全鏈路混合壓測 (Hybrid Testing)**：打造 **99:1 黃金配比**，兼顧後端高壓與前端 Core Web Vitals (LCP/INP/CLS) 真實渲染體驗。
 - **可觀測性閉環**：接入 Prometheus Remote Write 與 Grafana，實現 API 延遲突波與 Kubernetes CPU CFS Throttling 雙時間軸對齊除錯。
@@ -1001,7 +1002,7 @@ k6 run k6/spike-test.js
 ---
 
 ## Chapter 3: 效能指標解讀與 SLO 門檻自動化 (Quality Gates)
-Duration: 25
+Duration: 30
 
 ### 微服務黃金準則：Google SRE 與 RED Method 深度解剖
 
@@ -1027,22 +1028,24 @@ Duration: 25
 
 ### 延遲時間線微觀拆解：剖析 `http_req_duration` 底層生命週期
 
-許多工程師誤以為 `http_req_duration` 只是單純的「後端計算時間」，這是一個極大的誤解！在分散式網路環境中，一個 HTTP 請求的耗時由多個微觀階段組合而成：
+許多工程師誤以為 `http_req_duration` 只是單純的「後端計算時間」，也有人以為它包含了「從建立連線到收完回應」的全部時間——**兩者都不對！** k6 把一次 HTTP 請求拆成 6 個細分指標，但 `http_req_duration` 只涵蓋其中**後 3 段**：
 
 ```text
-[───────────────────────────────── http_req_duration ─────────────────────────────────]
-┌───────────────┬──────────────────┬──────────────┬──────────────┬──────────────────┬───────────────┐
-│ http_req_     │ http_req_        │ http_req_    │ http_req_    │ http_req_        │ http_req_     │
-│ blocked       │ connecting       │ tls_hand-    │ sending      │ waiting (TTFB)   │ receiving     │
-│               │                  │ shaking      │              │                  │               │
-└───────────────┴──────────────────┴──────────────┴──────────────┴──────────────────┴───────────────┘
-  等待本機連線池   TCP 三向握手建立   TLS 證書協商     傳送請求封包     伺服器處理與運算   下載回應內容至
-  空閒 Socket     SYN->SYN/ACK->ACK  密鑰交換開銷     上行傳輸時間     (DB 查詢 / 運算)  壓測客戶端完成
+ ┌─────────────── 連線準備階段（不計入 duration）─────────────┐┌──────────────── http_req_duration ────────────────┐
+ ┌──────────────────┬───────────────────┬─────────────────────┬──────────────┬──────────────────┬───────────────┐
+ │ http_req_blocked │ http_req_         │ http_req_tls_       │ http_req_    │ http_req_waiting │ http_req_     │
+ │                  │ connecting        │ handshaking         │ sending      │ (TTFB)           │ receiving     │
+ └──────────────────┴───────────────────┴─────────────────────┴──────────────┴──────────────────┴───────────────┘
+   等待可用連線槽位    TCP 三向握手         TLS 憑證協商與          傳送請求封包     伺服器處理與運算    下載回應內容至
+   (含 DNS 查詢)      SYN->SYN/ACK->ACK    密鑰交換                上行傳輸時間     (DB 查詢 / 運算)   壓測客戶端完成
 ```
+
+Positive
+: **官方定義**：`http_req_duration = http_req_sending + http_req_waiting + http_req_receiving`。`blocked`、`connecting`、`tls_handshaking` 是**額外**發生在請求送出之前的時間，它們會拉長 `iteration_duration`（以及真實使用者的體感），卻**不會**反映在 `http_req_duration` 上。親手驗證：執行 `k6 run --summary-mode=full script.js`，把 sending + waiting + receiving 三個 avg 加起來，會剛好等於 `http_req_duration` 的 avg。
 
 #### 延遲異常根因診斷矩陣 (Latency Diagnostic Matrix)
 
-當 `http_req_duration` 門檻超標時，請依據細分指標快速鎖定架構瓶頸：
+當延遲門檻超標、或 `iteration_duration` 莫名變長時，先用 `--summary-mode=full`（或 Web Dashboard 的 **Timings** 分頁）看到全部 6 個細分指標，再依據以下矩陣快速鎖定架構瓶頸。注意前兩項**不會**讓 `http_req_duration` 變高，只會讓 `iteration_duration` 變長——如果你只盯著 `http_req_duration`，連線層的問題會完全隱形：
 
 - **`http_req_blocked` 飆高**：
   - **可能病因**：壓測客戶端本機連線數達到上限、作業系統本機埠耗盡 (Local Port Exhaustion)、或未啟用 HTTP Keep-Alive 連線複用。
@@ -1088,6 +1091,99 @@ Negative
 ```
 
 只要後端呼叫的微服務鏈路擴展至 50 個，前端使用者遭遇卡頓的機率將直接飆升至 **39.5%**！這就是為什麼 Google 與 Netflix 等頂級工程團隊一律使用 P99 與 P99.9 作為生產級 SLO。
+
+---
+
+### 看懂 k6 結尾摘要：5 步驟判讀 SOP (Reading the End-of-Test Summary)
+
+每次 `k6 run` 結束，終端機都會吐出一大段摘要。新手最常犯的錯是「從第一行讀到最後一行」，或只瞄一眼綠色勾勾就收工。資深工程師會**依固定順序、帶著問題**去讀。以下是一份 k6 v1+/v2 格式的真實摘要（開放模型 `constant-arrival-rate`，目標 50 RPS 持續 60 秒，`maxVUs: 60`）：
+
+```text
+  █ THRESHOLDS
+
+    http_req_duration
+    ✗ 'p(95)<500' p(95)=812.4ms                              ◀ ① 判決：SLO 違規
+
+    http_req_failed
+    ✓ 'rate<0.01' rate=0.84%
+
+
+  █ TOTAL RESULTS
+
+    checks_total.......: 5920    98.7/s
+    checks_succeeded...: 99.58%  5895 out of 5920            ◀ ② 功能正確性
+    checks_failed......: 0.42%   25 out of 5920
+
+    ✗ status is 200
+      ↳  99% — ✓ 2935 / ✗ 25
+    ✓ body has items
+
+    HTTP
+    http_req_duration..............: avg=231.5ms min=12.1ms med=98.3ms max=4.21s p(90)=640.2ms p(95)=812.4ms
+      { expected_response:true }...: avg=226.9ms min=12.1ms med=97.9ms max=3.87s p(90)=631.7ms p(95)=801.0ms
+    http_req_failed................: 0.84%  25 out of 2960        ◀ ③ 延遲分佈形狀 + 錯誤率
+    http_reqs......................: 2960   49.3/s
+
+    EXECUTION
+    dropped_iterations.............: 37     0.62/s               ◀ ④ 壓測本身有沒有效
+    iteration_duration.............: avg=1.24s   min=1.01s  med=1.10s  max=5.22s p(90)=1.65s p(95)=1.82s
+    iterations.....................: 2960   49.3/s
+    vus............................: 7      min=1       max=60
+    vus_max........................: 60     min=60      max=60
+
+    NETWORK
+    data_received..................: 38 MB  630 kB/s             ◀ ⑤ 頻寬與 Payload
+    data_sent......................: 312 kB 5.2 kB/s
+```
+
+#### 步驟 ①：先看 `█ THRESHOLDS`——判決書
+
+- 這區只回答一個問題：**這次測試過關了沒？** `✓` 通過、`✗` 違規。只要有一個 `✗`，k6 就會以 **Exit Code 99** 結束（下一節 CI/CD 卡關的基礎）。
+- 看到 `✗` 時，記下是**哪個指標、哪個統計量**違規（本例是 `http_req_duration` 的 `p(95)`），接下來的步驟都是在找「為什麼」。
+
+#### 步驟 ②：看 `checks`——功能到底對不對
+
+- `checks_succeeded` 不是 100% 時，往下看每條 check 的 `↳ 99% — ✓ 2935 / ✗ 25`，找出是哪條斷言在失敗。
+- **陷阱**：`check()` 是軟斷言，**失敗不會讓 k6 回傳非 0**！若要讓 check 失敗能卡關，必須另外加門檻 `checks: ['rate>0.99']`。
+
+#### 步驟 ③：看 `HTTP` 群組——讀出延遲分佈的「形狀」
+
+不要只看單一數字，而是把一整行當作分佈來讀：
+
+| 比較 | 判讀法則 | 本例 |
+| :-- | :-- | :-- |
+| `med` vs `p(95)` | 比值 > 3 倍 → 明顯**長尾**，少數請求很慘 | 98ms vs 812ms ≈ 8 倍 → 嚴重長尾 |
+| `avg` vs `med` | `avg` 遠大於 `med` → 分佈右偏，被極端值拉高 | 231ms vs 98ms → 右偏 |
+| `max` | 出現整數秒（如 `60s`）通常是**逾時**，不是真的處理那麼久 | 4.21s，未觸及逾時 |
+| 整體 vs `{ expected_response:true }` | 後者只算成功回應。若**整體明顯比成功的還快**，代表錯誤回應「快速失敗」把延遲拉低了 | 兩者接近，錯誤不是快速失敗 |
+| `http_reqs` 的速率 | 系統實際吞吐 (RPS)，要跟你設計的目標流量比對 | 49.3/s，略低於目標 50/s，差額就是被丟掉的迭代 |
+
+#### 步驟 ④：看 `EXECUTION` 群組——這次壓測本身「有效」嗎？
+
+- **`dropped_iterations` > 0**：k6 沒有空閒 VU 可以啟動新迭代，**你設定的流量根本沒打出去**（見 Chapter 2）。本例丟了 37 次。
+- **`vus` 的 `max` 等於 `vus_max`**：VU 池被用光了。這跟 `dropped_iterations` 通常一起出現，根因多半是**後端變慢**，VU 被長尾請求卡住回不來。
+- **`iteration_duration` 遠大於 `http_req_duration`**：差距來自 `sleep()`、多個請求串接、客戶端處理，以及 `blocked`/`connecting`/`tls` 這些**不計入** `http_req_duration` 的連線時間。差距異常大時，用 `--summary-mode=full` 檢查 6 個細分指標。
+
+#### 步驟 ⑤：看 `NETWORK` 群組——頻寬與 Payload 合理嗎？
+
+- `data_received ÷ http_reqs` = 平均每筆回應大小。本例 38 MB ÷ 2960 ≈ **13 KB/筆**，若某支 API 突然變成數百 KB，要懷疑沒分頁或少了壓縮。
+- `data_received` 的速率接近壓測機網卡上限時（例如 100 Mbps ≈ 12.5 MB/s），**瓶頸可能在壓測機，而不是受測系統**。
+
+Positive
+: **本例結論**：P95 違規（①），而延遲分佈呈現 8 倍長尾（③）。目標 50 RPS 只打出 49.3、丟了 37 次迭代、VU 池用光（④）——**後端在接近 50 RPS 時已飽和，長尾請求佔住 VU，壓測端也因此補不上流量**。下一步：用 Chapter 5 的儀表板找出飽和的「拐點」時間，再對齊後端指標找根因。
+
+#### 常見誤判對照表
+
+| 看到的現象 | ❌ 常見誤判 | ✅ 正確解讀 |
+| :-- | :-- | :-- |
+| `avg` 很低 | 「系統很快，沒問題」 | 平均值會掩蓋長尾，一律以 `p(95)`/`p(99)` 為準 |
+| 錯誤率高，但延遲超漂亮 | 「只是有點錯，速度很好」 | 錯誤回應通常**快速失敗**（如 503 立刻返回），拉低了延遲。改看 `{ expected_response:true }` |
+| 所有門檻 ✓，但有 `dropped_iterations` | 「測試通過」 | 目標流量沒打滿，**結果無效**，應加門檻 `dropped_iterations: ['count==0']` |
+| check 有 ✗，但 Exit Code 是 0 | 「CI 沒擋，應該沒事」 | check 是軟斷言，需加 `checks: ['rate>0.99']` 門檻 |
+| `http_req_duration` 正常，但使用者說慢 | 「後端很快，是使用者網路的問題」 | 看 `http_req_blocked`/`connecting`/`tls_handshaking`（不計入 duration），或改用 k6 Browser 量測前端渲染 |
+
+Negative
+: **預設摘要會隱藏細分指標**：k6 v1 起預設為精簡模式 (`compact`)，`http_req_blocked`、`http_req_waiting` 等 6 個細分指標不會列出。除錯時請加上 `--summary-mode=full`，它還會依 `group` 與 `scenario` 分別列出指標。
 
 ---
 
@@ -1388,6 +1484,7 @@ k6 run -e FAIL_SLO=false k6/demos/ch3_quality_gates_exit99.js ; echo "CI Exit Co
 > 1. **標籤與分組隔離 (Tagging & Groups)**：終端機清楚呈現 `http_req_duration{api_type:critical}` 以及 `{group:::01_核心結帳交易}`、`{group:::02_背景報表查詢}`，實現微服務端點的精確 SLO 分級治理。
 > 2. **四大自訂指標 (Custom Metrics)**：`active_workers_gauge` (Gauge 瞬時水位)、`orders_submitted_total` (Counter 累計)、`business_transaction_success` (Rate 成功率)、`custom_db_processing_duration` (Trend 統計趨勢) 完整呈現。
 > 3. **門禁放行**：所有 Thresholds 打上綠色勾勾 `✓`，命令輸出結尾回傳 `CI Exit Code: 0`，代表管線驗證通過！
+> 4. **套用 5 步驟判讀**：即使全部通過，也請照「看懂 k6 結尾摘要」的順序走一遍：`med` 與 `p(95)` 差幾倍？`vus` 的 max 有沒有碰到 `vus_max`？再加上 `--summary-mode=full` 重跑一次，找出 6 個細分延遲裡最大的是哪一段。
 
 #### 實作 2：模擬關鍵門檻違規與 CI/CD 卡關（Exit Code 99）
 
@@ -1426,9 +1523,11 @@ k6 run -e ABORT_TEST=true k6/demos/ch3_quality_gates_exit99.js ; echo "CI Exit C
    - 永遠記得：`check()` 失敗不會讓 CI 停止！若要使錯誤阻斷部署，必須在 `thresholds` 宣告 `'checks': ['rate==1.0']`。
 2. **拿掉所有平均值，嚴格遵循 P95 / P99**：
    - 產品 SLA 合約與 SRE 審查一律以百分位數為準，平均值只能當作參考背景值。
-3. **分級治理，多用標籤過濾 (Tag Filtering)**：
+3. **讀摘要要有順序：判決 → 正確性 → 分佈形狀 → 壓測有效性 → 頻寬**：
+   - 門檻全綠不代表結果可信。只要出現 `dropped_iterations` 或 VU 池見底，這次壓測就沒打出目標流量，結論必須作廢重測。
+4. **分級治理，多用標籤過濾 (Tag Filtering)**：
    - 嚴格隔離 Critical 核心業務與 Background 背景報表端點，避免次要服務的延遲劣化破壞全域發版。
-4. **長跑測試務必配置 `abortOnFail`**：
+5. **長跑測試務必配置 `abortOnFail`**：
    - 任何超過 30 分鐘的壓力測試，都必須設置錯誤率熔斷，保護測試環境不受毀滅性打擊。
 
 ---
@@ -1713,7 +1812,7 @@ Positive
 ---
 
 ## Chapter 5: 生態系擴充與全視角可觀測性整合
-Duration: 25
+Duration: 30
 
 ### 破除效能數據孤島：壓測納入全視角可觀測性體系
 
@@ -1966,6 +2065,77 @@ k6 run \
 
 ---
 
+### 看懂儀表板：從曲線型態判讀系統狀態 (Reading the Dashboard)
+
+Chapter 3 教你讀「一次測試結束後的總結數字」；儀表板則讓你看到**數字隨時間怎麼變化**。總結只告訴你「P95 = 812ms」，曲線才會告訴你「P95 在第 35 秒、負載來到 45 RPS 時開始抬頭」——這個**拐點**才是容量規劃真正需要的答案。
+
+#### 1. Web Dashboard 三大分頁地圖
+
+| 分頁 | 內容 | 回答什麼問題 |
+| :-- | :-- | :-- |
+| **Overview** | 上排 6 個數字卡（Iteration Rate、HTTP Request Rate、HTTP Request Duration、HTTP Request Failed、Received/Sent Rate）；**HTTP Performance overview**（請求速率 + P95 延遲 + 失敗率疊在同一張圖）；VUs、Transfer Rate、HTTP Request Duration、Iteration Duration 四張趨勢圖 | 系統在什麼負載下開始變慢或出錯？ |
+| **Timings** | `http_req_duration` 的 6 個細分指標各一張圖（Waiting、Blocked、Connecting、TLS handshaking、Sending、Receiving），另有 Browser、WebSocket、gRPC 區塊 | 變慢的是哪一段？後端運算還是連線層？ |
+| **Summary** | 所有 Trend / Counter / Rate / Gauge 指標的結尾統計表 | 等同終端機摘要，可用 Chapter 3 的 5 步驟判讀 |
+
+Negative
+: **Overview 數字卡陷阱**：上排的 `HTTP Request Duration` 大數字顯示的是**平均值 (avg)**，不是 P95！判讀延遲請看下方 **HTTP Performance overview** 圖中的 P95 曲線，或 **HTTP Request Duration** 圖中的 P90/P95/P99 線。
+
+#### 2. 判讀核心心法：永遠把「負載軸」和「反應軸」疊在一起看
+
+單看延遲曲線沒有意義：延遲上升可能只是因為負載變大了。判讀時一定要同時看兩組線：
+
+- **負載軸（你施加了多少壓力）**：`vus`、請求速率 (`http_reqs` rate)
+- **反應軸（系統怎麼回應）**：P95/P99 延遲、失敗率 (`http_req_failed`)
+
+Web Dashboard 的 **HTTP Performance overview** 和 **VUs**（VU 數與請求速率疊圖）就是為此設計的。背後的數學是 Chapter 2 的利特爾法則：在閉環模型下，`RPS ≈ VUs ÷ (回應時間 + sleep)`。當 VU 增加但 RPS 不再增加時，**一定**是回應時間變長了。
+
+#### 3. 六種經典曲線型態
+
+```text
+ ① 健康線性                 ② 飽和平台 (拐點)            ③ 崩潰懸崖
+ VUs  ╱                     VUs  ╱                       RPS ──╮
+ RPS ╱                      RPS ╱‾‾‾‾‾‾‾                       ╰──╮___
+ P95 ───────────            P95 ─────╱                   P95 ────╱‾‾‾‾‾
+                                    ↑拐點                 ERR ────╱‾‾‾‾‾
+
+ ④ 尾巴張開                 ⑤ 緩慢爬坡 (Soak)            ⑥ 週期鋸齒
+ P99 ───────╱‾‾             VUs ───────────              P95 ─╱╲──╱╲──╱╲─
+ P95 ─────────              P95 ___----‾‾‾‾               （固定間隔尖峰）
+ P90 ─────────              （負載不變，延遲緩升）
+```
+
+| 型態 | 你看到的 | 代表什麼 | 下一步 |
+| :-- | :-- | :-- | :-- |
+| **① 健康線性** | VUs ↑、RPS 同比例 ↑、P95 平穩 | 系統仍有餘裕 | 繼續加壓，找出上限 |
+| **② 飽和平台** | VUs 持續 ↑，但 **RPS 走平**；同一時間 P95 開始爬升 | 達到容量上限，請求開始排隊。**拐點當下的 RPS 就是系統容量** | 記下拐點時間，到 Timings 分頁確認是 Waiting 在漲 |
+| **③ 崩潰懸崖** | P95 垂直暴衝、**錯誤率同時竄升**、RPS 反而下降 | 佇列溢出、逾時、連線池或執行緒池耗盡 | 找「錯誤率第一次 > 0」的時間點，對齊後端日誌 |
+| **④ 尾巴張開** | P90/P95 平穩，**P99 越拉越開** | 只有少數請求受害：GC 停頓、鎖競爭、快取失效、某個慢節點 | 用 Tags 拆端點找出元兇；對齊 GC 與 DB 鎖指標 |
+| **⑤ 緩慢爬坡** | **負載不變**，延遲隨時間緩慢上升 | 資源洩漏：記憶體、連線、檔案描述符；或資料表持續膨脹 | 典型的 Soak 測試發現，對齊記憶體與連線數曲線 |
+| **⑥ 週期鋸齒** | 固定間隔出現尖峰 | 排程任務、GC 週期、快取 TTL 同時到期、自動擴縮容 | 量出尖峰間隔，比對 cron、TTL 與 HPA 設定 |
+
+Positive
+: **別忘了檢查壓測機自己**：若 RPS 走平，但後端 CPU 很閒、延遲也沒漲，瓶頸可能在**壓測機**（CPU 滿載、網卡頻寬用光）或 `dropped_iterations` 已經出現。Web Dashboard 看不到壓測機資源，請同時開 `top` 觀察 k6 行程。
+
+#### 4. 本專案 Grafana 儀表板 (`k6-live-metrics`) 逐面板判讀
+
+| 面板 | 回答什麼問題 | 判讀注意事項 |
+| :-- | :-- | :-- |
+| 🚀 **Total Requests** | 這次總共打了多少請求？ | 是累積數，只能確認「有沒有打出去」，不代表效能 |
+| ⚡ **P95 Request Duration** | 整體延遲水位？ | 查詢是 `avg(k6_http_req_duration_p95)`，把多條時間序列的 P95 **再取平均**，是近似值（百分位數在數學上不能平均）。要精確值可改用原生直方圖（`K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM=true`）搭配 `histogram_quantile()` |
+| 👥 **Active VUs** | 施加了多少壓力？ | 與延遲面板對照，找出拐點 |
+| 🎯 **Business Transaction Success Rate** | 業務流程真的成功了嗎？ | 來自自訂 `Rate` 指標。**HTTP 200 不代表業務成功**，若它下降但 `http_req_failed` 正常，代表 API 回了 200 但內容錯誤 |
+| 📈 **Duration Percentiles (P90/P95/P99)** | 延遲分佈隨時間怎麼變？ | 直接套用上面的型態 ②④⑤⑥ |
+| 🏷️ **Requests by Tagged Endpoint** | 流量配比是否符合設計？ | 若配比與腳本預期不符（例如結帳佔比過低），這次壓測結果就不具代表性 |
+
+#### 5. 儀表板判讀 4 步驟 SOP
+
+1. **確認壓力真的打出去了**：VUs 與 RPS 是否符合腳本設計？有沒有 `dropped_iterations`？流量配比對不對？
+2. **找出拐點時間**：在延遲或錯誤率曲線上，找到第一個偏離平穩的時間點，並記下當下的 VUs 與 RPS。
+3. **定位是哪一段變慢**：切到 Timings 分頁。Waiting 漲是後端運算，Blocked/Connecting 漲是連線層，Receiving 漲是 Payload 過大。
+4. **對齊後端指標找根因**：把拐點時間帶進 Grafana，用共享十字準星對齊基礎設施指標——這就是下一節的「破案現場」。
+
+---
+
 ### 顛峰時刻：Grafana 雙十字準星全視角對齊 (Crosshair Convergence)
 
 什麼是全視角可觀測性帶來的降維打擊？請看以下真實生產環境除錯案例：
@@ -2014,6 +2184,7 @@ K6_WEB_DASHBOARD=true k6 run k6/demos/ch5_dashboard_and_html_summary.js
 > 1. 控制台輸出提示：`Web dashboard: http://127.0.0.1:5665`。
 > 2. 打開瀏覽器訪問該網址，觀察測試執行期間圖表即時繪製的動態曲線（包含 HTTP Req Rate、P95 Latency、Active VUs 等）！
 > 3. 測試完成後可點擊右上角「REPORT」按鈕直接匯出單一靜態 HTML 報告。
+> 4. **練習判讀**：在 **Overview** 分頁比對 VUs 與請求速率兩條線是否同步上升（型態 ① 健康線性），再切到 **Timings** 分頁，找出 6 個細分延遲中哪一段最大。記得：上排數字卡的 Duration 是 avg，不是 P95。
 
 #### 實作 2：CI/CD 離線 HTML 報告匯出與 handleSummary 客製化（Port=-1 驗證）
 
@@ -2061,6 +2232,7 @@ k6 run k6/demos/ch5_dashboard_and_html_summary.js
 >    - **HTTP Request Duration Percentiles (P90 / P95 / P99)** 延遲趨勢圖。
 >    - **Requests by Tagged Endpoint** 端點維度佔比分析圓環圖。
 >    - 右上角可依照 `commit_id`、`git_branch` 與 `environment` 動態過濾，實現跨版本的基準線對比！
+> 4. **練習判讀**：對照「本專案 Grafana 儀表板逐面板判讀」表格，確認 Active VUs 上升時 P95 是否跟著抬頭、P99 是否與 P95 越拉越開（型態 ④），以及 Requests by Tagged Endpoint 的配比是否符合腳本設計。
 
 ---
 
@@ -2099,7 +2271,9 @@ k6 run k6/demos/ch5_dashboard_and_html_summary.js
    - 每一次合併到 `main` 分支的代碼都必須帶有 Commit ID 進行回歸壓測。當延遲退化時，一眼即可看出是哪一次 Commit 引入的效能退化。
 3. **編譯 xk6 嚴格遵守 Docker 確定性原則**：
    - 避免在個人電腦隨意 `go install`。統一使用 Docker 映像檔編譯，並嚴格加上 `-u $(id -u):$(id -g)` 確保檔案權限正常。
-4. **結合分散式追蹤 (Tracing) 與主機監控破除盲區**：
+4. **看儀表板要找「拐點」，不是看最終數字**：
+   - 永遠把負載軸（VUs / RPS）與反應軸（P95/P99 / 錯誤率）疊在一起看。RPS 走平而延遲開始爬升的那一刻，就是系統容量。
+5. **結合分散式追蹤 (Tracing) 與主機監控破除盲區**：
    - 當 P95 飆高時，第一時間看 CPU CFS Throttling、記憶體分頁錯誤與 DB 連線池水位，拒絕憑感覺除錯。
 
 ---

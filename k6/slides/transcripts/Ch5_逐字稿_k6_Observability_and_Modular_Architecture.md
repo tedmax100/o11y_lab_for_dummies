@@ -2,7 +2,7 @@
 
 > **課程名稱**：現代化效能測試實戰：從 k6 到雲原生可觀測性  
 > **章節名稱**：Module 5: 生態系擴充與監控儀表板帶領 — 邁向企業級可觀測性  
-> **預估時長**：15 ~ 20 分鐘  
+> **預估時長**：25 ~ 28 分鐘  
 > **配套簡報**：[`k6/slides/Ch5_k6_Observability_and_Modular_Architecture.pptx`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/slides/Ch5_k6_Observability_and_Modular_Architecture.pptx)  
 > **配套演示**：  
 > - [`k6/demos/ch5_dashboard_and_html_summary.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch5_dashboard_and_html_summary.js) (原生 Web 儀表板與 handleSummary 自訂報告)  
@@ -15,7 +15,7 @@
 - [ ] 簡報切換至 Chapter 5 封面（共 11 頁投影片，確認順序：Takeaway Checklist 在第 9 頁，延伸閱讀在第 10 頁，隨堂練習在第 11 頁）。
 - [ ] 瀏覽器預先開啟 Grafana 登入頁面：`http://localhost:3000`（若 Docker Compose 已啟動）。
 - [ ] 終端機預先測試指令：`K6_WEB_DASHBOARD=true k6 run k6/demos/ch5_dashboard_and_html_summary.js`。
-- [ ] 講述提示：突顯 Slide 8「雙十字準星對齊 CPU CFS Throttling」為全課高潮點，並在 Slide 10 隆重引薦講師技術專欄。
+- [ ] 講述提示：突顯 Slide 10「雙十字準星對齊 CPU CFS Throttling」為全課高潮點，並在 Slide 12 隆重引薦講師技術專欄。
 
 ---
 
@@ -32,9 +32,9 @@
 | **B2 Demo** | xk6：只秀 `bin/k6-custom version`，**不現場編譯** | 🖥️ 終端機 | 0.5 分 | 錄影前先跑 `ch5_xk6_docker_build.sh` |
 | **A3 觀念** | Slide 7 | 🎞️ 投影片 | 2 分 | |
 | **B3 Demo** | `./k6/demos/ch5_prometheus_remote_write.sh` → 🌐 Grafana `k6-live-metrics` | 🖥️ + 🌐 | 2.5 分 | **需 docker compose**；開錄前 10 分鐘先起，Grafana 才有曲線 |
-| **A4 觀念** | Slide 8 → Slide 10 | 🎞️ 投影片 | 7 分 | Slide 8 是全課高潮 |
-| **C Codelab** | Slide 11 前半 → Codelab [#5 Chapter 5](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#5) 實作演練 | 📘 Codelab | 3 分 | |
-| **D 收尾** | Slide 11 後半：第六章預告 | 🎞️ 投影片 | 0.5 分 | |
+| **A4 觀念** | Slide 8 → Slide 12 | 🎞️ 投影片 | 11.5 分 | Slide 8–9 儀表板判讀；Slide 10 是全課高潮 |
+| **C Codelab** | Slide 13 前半 → Codelab [#5 Chapter 5](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#5) 實作演練 | 📘 Codelab | 3 分 | |
+| **D 收尾** | Slide 13 後半：第六章預告 | 🎞️ 投影片 | 0.5 分 | |
 
 ---
 
@@ -201,7 +201,47 @@
 
 ---
 
-### 【Slide 8 (原S9): Grafana 全視角對齊：CPU CFS Throttling 破除孤島】 (預估時間: 15:00 - 17:30)
+### 【Slide 8 (新增): 看懂儀表板：6 種經典曲線型態】 (預估時間: 15:00 - 17:30)
+
+* **畫面焦點**：3×2 六張迷你折線圖卡片，每張下方有「看到／代表」兩行。副標：負載軸與反應軸疊在一起看。
+* **螢幕動作**：【動作：依 ①→⑥ 順序逐張指出；講到 ② 時用游標停在 RPS 走平、P95 抬頭的交會點】。
+
+**【口播逐字稿】**：
+> 「數據已經全部串進 Grafana 了。但儀表板上滿滿的曲線，**你看得懂嗎？** Chapter 3 我們學了讀結尾摘要，摘要只告訴你『P95 等於 812 毫秒』；曲線才會告訴你『第 35 秒、負載到 45 RPS 的時候開始抬頭』。這個**拐點**才是容量規劃真正要的答案。  
+> 
+> 看儀表板只有一個心法：**永遠把負載軸和反應軸疊在一起看。** 負載軸是 VUs 和 RPS，反應軸是 P95、P99 和錯誤率。單看延遲上升沒有意義，因為負載本來就在加。  
+> 
+> 六種最常見的型態：  
+> **第一種，健康線性。** VUs 和 RPS 同比例往上，P95 平平的，代表還有餘裕，繼續加壓。  
+> **第二種，飽和平台，這是最重要的一張。** VUs 還在加，RPS 卻走平了，同一時間 P95 開始爬。還記得利特爾法則嗎？RPS 等於 VUs 除以回應時間，VU 變多但 RPS 不變，回應時間就一定變長了。**拐點當下的 RPS，就是你系統的容量。**  
+> **第三種，崩潰懸崖。** P95 垂直暴衝，錯誤率同時竄升，RPS 反而往下掉，這是佇列溢出、逾時、連線池耗盡。  
+> **第四種，尾巴張開。** P90、P95 都很平穩，只有 P99 越拉越開，代表少數請求受害，常見原因是 GC 停頓、鎖競爭、快取失效。  
+> **第五種，緩慢爬坡。** 負載完全沒變，延遲卻隨時間慢慢往上，這是 Soak 測試最想抓到的資源洩漏。  
+> **第六種，週期鋸齒。** 固定間隔出現尖峰，去查排程任務、GC 週期、快取 TTL 同時到期，或自動擴縮容。」
+
+---
+
+### 【Slide 9 (新增): 儀表板判讀 4 步驟 SOP】 (預估時間: 17:30 - 19:30)
+
+* **畫面焦點**：左側 4 個步驟卡片；右上 Web Dashboard 分頁地圖（Overview／Timings／Summary）；右下三個判讀陷阱。
+* **螢幕動作**：【動作：先由上而下講完左側 4 步，再指右下陷阱卡；講到步驟 4 時預告「下一頁」】。
+
+**【口播逐字稿】**：
+> 「把六種型態串起來，就是這一頁的四步驟 SOP。  
+> **第一步，確認壓力真的打出去了。** VUs 和 RPS 符合你的腳本設計嗎？有沒有 dropped_iterations？流量配比對不對？壓力沒打出去，後面都不用看。  
+> **第二步，找出拐點時間。** 延遲或錯誤率第一次偏離平穩的那一刻，記下當下的 VUs 和 RPS。  
+> **第三步，定位是哪一段變慢。** 切到 Web Dashboard 的 Timings 分頁：Waiting 漲是後端運算，Blocked、Connecting 漲是連線層，Receiving 漲是 Payload 太大。  
+> **第四步，對齊後端指標找根因。** 把拐點時間帶進 Grafana，用共享十字準星對齊 CPU、記憶體、DB 連線池——這就是下一頁的破案現場。  
+> 
+> 右下角三個陷阱，我看過太多人踩：  
+> 第一，Web Dashboard Overview 最上排那個 HTTP Request Duration 大數字，**是平均值，不是 P95**！延遲請看下方的 P95、P99 曲線。  
+> 第二，我們自己 Grafana 上的 P95 面板，查詢是把多條序列的 P95 再取平均。百分位數在數學上是不能平均的，所以它只是近似值；要精確值，請開啟 Prometheus 的 Native Histogram。  
+> 第三，如果 RPS 走平，但後端 CPU 很閒、延遲也沒漲，**瓶頸可能是壓測機自己**，請去看 k6 那台主機的 CPU 和網卡。  
+> 好，帶著這四個步驟，我們來看一個真實的破案現場。」
+
+---
+
+### 【Slide 10 (原S9): Grafana 全視角對齊：CPU CFS Throttling 破除孤島】 (預估時間: 19:30 - 22:00)
 
 * **畫面焦點**：Grafana 雙十字準星（Shared Crosshair）對齊畫面：上方 k6 延遲突然飆高至 2 秒，下方 Kubernetes CPU CFS Throttling（CPU 限流）在同一秒狂飆至 80%。
 * **螢幕動作**：【動作：以極度震撼、解密的口吻，指引雙時間軸在 14:02 分的完全對齊】。
@@ -222,7 +262,7 @@
 
 ---
 
-### 【Slide 9 (原S2): 企業導入實作 Checklist (Takeaway)】 (預估時間: 17:30 - 19:15)
+### 【Slide 11 (原S2): 企業導入實作 Checklist (Takeaway)】 (預估時間: 22:00 - 23:45)
 
 * **畫面焦點**：企業落地三大清單面向（本地開發與協作、CI/CD 整合、進階擴充與全域遙測）。
 * **螢幕動作**：【動作：平穩回顧全課程重點，做最後的精華收斂】。
@@ -240,7 +280,7 @@
 
 ---
 
-### 【Slide 10: 推薦延伸閱讀 — 講師深度實戰專欄 (Author's Deep-Dive Articles)】 (預估時間: 19:15 - 21:45)
+### 【Slide 12: 推薦延伸閱讀 — 講師深度實戰專欄 (Author's Deep-Dive Articles)】 (預估時間: 23:45 - 26:15)
 
 * **畫面焦點**：展示三大主題專欄卡片（xk6 模組擴充、前端混壓測試、全鏈路閉環），搭配專屬色彩邊框、關鍵亮點與專欄連結按鈕。
 * **螢幕動作**：【動作：逐一指引三張技術卡片，以沉穩專業口吻介紹每篇文章解決的進階架構痛點】。
@@ -265,7 +305,7 @@
 
 ---
 
-### 【Slide 11: 隨堂練習指引與全系列結語】 (預估時間: 21:45 - 23:30)
+### 【Slide 13: 隨堂練習指引與全系列結語】 (預估時間: 26:15 - 28:00)
 
 * **畫面焦點**：Ch5 實作任務清單（啟動 Docker Lab、執行 Prometheus 推播腳本、開啟 Grafana 查看自訂 Commit Tag）。
 * **螢幕動作**：【動作：展示終端機腳本，向學員做深情而有力的結業致詞】。
@@ -310,4 +350,4 @@
 > 【動作：捲到下方「推薦延伸閱讀」停 2 秒】
 > 最下面是我寫的三篇延伸文章，xk6 插件開發、k6 browser、還有一篇完整的上手實戰，想深入的同學可以慢慢看。好，我們回到投影片。」
 
-* **螢幕動作**：【🎞️ 切回投影片 Slide 11，唸第六章預告段】
+* **螢幕動作**：【🎞️ 切回投影片 Slide 13，唸第六章預告段】
