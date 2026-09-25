@@ -40,7 +40,7 @@
 ./k6/demos/preflight.sh --check-only   # 只檢查相依服務，不跑 k6
 ```
 
-有 FAIL 就先別開錄。Ch1、Ch5 需要 `docker compose up -d`；Ch2～Ch6 依賴公網 QuickPizza。
+有 FAIL 就先別開錄。Ch5 需要 `docker compose up -d`；Ch1～Ch6 依賴公網 QuickPizza。
 
 ---
 

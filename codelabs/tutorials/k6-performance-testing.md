@@ -442,7 +442,7 @@ Positive
 打開終端機，依序執行專案為您準備好的 3 組實戰指令，親身體驗生命週期、CLI 覆蓋與通訊除錯：
 
 Negative
-: **前置條件**：`ch1_lifecycle_and_checks.js` 預設打向本專案的 API Gateway（`http://localhost:8080`，含 `/health` 與 `/api/process` 端點）。請先在專案根目錄執行 `docker compose up -d` 啟動實驗環境，否則所有 check 與 thresholds 都會失敗。
+: **前置條件**：`ch1_lifecycle_and_checks.js` 預設打向 Grafana 公開的 QuickPizza（`https://quickpizza.grafana.com`，使用 `/healthz` 與 `/api/pizza/{id}` 端點），不需啟動本機環境，但需要能連外網。若所有 check 與 thresholds 都失敗，請先檢查網路。
 
 #### 步驟 1：依照腳本內預設 Options 執行 (vus: 2, iterations: 4)
 
@@ -466,7 +466,7 @@ k6 run --vus 10 --duration 30s k6/demos/ch1_lifecycle_and_checks.js
 
 #### 步驟 3：搭配 HTTP 除錯旗標觀察底層通訊 Header 與 Body (單一 VU 冒煙模式)
 
-加上 `--http-debug` 旗標透視底層 HTTP Request（包含 Mock JWT Token）與 200 OK Response 封包細節：
+加上 `--http-debug` 旗標透視底層 HTTP Request（包含 `Authorization` token）與 200 OK Response 封包細節：
 
 ```bash
 k6 run --vus 1 --iterations 1 --http-debug k6/demos/ch1_lifecycle_and_checks.js

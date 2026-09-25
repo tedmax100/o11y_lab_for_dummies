@@ -13,7 +13,7 @@
 - [ ] 開啟 VS Code，載入專案目錄 `/home/nathan/Project/o11y_lab_for_dummies`。
 - [ ] 終端機切換至專案根目錄，確認 `k6 version` 正常可用。
 - [ ] 確認 `k6 x mcp --help` 可正常執行（新版 k6 以 `k6 x` 子命令提供 MCP，無須 Node.js / npx）。
-- [ ] 專案根目錄執行 `docker compose up -d`（Slide 9 Demo 打 `localhost:8080` 的 API Gateway）。
+- [ ] 確認能連上 QuickPizza：`curl -I https://quickpizza.grafana.com/healthz`（Slide 9 Demo 打公開的 QuickPizza，不需啟動本機環境）。
 - [ ] 瀏覽器分頁預先開好 Codelab `#0` 與 `#1`（C 段使用）。
 - [ ] 簡報全螢幕播放停在第 1 頁封面。
 
@@ -27,7 +27,7 @@
 | 片段 | 內容 | 畫面 | 預估 | 備註 |
 | :-- | :-- | :-- | :-: | :-- |
 | **A 觀念** | Slide 1 → Slide 9 前半（代碼導讀） | 🎞️ 投影片 | 17 分 | 照逐字稿，可分 2~3 段錄 |
-| **B Demo** | Slide 9 後半：`k6 run k6/demos/ch1_lifecycle_and_checks.js` | 🖥️ 終端機 | 2 分 | **需先 `docker compose up -d`**（打 `localhost:8080`） |
+| **B Demo** | Slide 9 後半：`k6 run k6/demos/ch1_lifecycle_and_checks.js` | 🖥️ 終端機 | 2 分 | 打公開的 QuickPizza，需要外網 |
 | **C Codelab** | Codelab [#0 課程導讀](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#0) + [#1 Chapter 1](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#1) 實作演練 | 📘 Codelab | 4 分 | 全系列第一次露出 Codelab，順便教怎麼用 |
 | **D 收尾** | Slide 10 總結 + 第二章預告 | 🎞️ 投影片 | 1.5 分 | |
 
@@ -275,7 +275,7 @@
 **【口播逐字稿】**：
 > 「我們跳到第 1 頁，直接拉到最下面的『實作演練』。
 >
-> 先看這個紅色框框，這是前置條件：第一章的範例腳本打的是本機的 API Gateway `localhost:8080`，所以一定要先把 docker compose 跑起來，否則你會看到所有 check 都失敗、thresholds 也失敗——那不是你寫錯，是服務沒開。
+> 先看這個紅色框框，這是前置條件：第一章的範例腳本打的是 Grafana 公開的 QuickPizza，不用在本機起任何服務，但電腦要能連外網。如果你看到所有 check 都失敗、thresholds 也失敗，先檢查網路——那不是你寫錯，是連不到服務。
 >
 > 這一節有四個步驟，前三步在練 CLI 技巧，第四步是剛才投影片講的 group 旅程：
 > **步驟 1**，用腳本裡預設的 options 直接跑，重點是觀察輸出的順序：Init、Setup、VU Code、Teardown，跟剛剛投影片講的生命週期對起來。

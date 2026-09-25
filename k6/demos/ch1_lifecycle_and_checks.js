@@ -7,6 +7,9 @@
  * 3. 邏輯交易分組：group() 建立階層式壓測維度
  * 4. 避免高基數 (Cardinality) 爆炸：使用 http.url 或 tags 聚合動態 URL
  * 
+ * 目標服務：Grafana 公開的 QuickPizza (https://quickpizza.grafana.com)，不需啟動本機環境。
+ * 要打其他環境時用 -e BASE_URL=... 覆寫。
+ *
  * 執行指令：
  * k6 run k6/demos/ch1_lifecycle_and_checks.js
  */
@@ -30,7 +33,7 @@ export const options = {
   },
 };
 
-const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
+const BASE_URL = __ENV.BASE_URL || 'https://quickpizza.grafana.com';
 
 // ----------------------------------------------------
 // 2. Setup Context (全域執行一次，通常用於準備測試資料或取得 Auth Token)
@@ -38,8 +41,8 @@ const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 export function setup() {
   console.log('>>> [Setup] 正在準備全域測試環境...');
   
-  // 嘗試探測目標服務或準備全域狀態
-  let authToken = 'mock-jwt-token-12345';
+  // 準備全域狀態：QuickPizza 公開的示範 token，查詢披薩 API 需要帶上它
+  const authToken = 'abcdef0123456789';
   return { token: authToken, startedAt: new Date().toISOString() };
 }
 
@@ -53,20 +56,13 @@ export default function (data) {
 
   group('01_健康檢查交易', () => {
     // 使用 tags 標籤避免動態 URL 造成基數爆炸
-    const res = http.get(`${BASE_URL}/health`, {
+    const res = http.get(`${BASE_URL}/healthz`, {
       tags: { name: 'health_check' },
     });
 
     // check() 軟斷言演示：即便失敗也不會中斷測試
     const isOk = check(res, {
       '健康檢查狀態碼為 200': (r) => r.status === 200,
-      '健康檢查回應包含 healthy': (r) => {
-        try {
-          return r.json().status === 'healthy';
-        } catch (_) {
-          return false;
-        }
-      },
     });
 
     if (!isOk) {
@@ -75,22 +71,24 @@ export default function (data) {
   });
 
   group('02_核心業務流程', () => {
-    // 模擬動態路由標籤化 (解決 /api/items/123, /api/items/456 的高基數問題)
-    const itemId = Math.floor(Math.random() * 100) + 1;
-    const url = http.url`${BASE_URL}/api/process?item_id=${itemId}`;
+    // 模擬動態路由標籤化 (解決 /api/pizza/1, /api/pizza/42 的高基數問題)
+    const pizzaId = Math.floor(Math.random() * 100) + 1;
+    const url = http.url`${BASE_URL}/api/pizza/${pizzaId}`;
 
     const headers = {
-      'Authorization': `Bearer ${data.token}`,
+      'Authorization': `token ${data.token}`,
       'Content-Type': 'application/json',
     };
 
     const res = http.get(url, {
       headers: headers,
-      tags: { name: 'core_process_api' },
+      tags: { name: 'get_pizza' },
     });
 
+    // 除了狀態碼，也驗證 Response Body 內容
     check(res, {
-      '核心流程狀態碼為 200 或可接受之狀態': (r) => r.status === 200 || r.status === 404,
+      '查詢披薩狀態碼為 200': (r) => r.status === 200,
+      '回應的披薩 id 與請求一致': (r) => r.json('id') === pizzaId,
     });
   });
 

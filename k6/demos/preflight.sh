@@ -13,7 +13,7 @@
 #
 # 可覆寫的環境變數：
 #   EXPECTED_K6_VERSION  預期的 k6 版本前綴 (預設 v2.2)，與投影片 / codelab 截圖一致
-#   BASE_URL_CH1         Ch1 目標 (預設 http://localhost:8080，需 docker compose up)
+#   BASE_URL_CH1         Ch1 生命週期 demo 的目標 (預設 QuickPizza)
 #   PROM_URL             Prometheus (預設 http://localhost:9090)
 #   GRAFANA_URL          Grafana (預設 http://localhost:3000)
 #
@@ -24,7 +24,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXPECTED_K6_VERSION="${EXPECTED_K6_VERSION:-v2.2}"
-BASE_URL_CH1="${BASE_URL_CH1:-http://localhost:8080}"
+BASE_URL_CH1="${BASE_URL_CH1:-https://quickpizza.grafana.com}"
 PROM_URL="${PROM_URL:-http://localhost:9090}"
 GRAFANA_URL="${GRAFANA_URL:-http://localhost:3000}"
 QUICKPIZZA_URL="https://quickpizza.grafana.com"
@@ -125,7 +125,7 @@ need_ch() { [[ " ${CHAPTERS[*]} " == *" $1 "* ]]; }
 # ------------------------------------------------------------------------------
 if need_ch ch1; then
   section "Ch1：生命週期與 check()"
-  check_http "api-gateway ${BASE_URL_CH1}/health" "${BASE_URL_CH1}/health" FAIL "請先 docker compose up -d"
+  check_http "Ch1 目標 ${BASE_URL_CH1}/healthz" "${BASE_URL_CH1}/healthz" FAIL "請檢查網路，或用 BASE_URL_CH1 指定其他目標"
   run_demo "ch1_lifecycle_and_checks.js" 0 \
     env BASE_URL="${BASE_URL_CH1}" k6 run "${SCRIPT_DIR}/ch1_lifecycle_and_checks.js"
   # group 旅程打公開的 QuickPizza（註冊 → 登入 → 評分），縮短成 2 VU × 15 秒做預檢
