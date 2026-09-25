@@ -10,7 +10,8 @@ Ch3_k6_Quality_Gates.pptx  (inserted after Slide 4 "Built-in Metrics")
 
 Ch5_k6_Observability_and_Modular_Architecture.pptx
   (inserted after Slide 7 "Prometheus Remote Write", before the crosshair slide)
-  - 看懂儀表板：6 種經典曲線型態
+  - 看懂儀表板：8 種經典曲線型態
+  - Soak 判讀：趨勢比門檻重要
   - 儀表板判讀 4 步驟 SOP
 
 Idempotent: a deck that already contains the marker shape is skipped.
@@ -419,7 +420,7 @@ def style_mini_chart(chart, colors, widths):
 
 def ch5_curve_patterns(prs, bg):
     s = prs.slides.add_slide(blank_layout(prs))
-    dark_header(s, bg, "看懂儀表板：6 種經典曲線型態",
+    dark_header(s, bg, "看懂儀表板：8 種經典曲線型態",
                 "永遠把「負載軸」（VUs / RPS）和「反應軸」（P95・P99 / 錯誤率）疊在一起看，找出第一個偏離平穩的拐點")
 
     x12 = list(range(12))
@@ -447,36 +448,109 @@ def ch5_curve_patterns(prs, bg):
         ("⑤ 緩慢爬坡（Soak）",
          [("VUs", [6.0] * 12, D_CYAN, 2.0),
           ("P95", [1.6, 1.7, 1.9, 2.1, 2.4, 2.8, 3.2, 3.7, 4.2, 4.8, 5.4, 6.0], D_AMBER, 2.75)],
-         "負載不變，延遲隨時間緩慢上升", "資源洩漏：記憶體、連線、檔案描述符"),
+         "負載不變，P95 緩升（P50 常一起爬）", "記憶體／GC 壓力，或資料越積越多"),
         ("⑥ 週期鋸齒",
          [("VUs", [6.0] * 12, D_CYAN, 2.0),
           ("P95", [1.6, 1.6, 7.0, 1.6, 1.6, 7.2, 1.6, 1.6, 7.0, 1.6, 1.6, 7.1], D_AMBER, 2.75)],
-         "固定間隔出現尖峰", "排程任務、GC 週期、快取 TTL 同時到期、自動擴縮"),
+         "固定間隔出現尖峰", "排程、GC 週期、TTL 同時到期、擴縮容"),
+        ("⑦ 錯誤率階梯（Soak）",
+         [("VUs", [6.0] * 12, D_CYAN, 2.0),
+          ("錯誤率", [0.1] * 4 + [2.2] * 3 + [4.4] * 3 + [6.8] * 2, D_RED, 2.75)],
+         "負載不變，錯誤率一階一階往上跳", "有限資源耗盡：連線池、open files"),
+        ("⑧ 吞吐下滑・連線層",
+         [("RPS", [7.0 - 0.3 * i for i in x12], D_PURPLE, 2.0),
+          ("P95", [1.6] * 12, D_AMBER, 2.75),
+          ("blocked", [0.4 + 0.35 * i for i in x12], "80CBC4", 2.75)],
+         "RPS 下滑、P95 持平、blocked 上升", "連線建立層：先排除壓測機自己"),
     ]
 
-    cw, ch_, gx, gy, x0, y0 = 404, 290, 22, 16, 60, 130
+    cw, ch_, gx, gy, x0, y0 = 302, 290, 16, 16, 60, 130
     for i, (title, series, seen, means) in enumerate(patterns):
-        cx = x0 + (i % 3) * (cw + gx)
-        cy = y0 + (i // 3) * (ch_ + gy)
+        cx = x0 + (i % 4) * (cw + gx)
+        cy = y0 + (i // 4) * (ch_ + gy)
         add_box(s, cx, cy, cw, ch_, fill=D_CARD, line=D_CARD_BORDER, radius=0.05)
-        add_text(s, cx + 16, cy + 10, cw - 32, 30, [[(title, S(16, D_WHITE, True))]], anchor=MSO_ANCHOR.MIDDLE)
+        add_text(s, cx + 14, cy + 10, cw - 28, 30, [[(title, S(15, D_WHITE, True))]], anchor=MSO_ANCHOR.MIDDLE)
 
         cd = CategoryChartData()
         cd.categories = [str(v) for v in x12]
         for name, vals, _, _ in series:
             cd.add_series(name, vals)
-        gf = s.shapes.add_chart(XL_CHART_TYPE.LINE, *px(cx + 10, cy + 40, cw - 20, 150), cd)
+        gf = s.shapes.add_chart(XL_CHART_TYPE.LINE, *px(cx + 8, cy + 40, cw - 16, 140), cd)
         style_mini_chart(gf.chart, [c for _, _, c, _ in series], [w for _, _, _, w in series])
 
-        add_text(s, cx + 16, cy + 196, cw - 32, 88, [
-            [("看到  ", S(13, D_CYAN, True)), (seen, S(14, D_TEXT))],
-            [("代表  ", S(13, D_AMBER, True)), (means, S(14, D_WHITE, True))],
+        add_text(s, cx + 14, cy + 186, cw - 28, 98, [
+            [("看到  ", S(12, D_CYAN, True)), (seen, S(13, D_TEXT))],
+            [("代表  ", S(12, D_AMBER, True)), (means, S(13, D_WHITE, True))],
         ], space_after=6)
 
     copy_badge(prs, s)
     s.notes_slide.notes_text_frame.text = (
-        "6 種型態：① 健康線性 ② 飽和平台（RPS 走平＋P95 爬升，拐點即容量）③ 崩潰懸崖（P95 與錯誤率同時暴衝、RPS 下降）"
-        "④ 尾巴張開（只有 P99 發散）⑤ 緩慢爬坡（負載不變延遲上升＝洩漏）⑥ 週期鋸齒（排程、GC、TTL）。")
+        "8 種型態：① 健康線性 ② 飽和平台（RPS 走平＋P95 爬升，拐點即容量）③ 崩潰懸崖（P95 與錯誤率同時暴衝、RPS 下降）"
+        "④ 尾巴張開（只有 P99 發散）⑤ 緩慢爬坡（負載不變延遲上升，看 P50 是否一起爬）⑥ 週期鋸齒（排程、GC、TTL）"
+        "⑦ 錯誤率階梯（有限資源耗盡）⑧ 吞吐下滑＋blocked 上升（連線建立層，先排除壓測機）。")
+    return s
+
+
+def ch5_soak_reading(prs, bg):
+    s = prs.slides.add_slide(blank_layout(prs))
+    dark_header(s, bg, "Soak 判讀：趨勢比門檻重要",
+                "負載固定時，時間是唯一的變數：看斜率、看恢復，再把 k6 端的「果」對齊後端的「因」")
+
+    # left top: all-green but failing soak
+    add_box(s, 60, 134, 600, 300, fill=D_CARD, line=D_CARD_BORDER, radius=0.05)
+    add_text(s, 80, 146, 560, 34, [[("全程綠燈，也可能是失敗的 Soak", S(17, D_WHITE, True))]], anchor=MSO_ANCHOR.MIDDLE)
+    x12 = list(range(12))
+    cd = CategoryChartData()
+    cd.categories = [str(v) for v in x12]
+    cd.add_series("P95", [3.0 + 0.36 * i for i in x12])
+    cd.add_series("門檻 p(95)<800", [8.0] * 12)
+    gf = s.shapes.add_chart(XL_CHART_TYPE.LINE, *px(72, 184, 576, 170), cd)
+    style_mini_chart(gf.chart, [D_AMBER, D_RED], [2.75, 1.5])
+    add_text(s, 80, 360, 560, 66, [
+        [("P95 從 300ms 爬到 700ms，門檻 800ms 沒破", S(13.5, D_TEXT))],
+        [("→ 照這個斜率，第八小時就會紅燈。Soak 要看斜率，不是紅綠燈", S(13.5, D_AMBER, True))],
+    ], space_after=4)
+
+    # left bottom: three habits
+    add_box(s, 60, 450, 600, 254, fill=D_CARD, line=D_CARD_BORDER, radius=0.05)
+    add_text(s, 80, 462, 560, 32, [[("三個判讀習慣", S(17, D_CYAN, True))]], anchor=MSO_ANCHOR.MIDDLE)
+    habits = [
+        ("量化斜率", "只取固定負載段，5 分鐘一桶，算 P50 / P95 / 錯誤率 / RPS 的趨勢"),
+        ("一定看恢復", "負載歸零後有沒有回到基準？結束後再跑一次 Smoke，仍慢就是硬證據"),
+        ("守住窗口", "負載取撐得住的六到八成；期間不部署、不重啟、不跑批次"),
+    ]
+    add_text(s, 80, 500, 564, 196, [p for t, d in habits for p in (
+        [("● ", S(14, D_CYAN, True)), (t, S(15.5, D_WHITE, True))],
+        [("   " + d, S(14, D_TEXT))],
+    )], space_after=9)
+
+    # right: k6 signal -> backend data -> where in this lab
+    add_box(s, 684, 134, 632, 570, fill=D_CARD, line=D_CARD_BORDER, radius=0.04)
+    add_text(s, 704, 146, 592, 32, [[("k6 端的「果」→ 後端的「因」", S(17, D_CYAN, True))]], anchor=MSO_ANCHOR.MIDDLE)
+    rows = [
+        ("⑤ P95 緩慢爬升", "記憶體 heap、GC 次數與暫停", "docker stats 定時記錄容器記憶體"),
+        ("⑤ 特定端點變慢", "資料庫查詢延遲", "4 Golden Signals：Database Query Latency"),
+        ("⑦ 錯誤率階梯", "DB 連線池使用中／上限、open files", "pg_stat_activity 連線數、/proc/1/fd"),
+        ("⑧ RPS 下滑", "伺服器／LB 連線數、壓測機連線", "壓測機 ss -s；Request Rate by Service"),
+        ("所有訊號", "部署／重啟／排程的時間紀錄", "確認不是「有人動了它」"),
+    ]
+    add_text(s, 704, 184, 150, 26, [[("k6 訊號", S(12, D_MUTED, True))]], anchor=MSO_ANCHOR.MIDDLE)
+    add_text(s, 862, 184, 210, 26, [[("對照的後端數據", S(12, D_MUTED, True))]], anchor=MSO_ANCHOR.MIDDLE)
+    add_text(s, 1080, 184, 220, 26, [[("本 Lab 去哪看", S(12, D_MUTED, True))]], anchor=MSO_ANCHOR.MIDDLE)
+    ry = 216
+    for sig, backend, where in rows:
+        add_box(s, 700, ry, 600, 84, fill="0A1420", line=D_CARD_BORDER, radius=0.1)
+        add_text(s, 712, ry + 6, 146, 72, [[(sig, S(13.5, D_AMBER, True))]], anchor=MSO_ANCHOR.MIDDLE)
+        add_text(s, 862, ry + 6, 210, 72, [[(backend, S(13, D_WHITE))]], anchor=MSO_ANCHOR.MIDDLE)
+        add_text(s, 1080, ry + 6, 212, 72, [[(where, S(12.5, D_TEXT))]], anchor=MSO_ANCHOR.MIDDLE)
+        ry += 84 + 12  # 216 -> 696
+    add_text(s, 700, 704, 616, 22, [[("參考：iThome 鐵人賽〈Day 24｜Soak Test：從 k6 端數據推測伺服器在漏什麼〉", S(10, D_MUTED))]],
+             anchor=MSO_ANCHOR.MIDDLE)
+
+    copy_badge(prs, s)
+    s.notes_slide.notes_text_frame.text = (
+        "Soak 看斜率不看紅綠燈；量化趨勢（5 分鐘一桶）、一定看恢復（歸零後 + Smoke）、守住窗口。"
+        "k6 只有果：P95 緩升對 heap/GC，錯誤階梯對連線池/open files，RPS 下滑對連線數與壓測機。")
     return s
 
 
@@ -560,10 +634,12 @@ def build_ch5():
         return
     bg = frame_background(prs)
     a = ch5_curve_patterns(prs, bg)
-    b = ch5_dashboard_sop(prs, bg)
+    b = ch5_soak_reading(prs, bg)
+    c = ch5_dashboard_sop(prs, bg)
     add_marker(a)
     move_slide(prs, a, 7)  # after Slide 7 "Prometheus Remote Write", before the crosshair slide
     move_slide(prs, b, 8)
+    move_slide(prs, c, 9)
     prs.save(CH5)
     print(f"updated: {CH5}")
 
