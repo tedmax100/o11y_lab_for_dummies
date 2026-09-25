@@ -325,16 +325,17 @@
 
 ### 【Slide 14: 隨堂練習指引與全系列結語】 (預估時間: 28:45 - 30:30)
 
-* **畫面焦點**：Ch5 實作任務清單（啟動 Docker Lab、執行 Prometheus 推播腳本、開啟 Grafana 查看自訂 Commit Tag）。
+* **畫面焦點**：2×2 四張任務卡，對應 Codelab 實作 1～4：Web Dashboard、Port=-1 靜態 HTML 報告、xk6 Docker 編譯、Prometheus Remote Write，每張附指令與檢核重點。
 * **螢幕動作**：【動作：展示終端機腳本，向學員做深情而有力的結業致詞】。
 
 **【口播逐字稿】**：
-> 「最後一章的實作任務，請大家按照畫面指引：  
-> 任務一：在終端機啟動本專案的 `docker compose up -d` 實驗室環境；  
-> 任務二：執行我們為大家準備好的腳本：`./k6/demos/ch5_prometheus_remote_write.sh`，親眼看著壓測指標帶上你當前的 Git Commit Hash，即時推入 Prometheus；  
-> 任務三：打開本機的 Grafana 儀表板，搜尋你剛剛注入的標籤，親自體驗一次現代化效能對齊的極致快感！  
+> 「最後一章的實作任務，請大家按照畫面上的四張卡片，依序完成：  
+> 任務一：打開原生 Web Dashboard，在 5665 這個網址看即時曲線，練習把 VUs 和 RPS 疊在一起看；  
+> 任務二：用 `K6_WEB_DASHBOARD_PORT=-1` 產出 CI 用的靜態 HTML 報告，確認資料夾多了三個檔案；  
+> 任務三：執行 `ch5_xk6_docker_build.sh`，用 Docker 編譯出帶有 xk6-sql 的客製化 k6；  
+> 任務四：先 `docker compose up -d`，再執行 `./k6/demos/ch5_prometheus_remote_write.sh`，到 Grafana 用你的 commit_id 篩選，套用今天的判讀 SOP 找出拐點！  
 > 
-> 📘 **【切到 Codelab #5】** 念完三個任務後停在這裡，切到 Codelab 錄〈📘 Codelab 導覽講稿〉，錄完再 ✂️ 切回本頁唸下一段。  
+> 📘 **【切到 Codelab #5】** 念完四個任務後停在這裡，切到 Codelab 錄〈📘 Codelab 導覽講稿〉，錄完再 ✂️ 切回本頁唸下一段。  
 > 
 > 到這裡，我們從 k6 哲學出發，穿越了科學流量建模、征服了品質門禁、實踐了全鏈路混合壓測，也讓壓測數據走出了終端機、進入了 Grafana。
 >

@@ -25,6 +25,10 @@
    - **Ch4**：原 Slide 2（Flight Pre-check 起飛前清單）調整至 Slide 9（實作前檢核）。
    - **Ch5**：原 Slide 2（企業導入 Checklist Takeaway）調整至 Slide 9（實作前總結）。
    - **結果判讀新增頁（原生文字方塊，由 `scripts/add_metric_reading_slides.py` 產生）**：Ch3 插入 Slide 5「看懂 k6 結尾摘要：5 步驟判讀 SOP」與 Slide 6「延遲拆解：http_req_duration 只算後 3 段」，原 Slide 5～10 順延為 7～12；Ch5 插入 Slide 8「看懂儀表板：8 種經典曲線型態」、Slide 9「Soak 判讀：趨勢比門檻重要」與 Slide 10「儀表板判讀 4 步驟 SOP」，原 Slide 8～11 順延為 11～14。上方各條所記的頁碼為當時編號。
+   - **改為原生投影片（文字方塊、表格、原生圖表，不再是整頁圖片；之後修改直接改文字即可）**：
+     - **Ch3 全份 12 頁**由 `scripts/build_ch3_native_deck.py` 重建：移除圖片殘留的 `[3]`、`[12]` 等引用標記；第 3 頁平均值陷阱改以 100 格方塊呈現；第 9 頁 Tags 範例改用 Demo 的 `api_type`；第 11 頁程式碼補上 `abortOnFail` 以符合口播；第 12 頁 Lab Guide 改用 Codelab 的三個實作（原本的 test.k6.io 已停用）。封面僅保留右側插畫圖片。
+     - **Ch2 第 4 頁**由 `scripts/build_ch2_stages_slide.py` 重建：`stages` 範例與 VU 曲線改用 Codelab 的數字（原圖與 Codelab 五個範例都不同，且 Stress 缺少維持段）。
+     - **Ch5 第 14 頁**由 `scripts/add_metric_reading_slides.py` 重建：改為 Codelab 實作 1～4 共四個任務，xk6 指令與 Codelab 一致。
 3. **圖片像素級技術勘誤 (Patching)**：
    - **Ch4 Slide 8**：修正 `options: { options: { browser: { type: 'chromium' } } }` 為標準 `browser: { type: 'chromium' }`。
    - **Ch5 Slide 10**：修正 Task 3 Docker 編譯指令中的 `-v $(pwd):/build` 為 `-v $(pwd):/xk6`。

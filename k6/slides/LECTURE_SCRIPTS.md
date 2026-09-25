@@ -159,10 +159,10 @@
 ---
 
 ### Slide 4: 手把手寫出 5 大壓測型態 (stages 腳本範例)
-* **視覺焦點**：左側各模式小圖，右側對應的 `stages` 陣列，高亮 Spike Test 的暴衝寫法。
+* **視覺焦點**：五列對照：模式名稱、依 `stages` 畫出的 VU 曲線、對應程式碼（與 Codelab 範例一致）。
 * **心智模型**：`stages` 的每一格是「在 duration 內，把 VU 線性調整到 target」。
 * **🎤 口播逐字稿**：
-  > 「`stages` 是一個物件陣列，每一格有 `duration` 和 `target`，k6 會在時間內把 VU 數線性拉到目標。以 Load Test 為例：5 分鐘爬到 100、維持 20 分鐘、再 5 分鐘降回 0；Spike Test 則是在 10 秒內從 20 一口氣拉到 1,000。  
+  > 「`stages` 是一個物件陣列，每一格有 `duration` 和 `target`，k6 會在時間內把 VU 數線性拉到目標。以 Load Test 為例：3 分鐘爬到 50、維持 10 分鐘、再 3 分鐘降回 0；Stress Test 每一階都要「先爬坡、再維持」；Spike Test 則是在 10 秒內從 10 一口氣拉到 200，暴增 20 倍。  
   > 但這套看似美好的寫法，背後藏著一個巨大的數據謊言——下一頁揭曉。」
 
 ---
@@ -253,7 +253,7 @@
 ---
 
 ### Slide 3: 尾端延遲深度解析 (Tail Latency & Percentiles)
-* **視覺焦點**：平均值 (Average) 隱瞞真相 vs P95 / P99 長尾延遲分佈圖。
+* **視覺焦點**：100 格方塊（99 個 10ms、1 個 10,000ms），平均值 109.9ms vs 最慢的 10,000ms 兩張數字卡。
 * **心智模型**：千萬不要看 Average！在現代高併發分散式系統中，平均值毫無意義，長尾延遲決定用戶流失。
 * **🎤 口播逐字稿**：
   > 「請大家在心裡默念三遍：**永遠不要在壓測中看平均值 (Average)！**  
@@ -282,7 +282,7 @@
 ---
 
 ### Slide 6: 延遲拆解 (http_req_duration 只算後 3 段)
-* **視覺焦點**：6 格時間軸，左 3 格灰色不計入 duration，右 3 格紫色計入；下方 4 張診斷卡。
+* **視覺焦點**：6 格時間軸，左 3 格灰色不計入 duration，右 3 格藍色計入；下方 4 張診斷卡。
 * **心智模型**：`http_req_duration = sending + waiting + receiving`；連線層問題只會拉長 `iteration_duration`。
 * **🎤 口播逐字稿**：
   > 「很多人以為 duration 包含建立連線的時間，其實沒有。blocked、connecting、tls_handshaking 都不算在 duration 裡，所以連線層的問題只盯 duration 是看不到的。  
@@ -324,7 +324,7 @@
 ---
 
 ### Slide 10: CI/CD 自動卡關實務 (Exit Code 99 傳遞鏈)
-* **視覺焦點**：GitLab CI / GitHub Actions 流水線紅叉，終端機 `echo $?` 印出 `99`。
+* **視覺焦點**：錯誤示範（退出碼被後續指令蓋成 0，CI 顯示 PASS）vs 正確示範（`code=$?` 捕捉、`exit $code` 傳遞，CI 顯示 BLOCKED）。
 * **心智模型**：Unix 標準回傳碼 99 是 CI/CD 識別效能門禁破功的核心機制。
 * **🎤 口播逐字稿**：
   > 「這是整堂課最值錢的自動化關鍵：**Exit Code 99**。  
@@ -627,12 +627,13 @@
 ---
 
 ### Slide 14: 隨堂練習指引 (Hands-on Practice)
-* **視覺焦點**：Ch5 實作指引任務與全系列結業致詞。
+* **視覺焦點**：2×2 四張任務卡，對應 Codelab 實作 1～4，並作為全系列結業致詞。
 * **🎤 口播逐字稿**：
-  > 「最後的隨堂任務，請大家按照指引：  
-  > 第一，啟動本機 Docker Compose Lab；  
-  > 第二，執行 `./k6/demos/ch5_prometheus_remote_write.sh`，將壓測數據即時推送到 Prometheus；  
-  > 第三，打開 Grafana，搜尋剛才注入的 Commit Tag 標籤，親自建立屬於你的效能對齊儀表板！  
+  > 「最後的隨堂任務共有四個：  
+  > 第一，打開原生 Web Dashboard，練習把 VUs 與 RPS 疊在一起看；  
+  > 第二，用 `K6_WEB_DASHBOARD_PORT=-1` 產出 CI 用的靜態 HTML 報告；  
+  > 第三，執行 `ch5_xk6_docker_build.sh`，編譯出帶有 xk6-sql 的客製化 k6；  
+  > 第四，啟動 Docker Compose Lab，執行 `./k6/demos/ch5_prometheus_remote_write.sh`，到 Grafana 用 commit_id 篩選並找出拐點。  
   > 非常感謝大家的參與，祝大家壓測順利，打造出堅不可摧的高效能系統！」
 
 ---

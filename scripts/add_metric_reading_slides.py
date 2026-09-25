@@ -4,7 +4,8 @@ Insert "how to read the results" slides into the Ch3 and Ch5 k6 decks,
 built entirely from native PowerPoint shapes, text boxes and line charts
 (no full-slide PNGs):
 
-Ch3_k6_Quality_Gates.pptx  (inserted after Slide 4 "Built-in Metrics")
+Ch3 slide builders (used by build_ch3_native_deck.py, which rebuilds the whole
+Ch3 deck natively; this script no longer edits Ch3 by default):
   - 看懂 k6 結尾摘要：5 步驟判讀 SOP
   - 延遲拆解：http_req_duration 只算後 3 段
 
@@ -13,6 +14,8 @@ Ch5_k6_Observability_and_Modular_Architecture.pptx
   - 看懂儀表板：8 種經典曲線型態
   - Soak 判讀：趨勢比門檻重要
   - 儀表板判讀 4 步驟 SOP
+  and replaces the last slide with a native 4-task hands-on guide that matches
+  the codelab's 實作 1-4.
 
 Idempotent: a deck that already contains the marker shape is skipped.
 """
@@ -538,6 +541,54 @@ def ch5_dashboard_sop(prs, bg):
     return s
 
 
+def ch5_practice(prs, bg):
+    s = prs.slides.add_slide(blank_layout(prs))
+    dark_header(s, bg, "隨堂練習指引 (Hands-on Practice)",
+                "依序完成四個實作，對應 Codelab 第 5 章「手把手實作演練」的實作 1～4")
+    tasks = [
+        ("任務一：原生 Web Dashboard",
+         ["K6_WEB_DASHBOARD=true \\", "k6 run k6/demos/ch5_dashboard_and_html_summary.js"],
+         ["打開 http://127.0.0.1:5665 看即時曲線", "Overview 看 VUs 與 RPS 是否同步；Timings 找最大的一段"]),
+        ("任務二：CI 用的靜態 HTML 報告",
+         ["K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_PORT=-1 \\", "K6_WEB_DASHBOARD_EXPORT=offline_report.html \\",
+          "k6 run k6/demos/ch5_dashboard_and_html_summary.js"],
+         ["Port=-1：不開伺服器，跑完自動退出", "產出 offline_report.html、custom_report.html、summary.json"]),
+        ("任務三：xk6 Docker 確定性編譯",
+         ["./k6/demos/ch5_xk6_docker_build.sh", "# docker run -u \"$(id -u):$(id -g)\" -v \"$(pwd)/bin:/xk6\" \\",
+          "#   grafana/xk6 build latest --with github.com/grafana/xk6-sql"],
+         ["執行 bin/k6-custom version 確認已封裝 xk6-sql", "第一次要下載 Go 相依套件，需要幾分鐘"]),
+        ("任務四：Prometheus Remote Write",
+         ["docker compose up -d", "./k6/demos/ch5_prometheus_remote_write.sh"],
+         ["Grafana k6-live-metrics 右上角用 commit_id 篩選", "P95 由 native histogram 計算；套用判讀 SOP 找拐點"]),
+    ]
+    cw, ch_, gx, gy, x0, y0 = 619, 283, 18, 16, 60, 132
+    for i, (title, cmds, checks) in enumerate(tasks):
+        x = x0 + (i % 2) * (cw + gx)
+        y = y0 + (i // 2) * (ch_ + gy)
+        add_box(s, x, y, cw, ch_, fill=D_CARD, line=D_CARD_BORDER, radius=0.05)
+        add_text(s, x + 20, y + 12, cw - 40, 32, [[(title, S(16.5, D_WHITE, True))]], anchor=MSO_ANCHOR.MIDDLE)
+        term = add_box(s, x + 20, y + 52, cw - 40, 116, fill="0A1420", line="324150", radius=0.08)
+        add_card_text(term, [[(c, S(14, D_MUTED if c.startswith("#") else D_CYAN, False, MONO))] for c in cmds],
+                      anchor=MSO_ANCHOR.MIDDLE, margin=(16, 0, 12, 0), line_spacing=1.05)
+        add_text(s, x + 20, y + 176, cw - 40, 98, [p for c in checks for p in (
+            [("✓ ", S(15, D_AMBER, True)), (c, S(15, D_TEXT))],
+        )], anchor=MSO_ANCHOR.MIDDLE, space_after=6)
+    copy_badge(prs, s)
+    s.notes_slide.notes_text_frame.text = (
+        "四個任務對應 Codelab 實作 1～4：Web Dashboard、Port=-1 靜態報告、xk6 Docker 編譯、Prometheus Remote Write。")
+    return s
+
+
+def remove_slide(prs, slide):
+    sld_id_lst = prs.slides._sldIdLst
+    for sld_id in list(sld_id_lst):
+        if prs.slides.part.related_part(sld_id.rId) is slide.part:
+            prs.part.drop_rel(sld_id.rId)
+            sld_id_lst.remove(sld_id)
+            return
+    raise RuntimeError("slide not found")
+
+
 # ---------------------------------------------------------------------------
 def build_ch3():
     prs = Presentation(CH3)
@@ -558,6 +609,12 @@ def build_ch5():
         print(f"skip (already has reading slides): {CH5}")
         return
     bg = frame_background(prs)
+    # remove the old image-era practice slide first: python-pptx names new slides
+    # slide<N+1>.xml, so removing after adding would collide with a new part name
+    old = [sl for sl in prs.slides if any(sh.has_text_frame and "隨堂練習指引 (Hands-on Practice)" in sh.text_frame.text
+                                          for sh in sl.shapes)]
+    assert len(old) == 1, "expected exactly one original practice slide"
+    remove_slide(prs, old[0])
     a = ch5_curve_patterns(prs, bg)
     b = ch5_soak_reading(prs, bg)
     c = ch5_dashboard_sop(prs, bg)
@@ -565,12 +622,13 @@ def build_ch5():
     move_slide(prs, a, 7)  # after Slide 7 "Prometheus Remote Write", before the crosshair slide
     move_slide(prs, b, 8)
     move_slide(prs, c, 9)
+    ch5_practice(prs, bg)  # appended as the last slide
     prs.save(CH5)
     print(f"updated: {CH5}")
 
 
 if __name__ == "__main__":
-    targets = sys.argv[1:] or ["ch3", "ch5"]
+    targets = sys.argv[1:] or ["ch5"]  # Ch3 is rebuilt by build_ch3_native_deck.py
     if "ch3" in targets:
         build_ch3()
     if "ch5" in targets:
