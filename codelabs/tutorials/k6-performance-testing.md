@@ -1036,15 +1036,7 @@ Duration: 30
 
 許多工程師誤以為 `http_req_duration` 只是單純的「後端計算時間」，也有人以為它包含了「從建立連線到收完回應」的全部時間——**兩者都不對！** k6 把一次 HTTP 請求拆成 6 個細分指標，但 `http_req_duration` 只涵蓋其中**後 3 段**：
 
-```text
- ┌─────────────── 連線準備階段（不計入 duration）─────────────┐┌──────────────── http_req_duration ────────────────┐
- ┌──────────────────┬───────────────────┬─────────────────────┬──────────────┬──────────────────┬───────────────┐
- │ http_req_blocked │ http_req_         │ http_req_tls_       │ http_req_    │ http_req_waiting │ http_req_     │
- │                  │ connecting        │ handshaking         │ sending      │ (TTFB)           │ receiving     │
- └──────────────────┴───────────────────┴─────────────────────┴──────────────┴──────────────────┴───────────────┘
-   等待可用連線槽位    TCP 三向握手         TLS 憑證協商與          傳送請求封包     伺服器處理與運算    下載回應內容至
-   (含 DNS 查詢)      SYN->SYN/ACK->ACK    密鑰交換                上行傳輸時間     (DB 查詢 / 運算)   壓測客戶端完成
-```
+![一次 HTTP 請求的 6 個細分指標：blocked、connecting、tls_handshaking 屬於連線準備，不計入 http_req_duration；http_req_duration 等於 sending + waiting + receiving](assets/images/k6-ch3-latency-timeline.png)
 
 Positive
 : **官方定義**：`http_req_duration = http_req_sending + http_req_waiting + http_req_receiving`。`blocked`、`connecting`、`tls_handshaking` 是**額外**發生在請求送出之前的時間，它們會拉長 `iteration_duration`（以及真實使用者的體感），卻**不會**反映在 `http_req_duration` 上。親手驗證：執行 `k6 run --summary-mode=full script.js`，把 sending + waiting + receiving 三個 avg 加起來，會剛好等於 `http_req_duration` 的 avg。

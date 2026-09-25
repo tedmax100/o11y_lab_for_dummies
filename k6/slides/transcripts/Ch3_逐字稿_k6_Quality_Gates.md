@@ -143,7 +143,7 @@
 
 ### 【Slide 6 (新增): 延遲拆解：http_req_duration 只算後 3 段】 (預估時間: 11:00 - 13:00)
 
-* **畫面焦點**：上方 6 格時間軸，左 3 格灰色（連線準備，不計入 duration），右 3 格紫色（`http_req_duration = sending + waiting + receiving`）；下方 4 張診斷卡；底部 `--summary-mode=full` 指令。
+* **畫面焦點**：上方時間線圖（與 Codelab 同一張），左 3 格灰色（連線準備，不計入 duration，連線複用時 ≈ 0），右 3 格藍色（`http_req_duration = sending + waiting + receiving`，waiting 最深）；下方 4 張診斷卡；底部 `--summary-mode=full` 指令。
 * **螢幕動作**：【動作：先圈出上方兩個括號標籤，再由左至右掃過 4 張診斷卡，最後指向底部指令】。
 
 **【口播逐字稿】**：

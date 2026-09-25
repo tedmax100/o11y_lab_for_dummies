@@ -35,6 +35,7 @@ SLIDES_DIR = os.environ.get("K6_SLIDES_DIR", os.path.join(ROOT, "k6", "slides"))
 CH3 = os.path.join(SLIDES_DIR, "Ch3_k6_Quality_Gates.pptx")
 CH5 = os.path.join(SLIDES_DIR, "Ch5_k6_Observability_and_Modular_Architecture.pptx")
 FIGURE = os.path.join(ROOT, "k6", "slides", "assets", "Ch5", "curve_patterns.png")  # generate_curve_patterns_figure.py
+TIMELINE_FIGURE = os.path.join(ROOT, "k6", "slides", "assets", "Ch3", "latency_timeline.png")  # generate_latency_timeline_figure.py
 
 MARKER = "MetricReading_Marker"
 CODELAB_URL = "https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/"
@@ -262,33 +263,9 @@ def ch3_latency_breakdown(prs):
     light_header(s, "延遲拆解：http_req_duration 只算後 3 段",
                  "blocked / connecting / tls_handshaking 不計入 duration，只盯 duration 的話，連線層問題會完全隱形")
 
-    # bracket labels over the timeline
-    seg_w, gap, x0 = 202, 8.8, 60
-    left_w = seg_w * 3 + gap * 2
-    lab_l = add_box(s, x0, 134, left_w, 36, fill="F1F5F9", line="CBD5E1", radius=0.25)
-    add_card_text(lab_l, [[("連線準備階段：不計入 duration，只拉長 iteration_duration", S(13, L_MUTED, True))]],
-                  anchor=MSO_ANCHOR.MIDDLE, align=PP_ALIGN.CENTER)
-    lab_r = add_box(s, x0 + left_w + gap, 134, left_w, 36, fill=L_ACCENT_BG, line=L_ACCENT_BORDER, radius=0.25)
-    add_card_text(lab_r, [[("http_req_duration = sending + waiting + receiving", S(13.5, L_ACCENT, True, MONO))]],
-                  anchor=MSO_ANCHOR.MIDDLE, align=PP_ALIGN.CENTER)
-
-    segs = [
-        ("blocked", "等待可用連線槽位（含 DNS）", False),
-        ("connecting", "TCP 三向握手", False),
-        ("tls_handshaking", "TLS 憑證協商", False),
-        ("sending", "送出請求封包", True),
-        ("waiting (TTFB)", "伺服器處理運算", True),
-        ("receiving", "下載回應內容", True),
-    ]
-    for i, (name, desc, counted) in enumerate(segs):
-        x = x0 + i * (seg_w + gap)
-        fill = ("6366F1" if name.startswith("waiting") else "818CF8") if counted else "E2E8F0"
-        fg = "FFFFFF" if counted else L_BODY
-        box = add_box(s, x, 180, seg_w, 76, fill=fill, radius=0.08)
-        add_card_text(box, [
-            [(name, S(14, fg, True, MONO))],
-            [(desc, S(12, fg))],
-        ], anchor=MSO_ANCHOR.MIDDLE, align=PP_ALIGN.CENTER, margin=(6, 0, 6, 0))
+    # timeline figure (scripts/generate_latency_timeline_figure.py), same as the codelab
+    fig_w = 1256
+    s.shapes.add_picture(TIMELINE_FIGURE, *px(60, 126, fig_w, fig_w * 352 / 2400))
 
     # diagnosis cards
     diag = [
@@ -300,14 +277,14 @@ def ch3_latency_breakdown(prs):
     cw, cg = 299, 20
     for i, (name, counted, cause, fix) in enumerate(diag):
         x = 60 + i * (cw + cg)
-        add_box(s, x, 280, cw, 300, fill="FFFFFF", line=L_BORDER, radius=0.05)
-        tag = add_box(s, x + 16, 296, 150 if counted else 170, 28,
+        add_box(s, x, 324, cw, 266, fill="FFFFFF", line=L_BORDER, radius=0.05)
+        tag = add_box(s, x + 16, 338, 150 if counted else 170, 28,
                       fill=L_ACCENT_BG if counted else "F1F5F9",
                       line=L_ACCENT_BORDER if counted else "CBD5E1", radius=0.5)
         add_card_text(tag, [[("推高 duration" if counted else "duration 看不到", S(11.5, L_ACCENT if counted else L_MUTED, True))]],
                       anchor=MSO_ANCHOR.MIDDLE, align=PP_ALIGN.CENTER)
-        add_text(s, x + 16, 334, cw - 32, 40, [[(name, S(18, L_TITLE, True, MONO))]], anchor=MSO_ANCHOR.MIDDLE)
-        add_text(s, x + 16, 382, cw - 32, 190, [
+        add_text(s, x + 16, 374, cw - 32, 40, [[(name, S(18, L_TITLE, True, MONO))]], anchor=MSO_ANCHOR.MIDDLE)
+        add_text(s, x + 16, 420, cw - 32, 164, [
             [("可能病因", S(13, L_MUTED, True))],
             [(cause, S(15, L_BODY))],
             [(" ", S(6, L_BODY))],
