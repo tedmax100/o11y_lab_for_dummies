@@ -128,6 +128,16 @@ if need_ch ch1; then
   check_http "api-gateway ${BASE_URL_CH1}/health" "${BASE_URL_CH1}/health" FAIL "請先 docker compose up -d"
   run_demo "ch1_lifecycle_and_checks.js" 0 \
     env BASE_URL="${BASE_URL_CH1}" k6 run "${SCRIPT_DIR}/ch1_lifecycle_and_checks.js"
+  # group 旅程打公開的 QuickPizza（註冊 → 登入 → 評分），縮短成 2 VU × 15 秒做預檢
+  run_demo "ch1_group_journey.js (QuickPizza)" 0 \
+    k6 run --summary-mode=full --vus 2 --duration 15s "${SCRIPT_DIR}/ch1_group_journey.js"
+  if ! ${CHECK_ONLY}; then
+    if grep -q "GROUP: 取得推薦" "${LAST_LOG}" && grep -q "✓ 評分 201" "${LAST_LOG}"; then
+      record PASS "ch1 group 分段統計" "三段都有獨立統計，評分 201 全數通過"
+    else
+      record FAIL "ch1 group 分段統計" "缺少 GROUP 區塊或評分失敗 → ${LAST_LOG}"
+    fi
+  fi
 fi
 
 # ------------------------------------------------------------------------------

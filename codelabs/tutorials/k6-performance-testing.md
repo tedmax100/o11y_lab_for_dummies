@@ -359,6 +359,82 @@ Positive
 - **check() 是軟斷言**：與單元測試中斷執行的 `assert` 不同，k6 的 `check()` 失敗時**不會停止測試**，而是記錄成功率。這確保了在大規模壓測中能精確統計出 99.9% 成功率，而非因偶發錯誤中途夭折。
 - **避免高基數維度爆炸 (High Cardinality)**：嚴禁寫出 `http.get('/api/users/' + userId)`。當萬人併發產生數萬個不同 URL 時，Prometheus/Grafana 會因時序暴增而 OOM 崩潰！正確寫法是使用模板標籤函式：``http.url`https://api.example.com/users/${userId}` ``，指標將自動聚合在同一名稱下。
 
+### 用 group() 分段說故事：模擬一趟使用者旅程
+
+真實使用者做的是**「一趟旅程」，而不是「一個請求」**。在 QuickPizza 上，一趟典型的旅程是：逛首頁、要一份披薩推薦、登入後送出評分。只看整體的 `http_req_duration`，你只會知道「系統有點慢」；用 `group()` 把旅程分段，k6 就會**依段落分開統計**，讓你知道「是哪一段慢、慢多少」。
+
+| 段落 | 使用者在做什麼 | 停頓（think time） | 為什麼停這麼久 |
+| :-- | :-- | :-- | :-- |
+| 瀏覽首頁 | 打開 QuickPizza 首頁 | 1～3 秒 | 掃一眼頁面就往下走 |
+| 取得推薦 | 請系統推薦一份披薩 | 3～8 秒 | 看推薦內容、猶豫要不要換一份 |
+| 送出評分 | 登入後給這份披薩打分數 | 2～5 秒 | 給分前想一想 |
+
+每一段的停頓時間不同，是因為真實使用者在不同頁面停留的時間本來就不同。如果每一步都固定 `sleep(1)`，送出的流量節奏就不像真人。
+
+旅程的骨架長這樣（完整腳本：`k6/demos/ch1_group_journey.js`）：
+
+```javascript
+import http from 'k6/http';
+import { group, check, sleep } from 'k6';
+
+export default function () {
+  group('瀏覽首頁', function () {
+    const res = http.get(`${BASE}/`);
+    check(res, { '首頁 200': (r) => r.status === 200 });
+    sleep(Math.random() * 2 + 1);   // 掃一眼：1～3 秒
+  });
+
+  group('取得推薦', function () {
+    const res = http.post(`${BASE}/api/pizza`, '{}', { headers: demoHeaders });
+    check(res, { '推薦 200': (r) => r.status === 200 });
+    sleep(Math.random() * 5 + 3);   // 挑選猶豫：3～8 秒
+  });
+
+  group('送出評分', function () {
+    const res = http.post(`${BASE}/api/ratings`, JSON.stringify({ stars: 5, pizza_id: 1 }),
+                          { headers: userHeaders });   // 帶登入後的 token
+    check(res, { '評分 201': (r) => r.status === 201 });
+    sleep(Math.random() * 3 + 2);   // 給分前想一想：2～5 秒
+  });
+}
+```
+
+執行時加上 `--summary-mode=full`：
+
+```bash
+k6 run --summary-mode=full k6/demos/ch1_group_journey.js
+```
+
+摘要最後會多出每一段自己的區塊（k6 v2.2 對 QuickPizza 實測，節錄）：
+
+```text
+  █ GROUP: 瀏覽首頁
+    ✓ 首頁 200
+    http_req_duration..........: avg=201.1ms  med=201.13ms p(90)=201.56ms p(95)=201.63ms
+
+  █ GROUP: 取得推薦
+    ✓ 推薦 200
+    http_req_duration..........: avg=266ms    med=266.47ms p(90)=300.72ms p(95)=312.12ms
+
+  █ GROUP: 送出評分
+    ✓ 評分 201
+    http_req_duration..........: avg=225.3ms  med=224.09ms p(90)=230.5ms  p(95)=233.3ms
+```
+
+一眼就看得出來：**「取得推薦」的 p95 比首頁多了 50% 以上，而且波動最大**（med 266ms、p95 312ms）。回報時說「取得推薦那一段的 p95 是 312ms，比首頁慢 50%」，遠比「整體有點慢」有用得多——這正是 Chapter 3 判讀摘要、Chapter 5 找拐點的基礎。
+
+Negative
+: **預設摘要看不到分段統計**：k6 v1 起預設為精簡模式，只顯示整體數字。要看到上面的 `█ GROUP` 區塊，請加 `--summary-mode=full`；或是在 thresholds 為某一段設門檻，例如 `'http_req_duration{group:::送出評分}': ['p(95)<1500']`，那一段就會出現在摘要的 THRESHOLDS 區（Chapter 3 會再深入）。
+
+Negative
+: **比較各段快慢時，看 `http_req_duration`，不要看 `group_duration`**：`group_duration` 量的是整段 group 的經過時間，**連 `sleep()` 的停頓也算進去**。實測中「瀏覽首頁」的請求只花約 200ms，但 `group_duration` 會超過 1 秒，因為停頓也被算進去了。
+
+Positive
+: **group 名稱要固定**：group 名稱會變成指標的標籤，跟 `http.url` 同樣的道理，**不要把使用者 ID、訂單編號這類動態值放進 group 名稱**，否則每個不同的名稱都會產生一組新的指標。
+
+Positive
+: **為什麼範例要每個 VU 自己登入？** 公開的 QuickPizza 位於負載平衡器後方，靠 cookie 把同一個使用者固定在同一台機器上。如果只在 `setup()` 登入一次再讓所有 VU 共用 token，其他 VU 的請求可能被分到另一台不認得這個 token 的機器，評分就會隨機失敗（401）。所以範例讓每個 VU 第一次迭代時自己註冊並登入，並設定 `noCookiesReset: true` 保留 cookie。
+
 ### 實作演練：執行第一支生命週期測試與 CLI Options 實戰
 
 ![k6 CLI 終端實機執行展示 (3 大情境動態輪播)](assets/images/k6-ch1-cli-options.gif)
@@ -397,6 +473,19 @@ k6 run --vus 1 --iterations 1 --http-debug k6/demos/ch1_lifecycle_and_checks.js
 ```
 
 ![DEMO 3: HTTP 除錯封包透視成果](assets/images/k6-ch1-cmd3-httpdebug.png)
+
+#### 步驟 4：用 group 跑一趟使用者旅程，看分段統計
+
+對 QuickPizza 跑一趟「瀏覽首頁 → 取得推薦 → 送出評分」的旅程（5 個 VU、1 分鐘，不需要啟動本機實驗環境）：
+
+```bash
+k6 run --summary-mode=full k6/demos/ch1_group_journey.js
+```
+
+> **👀 觀察重點**：
+> 1. 摘要最後有 `█ GROUP: 瀏覽首頁`、`█ GROUP: 取得推薦`、`█ GROUP: 送出評分` 三個區塊，各自有 check 結果與 `http_req_duration`。
+> 2. 比較三段的 p95，找出最慢的一段，試著用一句話回報：「哪一段的 p95 是多少、比最快的一段慢多少」。
+> 3. 拿掉 `--summary-mode=full` 再跑一次，確認預設摘要只剩整體數字，以及 THRESHOLDS 區裡 `{group:::送出評分}` 那一條門檻。
 
 Positive
 : **實踐心得**：觀察終端機輸出，確認 Init、Setup、VU Code 與 Teardown 的執行順序！體驗 CLI 參數如何即時覆蓋腳本預設值，以及 `--http-debug` 如何在毫秒間抓出通訊異常。

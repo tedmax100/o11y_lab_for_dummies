@@ -29,6 +29,8 @@
      - **Ch3 全份 12 頁**由 `scripts/build_ch3_native_deck.py` 重建：移除圖片殘留的 `[3]`、`[12]` 等引用標記；第 3 頁平均值陷阱改以 100 格方塊呈現；第 9 頁 Tags 範例改用 Demo 的 `api_type`；第 11 頁程式碼補上 `abortOnFail` 以符合口播；第 12 頁 Lab Guide 改用 Codelab 的三個實作（原本的 test.k6.io 已停用）。封面僅保留右側插畫圖片。
      - **Ch2 第 4 頁**由 `scripts/build_ch2_stages_slide.py` 重建：`stages` 範例與 VU 曲線改用 Codelab 的數字（原圖與 Codelab 五個範例都不同，且 Stress 缺少維持段）。
      - **Ch5 第 14 頁**由 `scripts/add_metric_reading_slides.py` 重建：改為 Codelab 實作 1～4 共四個任務，xk6 指令與 Codelab 一致。
+     - **Ch1 第 6 頁**由 `scripts/build_ch1_group_slide.py` 改為原生頁：group() 改以「QuickPizza 使用者旅程」講解（瀏覽首頁 → 取得推薦 → 送出評分），搭配新 Demo `k6/demos/ch1_group_journey.js` 與實測的分段 p95。此腳本直接修改 Google Slides 匯出的版本，保留嵌入字型。
+     - ⚠️ 簡報已改用 Google Slides 匯出（內嵌字型）。`build_ch3_native_deck.py`、`build_ch2_stages_slide.py`、`add_metric_reading_slides.py` 是從 601893d 的舊版重建，重跑會蓋掉 Google Slides 版本；除非要整份重建，否則不要再執行。
 3. **圖片像素級技術勘誤 (Patching)**：
    - **Ch4 Slide 8**：修正 `options: { options: { browser: { type: 'chromium' } } }` 為標準 `browser: { type: 'chromium' }`。
    - **Ch5 Slide 10**：修正 Task 3 Docker 編譯指令中的 `-v $(pwd):/build` 為 `-v $(pwd):/xk6`。

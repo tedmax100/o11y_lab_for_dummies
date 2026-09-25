@@ -21,6 +21,7 @@
 | 章節 | 腳本檔案 | 核心演示亮點與概念 | 終端機執行指令 |
 | :--- | :--- | :--- | :--- |
 | **Ch1** | [`ch1_lifecycle_and_checks.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch1_lifecycle_and_checks.js) | 四階段生命週期 (Init/Setup/VU/Teardown)、`check()` 軟斷言、`group()` 分組、避免高基數 URL 標籤化 | `k6 run k6/demos/ch1_lifecycle_and_checks.js` |
+| **Ch1** | [`ch1_group_journey.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch1_group_journey.js) | 用 `group()` 把 QuickPizza 使用者旅程（瀏覽首頁 → 取得推薦 → 送出評分）分段統計，各段 think time 不同 | `k6 run --summary-mode=full k6/demos/ch1_group_journey.js` |
 | **Ch2** | [`ch2_closed_vs_open_model.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch2_closed_vs_open_model.js) | 協調性漏測 (Coordinated Omission)、閉環模型被拖垮 vs 開放模型 Little's Law 自動調度與 `dropped_iterations` | `k6 run -e MODEL=open k6/demos/ch2_closed_vs_open_model.js` |
 | **Ch2** | [`ch2_shared_array.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch2_shared_array.js) | `SharedArray` 唯讀共享記憶體神技，避免萬人併發時記憶體 OOM 崩潰 | `k6 run k6/demos/ch2_shared_array.js` |
 | **Ch3** | [`ch3_quality_gates_exit99.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch3_quality_gates_exit99.js) | 4 大自訂指標 (Counter/Gauge/Rate/Trend)、精準 Tagged Thresholds、`abortOnFail` 熔斷、Exit Code 99 卡關 | `k6 run -e FAIL_SLO=true k6/demos/ch3_quality_gates_exit99.js ; echo "CI Exit: $?"` |
