@@ -1634,7 +1634,10 @@ k6 run k6/demos/ch4_browser_quickpizza.js
 - **99% Protocol Load (協定負載)**：使用輕量 VU 模擬巨量流量（例如 10,000 RPS），將後端 API、資料庫連線池與微服務網關打至滿載極限。
 - **1% Browser Probe (瀏覽器探針)**：在系統遭受協定負載狂轟濫炸時，派出一隻真實 Chromium 探針模擬真實用戶進入首頁與結帳，測量極限壓力下的真實前端 **LCP/INP** 是否惡化！
 
-![99:1 混合壓測架構：Hybrid Script 同時發出 99% Protocol Load（1000 VU，把後端打到滿載）與 1% Browser Probe（1 VU Chromium，採集風暴下的 LCP/CLS）](assets/images/k6-diagram-hybrid-99-1.png)
+![99:1 混合壓測架構：Hybrid Script 把約 99% 的流量交給輕量 Protocol VU 把後端打到滿載，約 1% 的流量交給 1 個 Chromium 探針採集風暴下的 LCP/CLS](assets/images/k6-diagram-hybrid-99-1.png)
+
+Negative
+: **99:1 指的是流量比例，不是 VU 數**。本章 Demo 用 10 個 protocol VU 在 10 秒內打出約 280 次 API 請求，而瀏覽器探針只跑 1 次完整的使用者旅程——以流量計算大約就是 99:1。實際要配置多少 protocol VU，取決於你的目標負載（可用 Chapter 2 的利特爾法則推算）與壓測機資源；Demo 打的是公開共用的 QuickPizza，所以刻意維持小規模。
 
 #### 混合壓測多情境腳本架構
 

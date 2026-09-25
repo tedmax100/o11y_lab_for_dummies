@@ -350,22 +350,24 @@ def exit_code():
 # 10. 99:1 hybrid architecture
 # ---------------------------------------------------------------------------
 def hybrid():
-    W, H = 30, 7.0
+    W, H = 30, 8.0
     fig, ax = canvas(W, H)
-    box(ax, 0.3, 2.3, 6.6, 2.4, fc=BLUE, ec=BLUE)
-    label(ax, 3.6, 3.5, "全鏈路混合壓測\nHybrid Script", size=12.5, color="#ffffff", bold=True)
+    box(ax, 0.3, 3.3, 6.6, 2.4, fc=BLUE, ec=BLUE)
+    label(ax, 3.6, 4.5, "全鏈路混合壓測\nHybrid Script", size=12.5, color="#ffffff", bold=True)
     rows = [
-        (4.3, "99% Protocol Load", "1000 VU・輕量 HTTP 協定", "後端 API 與資料庫打到滿載"),
-        (0.4, "1% Browser Probe", "1 VU・真實 Chromium", "即時採集風暴下的 LCP / CLS"),
+        (5.3, "~99% 流量：Protocol Load", "大量輕量 VU（Demo：10 VUs，10 秒約 280 次請求）", "後端 API 與資料庫打到滿載"),
+        (1.4, "~1% 流量：Browser Probe", "1 VU 真實 Chromium（Demo：1 次使用者旅程）", "即時採集風暴下的 LCP / CLS"),
     ]
+    label(ax, 0.3, 0.45, "99:1 指的是流量比例（請求／使用者旅程），不是 VU 數；實際 VU 數依目標負載與壓測機資源決定。",
+          size=10, color=INK_2, ha="left")
     for y, head, sub, target in rows:
-        arrow(ax, (7.0, 3.5), (9.9, y + 1.15), color=BLUE_DARK)
-        box(ax, 10.0, y, 8.6, 2.3)
-        label(ax, 10.5, y + 1.5, head, size=12.5, bold=True, ha="left")
-        label(ax, 10.5, y + 0.65, sub, size=10.5, color=INK_2, ha="left")
-        arrow(ax, (18.7, y + 1.15), (20.9, y + 1.15), color=BLUE_DARK)
-        box(ax, 21.0, y, 8.7, 2.3, fc=BLUE_TINT, ec=BLUE_TINT)
-        label(ax, 25.35, y + 1.15, target, size=11.5, color=INK)
+        arrow(ax, (7.0, 4.5), (9.4, y + 1.15), color=BLUE_DARK)
+        box(ax, 9.5, y, 11.4, 2.3)
+        label(ax, 10.0, y + 1.5, head, size=12.5, bold=True, ha="left")
+        label(ax, 10.0, y + 0.65, sub, size=10, color=INK_2, ha="left")
+        arrow(ax, (21.0, y + 1.15), (22.4, y + 1.15), color=BLUE_DARK)
+        box(ax, 22.5, y, 7.2, 2.3, fc=BLUE_TINT, ec=BLUE_TINT)
+        label(ax, 26.1, y + 1.15, target, size=11.5, color=INK)
     save(fig, "hybrid-99-1")
 
 
