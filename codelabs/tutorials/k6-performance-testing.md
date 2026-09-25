@@ -1249,10 +1249,77 @@ import { Counter, Gauge, Rate, Trend } from 'k6/metrics';
 - **業務場景**：衡量內部資料庫查詢耗時、自訂 gRPC 耗時、從登入到完成結帳的全流程漏斗總耗時。
 - **代碼示範**：
   ```javascript
-  const dbQueryTrend = new Trend('custom_db_query_duration');
+  // 第二個參數 true：告訴 k6 這是「時間」，摘要才會顯示成 123.4ms
+  const dbQueryTrend = new Trend('custom_db_query_duration', true);
   // 記錄數值 (毫秒)
   dbQueryTrend.add(queryExecutionTimeMs);
   ```
+
+#### 自訂指標的 5 個規則
+
+四種型態會用了，接下來是「定義與使用」時最容易踩的坑。下面這支腳本把 5 個規則一次示範，不需要連線任何服務就能直接跑（`k6/demos/ch3_custom_metric_rules.js`）：
+
+```javascript
+import { sleep } from 'k6';
+import { Counter, Gauge, Rate, Trend } from 'k6/metrics';
+
+// 規則 1：一律在檔案最上層（init 區塊）宣告
+// 規則 3：名稱只用英文字母、數字、底線
+const ordersCompleted = new Counter('orders_completed');
+const queueDepth      = new Gauge('queue_depth');
+const checkoutSuccess = new Rate('checkout_success');
+const dbQueryTime     = new Trend('db_query_time', true);   // 規則 2：時間型 Trend 加 true
+
+export const options = {
+  iterations: 5,
+  thresholds: {
+    'checkout_success': ['rate>0.9'],
+    'db_query_time{endpoint:checkout}': ['p(95)<200'],     // 規則 4：用 tags 設門檻
+  },
+};
+
+export default function () {
+  const elapsedMs = 100 + __ITER * 10;                       // 模擬一次 DB 查詢耗時
+  ordersCompleted.add(1);
+  queueDepth.add(__ITER);
+  checkoutSuccess.add(true);
+  dbQueryTime.add(elapsedMs, { endpoint: 'checkout' });    // 規則 4：記錄時帶 tags
+  sleep(1);
+}
+```
+
+```bash
+k6 run k6/demos/ch3_custom_metric_rules.js
+```
+
+跑完後，自訂指標會出現在摘要的 `CUSTOM` 區塊（規則 5，k6 v2.2 實測輸出）：
+
+```text
+  █ THRESHOLDS
+    checkout_success
+    ✓ 'rate>0.9' rate=100.00%
+    db_query_time{endpoint:checkout}
+    ✓ 'p(95)<200' p(95)=138ms
+
+  █ TOTAL RESULTS
+    CUSTOM
+    checkout_success..........: 100.00% 5 out of 5
+    db_query_time.............: avg=120ms min=100ms med=120ms max=140ms p(90)=136ms p(95)=138ms
+      { endpoint:checkout }...: avg=120ms min=100ms med=120ms max=140ms p(90)=136ms p(95)=138ms
+    orders_completed..........: 5       0.999145/s
+    queue_depth...............: 4       min=0      max=4
+```
+
+| 規則 | 怎麼做 | 做錯會怎樣 |
+| :-- | :-- | :-- |
+| **1. 在最上層宣告** | `new Trend(...)` 寫在 `default function` 外面 | 寫在 `default function` 裡，k6 直接報錯：`metrics must be declared in the init context` |
+| **2. 時間型 Trend 加 `true`** | `new Trend('db_query_time', true)` | 沒加的話摘要只顯示 `123.4`，看不出是毫秒還是次數 |
+| **3. 名稱只用英數與底線** | `checkout_duration`，以字母或底線開頭，最長 128 字元 | 用中文命名（如「結帳耗時」）會報錯：`Invalid metric name` |
+| **4. 用 tags 細分並設門檻** | `.add(值, { endpoint: 'checkout' })` 搭配 `'db_query_time{endpoint:checkout}'` 門檻 | 不帶 tags 就只能對整體設門檻，分不出是哪個端點慢 |
+| **5. 知道去哪裡看** | 終端機：摘要的 `CUSTOM` 區塊；Prometheus：名稱加上 `k6_` 前綴，Rate 再加 `_rate`、Counter 再加 `_total` | 在 Grafana 查 `k6_checkout_success` 會查不到，要查 `k6_checkout_success_rate` |
+
+Negative
+: **tag 的值不要放動態資料**：跟 `http.url` 與 group 名稱同樣的道理，`{ endpoint: 'checkout' }` 這種固定分類可以，放使用者 ID 或訂單編號會讓指標數量爆炸。
 
 ---
 

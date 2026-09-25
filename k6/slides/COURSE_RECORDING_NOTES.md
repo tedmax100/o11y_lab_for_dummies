@@ -30,6 +30,7 @@
      - **Ch2 第 4 頁**由 `scripts/build_ch2_stages_slide.py` 重建：`stages` 範例與 VU 曲線改用 Codelab 的數字（原圖與 Codelab 五個範例都不同，且 Stress 缺少維持段）。
      - **Ch5 第 14 頁**由 `scripts/add_metric_reading_slides.py` 重建：改為 Codelab 實作 1～4 共四個任務，xk6 指令與 Codelab 一致。
      - **Ch1 第 6 頁**由 `scripts/build_ch1_group_slide.py` 改為原生頁：group() 改以「QuickPizza 使用者旅程」講解（瀏覽首頁 → 取得推薦 → 送出評分），搭配新 Demo `k6/demos/ch1_group_journey.js` 與實測的分段 p95。此腳本直接修改 Google Slides 匯出的版本，保留嵌入字型。
+     - **Ch3 新增第 8 頁「自訂指標的 5 個規則」**（`scripts/add_ch3_custom_metric_rules_slide.py`，直接插入 Google Slides 匯出版）：原第 8～12 頁順延為 9～13；配套 Demo `k6/demos/ch3_custom_metric_rules.js`。Ch3 Demo 的 `custom_db_processing_duration` 改為時間型 Trend（加 `true`），摘要會顯示 ms；Codelab 的 `k6-ch3-cmd1-pass.png` 截圖仍是舊格式。
      - ⚠️ 簡報已改用 Google Slides 匯出（內嵌字型）。`build_ch3_native_deck.py`、`build_ch2_stages_slide.py`、`add_metric_reading_slides.py` 是從 601893d 的舊版重建，重跑會蓋掉 Google Slides 版本；除非要整份重建，否則不要再執行。
 3. **圖片像素級技術勘誤 (Patching)**：
    - **Ch4 Slide 8**：修正 `options: { options: { browser: { type: 'chromium' } } }` 為標準 `browser: { type: 'chromium' }`。

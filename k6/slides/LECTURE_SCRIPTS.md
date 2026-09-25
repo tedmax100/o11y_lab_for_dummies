@@ -225,7 +225,7 @@
 ---
 
 # Chapter 3: k6 Quality Gates & SLO Enforcement
-**建議錄製時長**：22 ~ 25 分鐘 (共 12 頁投影片)  
+**建議錄製時長**：24 ~ 27 分鐘 (共 13 頁投影片)  
 **章節主旨**：從 Google SRE 的 RED 方法論出發，建立百分位數 (p95/p99) 門禁，運用 4 大自訂指標，並以 Exit Code 99 實現 CI/CD 自動卡關。
 
 ---
@@ -302,7 +302,15 @@
 
 ---
 
-### Slide 8: 斷言三部曲完整對照 (check vs thresholds vs expect)
+### Slide 8: 自訂指標的 5 個規則 (Defining Custom Metrics)
+* **視覺焦點**：左側完整範例程式碼，右側 5 張規則卡。
+* **心智模型**：宣告在最上層、時間型 Trend 加 true、名稱只用英數底線、用 tags 細分並設門檻、知道去 CUSTOM 區塊與 Prometheus 的哪個名稱找。
+* **🎤 口播逐字稿**：
+  > 「五個規則：一，在檔案最上層宣告，寫進 default function 會報錯；二，量時間的 Trend 加 `true`，摘要才有 ms 單位；三，名稱只用英數與底線，中文會報錯；四，`.add()` 可以帶 tags，再用 `{endpoint:checkout}` 設門檻；五，終端機看 `CUSTOM` 區塊，Prometheus 裡 Rate 會多一個 `_rate` 後綴。」
+
+---
+
+### Slide 9: 斷言三部曲完整對照 (check vs thresholds vs expect)
 * **視覺焦點**：三者對照表（層級、是否中斷、輸出效果）。
 * **心智模型**：`check` 是代碼軟斷言，`thresholds` 是全域硬門禁，`expect` 是 BDD 風格語法。
 * **🎤 口播逐字稿**：
@@ -313,7 +321,7 @@
 
 ---
 
-### Slide 9: 精準控制 API SLO (Thresholds 與 Tags 組合技)
+### Slide 10: 精準控制 API SLO (Thresholds 與 Tags 組合技)
 * **視覺焦點**：帶有 `{ api_type: 'critical' }` 標籤的宣告式門檻代碼。
 * **心智模型**：不同等級的 API 要有不同的 SLO，不可一體適用。
 * **🎤 口播逐字稿**：
@@ -323,7 +331,7 @@
 
 ---
 
-### Slide 10: CI/CD 自動卡關實務 (Exit Code 99 傳遞鏈)
+### Slide 11: CI/CD 自動卡關實務 (Exit Code 99 傳遞鏈)
 * **視覺焦點**：錯誤示範（退出碼被後續指令蓋成 0，CI 顯示 PASS）vs 正確示範（`code=$?` 捕捉、`exit $code` 傳遞，CI 顯示 BLOCKED）。
 * **心智模型**：Unix 標準回傳碼 99 是 CI/CD 識別效能門禁破功的核心機制。
 * **🎤 口播逐字稿**：
@@ -336,7 +344,7 @@
 
 ---
 
-### Slide 11: 模組綜合實戰 (架構化 SLO 代碼)
+### Slide 12: 模組綜合實戰 (架構化 SLO 代碼)
 * **視覺焦點**：帶有 `abortOnFail: true` 的專業級腳本配置。
 * **心智模型**：熔斷機制 (Circuit Breaker)，錯誤率飆高時及時止損。
 * **🎤 口播逐字稿**：
@@ -346,7 +354,7 @@
 
 ---
 
-### Slide 12: 隨堂實作練習指引 (Lab Guide)
+### Slide 13: 隨堂實作練習指引 (Lab Guide)
 * **視覺焦點**：三個實作任務清單。
 * **🎤 口播逐字稿**：
   > 「本章的理論到此告一段落。請大家打開本章對應的 Lab Guide，動手完成三個任務：  

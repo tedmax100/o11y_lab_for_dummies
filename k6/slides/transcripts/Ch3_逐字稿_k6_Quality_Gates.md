@@ -2,17 +2,17 @@
 
 > **課程名稱**：現代化效能測試實戰：從 k6 到雲原生可觀測性  
 > **章節名稱**：Module 3: 效能指標解讀與 SLO 門檻自動化 (k6 Quality Gates)  
-> **預估時長**：22 ~ 25 分鐘  
+> **預估時長**：24 ~ 27 分鐘  
 > **配套簡報**：[`k6/slides/Ch3_k6_Quality_Gates.pptx`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/slides/Ch3_k6_Quality_Gates.pptx)  
 > **配套演示**：[`k6/demos/ch3_quality_gates_exit99.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch3_quality_gates_exit99.js) (自訂指標、Tagged Thresholds、abortOnFail 與 Exit Code 99 驗證)
 
 ---
 
 ## 🎬 錄製前準備檢核清單 (Pre-recording Checklist)
-- [ ] 簡報切換至 Chapter 3 封面（請確認投影片為新順序：Lab Guide 已在最後第 12 頁）。
+- [ ] 簡報切換至 Chapter 3 封面（請確認投影片為新順序：Lab Guide 已在最後第 13 頁）。
 - [ ] 終端機預先測試指令：`k6 run -e FAIL_SLO=false k6/demos/ch3_quality_gates_exit99.js`（驗證通過）。
 - [ ] 終端機預先測試指令：`k6 run -e FAIL_SLO=true k6/demos/ch3_quality_gates_exit99.js ; echo "CI Exit Code: $?"`（驗證 Exit Code 99）。
-- [ ] 講述提示：講到 Slide 10 Exit Code 99 時語氣要有力量，突顯「自動化卡關」的威力。
+- [ ] 講述提示：講到 Slide 11 Exit Code 99 時語氣要有力量，突顯「自動化卡關」的威力。
 
 ---
 
@@ -23,12 +23,12 @@
 
 | 片段 | 內容 | 畫面 | 預估 | 備註 |
 | :-- | :-- | :-- | :-: | :-- |
-| **A 觀念** | Slide 1 → Slide 10 前半 | 🎞️ 投影片 | 19.5 分 | Slide 5–6 是結果判讀，放慢講 |
-| **B1 Demo** | Slide 10 後半：`FAIL_SLO=false` → `FAIL_SLO=true ; echo $?` | 🖥️ 終端機 | 2 分 | 高潮點：`CI Exit Code: 99`，終端機放大 |
-| **A2 觀念** | Slide 11 abortOnFail | 🎞️ 投影片 | 1.5 分 | |
+| **A 觀念** | Slide 1 → Slide 11 前半 | 🎞️ 投影片 | 21.5 分 | Slide 5–6 是結果判讀，放慢講 |
+| **B1 Demo** | Slide 11 後半：`FAIL_SLO=false` → `FAIL_SLO=true ; echo $?` | 🖥️ 終端機 | 2 分 | 高潮點：`CI Exit Code: 99`，終端機放大 |
+| **A2 觀念** | Slide 12 abortOnFail | 🎞️ 投影片 | 1.5 分 | |
 | **B2 Demo（選用）** | `ABORT_TEST=true` 熔斷，約 2 秒就腰斬 | 🖥️ 終端機 | 1 分 | 投影片只講觀念，現場跑一次效果很好 |
-| **C Codelab** | Slide 12 前半 → Codelab [#3 Chapter 3](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#3) 實作演練 | 📘 Codelab | 3 分 | |
-| **D 收尾** | Slide 12 後半：第四章預告 | 🎞️ 投影片 | 0.5 分 | |
+| **C Codelab** | Slide 13 前半 → Codelab [#3 Chapter 3](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#3) 實作演練 | 📘 Codelab | 3 分 | |
+| **D 收尾** | Slide 13 後半：第四章預告 | 🎞️ 投影片 | 0.5 分 | |
 
 ---
 
@@ -175,11 +175,32 @@
 > 它只接受 0 或 1（布林值亦可）。k6 會自動幫你計算出百分比比率。例如：『結帳成功率是否達到 99%』。  
 > 
 > 第四個是 **Trend（統計趨勢）**：  
-> 這是四大指標中最萬能的瑞士刀！只要你把一個數值（例如毫秒時間）丟進 Trend，k6 在測試結束時就會自動幫你算好 min、max、avg、med、以及最關鍵的 P90 與 P95！極為適合用來記錄自訂的資料庫存取耗時，或是自訂 RPC 遠端調用耗時。」
+> 這是四大指標中最萬能的瑞士刀！只要你把一個數值（例如毫秒時間）丟進 Trend，k6 在測試結束時就會自動幫你算好 min、max、avg、med、以及最關鍵的 P90 與 P95！極為適合用來記錄自訂的資料庫存取耗時，或是自訂 RPC 遠端調用耗時。  
+> 不過，四種型態會用了還不夠，定義的時候有幾個坑一踩就報錯，下一頁我們一次講清楚。」
 
 ---
 
-### 【Slide 8 (原S7): 斷言三部曲完整對照】 (預估時間: 15:30 - 17:30)
+### 【Slide 8 (新增): 自訂指標的 5 個規則】 (預估時間: 15:30 - 17:30)
+
+* **畫面焦點**：左側完整範例程式碼（宣告、`true`、tags 門檻、`.add()` 帶 tags）；右側 5 張規則卡：① 在最上層宣告、② 時間型 Trend 加 true、③ 名稱只用英數與底線、④ 用 tags 細分並設門檻、⑤ 知道去哪裡看。
+* **螢幕動作**：【動作：依 ①→⑤ 順序，每講一條就把游標移到左側程式碼的對應行】。
+
+**【口播逐字稿】**：
+> 「自訂指標定義起來很簡單，但有五個規則，踩到任何一個，不是直接報錯，就是數據看起來怪怪的。  
+> 
+> **第一，一定要在檔案最上層宣告。** 大家看左邊，`new Counter`、`new Rate`、`new Trend` 全部寫在 `default function` 外面。如果你把它寫進 `default function` 裡，k6 會直接報錯：『metrics must be declared in the init context』。  
+> 
+> **第二，量時間的 Trend，第二個參數要加 `true`。** 加了之後摘要會顯示 `123.4ms`；沒加的話只會顯示 `123.4`，你根本不知道這是毫秒還是次數。  
+> 
+> **第三，名稱只能用英文字母、數字和底線。** 我知道大家很想取『結帳耗時』這種中文名字，但 k6 會直接報錯：『Invalid metric name』。  
+> 
+> **第四，可以帶 tags，再用 tags 設門檻。** `.add()` 的第二個參數可以帶 tags，例如 `{ endpoint: 'checkout' }`，門檻就能寫成 `db_query_time{endpoint:checkout}`，只針對結帳端點把關。跟 URL 和 group 名稱一樣，tag 的值不要放使用者 ID 這種動態資料。  
+> 
+> **第五，要知道去哪裡看。** 在終端機，自訂指標會出現在摘要的 `CUSTOM` 區塊；推到 Prometheus 之後，名稱會自動加上 `k6_` 前綴，Rate 還會再加 `_rate`、Counter 加 `_total`。所以在 Grafana 查 `k6_checkout_success` 是查不到的，要查 `k6_checkout_success_rate`——這個坑我們第五章還會再遇到。」
+
+---
+
+### 【Slide 9 (原S7): 斷言三部曲完整對照】 (預估時間: 17:30 - 19:30)
 
 * **畫面焦點**：對照表：`check()` vs `thresholds` vs `expect()`，三列為作用層級、失敗後果、核心用途；底部是最佳實踐 `'checks': ['rate>0.99']`。
 * **螢幕動作**：【動作：圈選 check 的軟斷言與 thresholds 的硬門禁】。
@@ -198,7 +219,7 @@
 
 ---
 
-### 【Slide 9 (原S8): 精準控制 API SLO：Thresholds 與 Tags 組合技】 (預估時間: 17:30 - 19:30)
+### 【Slide 10 (原S8): 精準控制 API SLO：Thresholds 與 Tags 組合技】 (預估時間: 19:30 - 21:30)
 
 * **畫面焦點**：左側流程：原始數據依 `{api_type:critical}`、`{api_type:background}` 分流到不同門檻（p95 < 300ms／p95 < 5000ms），下方補充 Group 過濾；右側為對應的 `thresholds` 程式碼。
 * **螢幕動作**：【動作：圈選大括號內的 Tag 過濾條件】。
@@ -220,7 +241,7 @@
 
 ---
 
-### 【Slide 10 (原S9): CI/CD 自動卡關實務：Exit Code 99 傳遞鏈】 (預估時間: 19:30 - 21:30)
+### 【Slide 11 (原S9): CI/CD 自動卡關實務：Exit Code 99 傳遞鏈】 (預估時間: 21:30 - 23:30)
 
 * **畫面焦點**：左右對照：錯誤示範（k6 回傳 99 後又接 echo，CI 顯示 PASS）vs 正確示範（`code=$?` 捕捉、`exit $code` 傳遞，CI 顯示 BLOCKED），各附一行指令。
 * **螢幕動作**：【動作：切換至終端機進行 Live Demo 實測 Exit Code 99】。
@@ -250,11 +271,11 @@
 
 ---
 
-✂️ **【分段點 B1 → A2】** 停錄；切回投影片 Slide 11。
+✂️ **【分段點 B1 → A2】** 停錄；切回投影片 Slide 12。
 
 ---
 
-### 【Slide 11 (原S10): 模組綜合實戰與即時熔斷】 (預估時間: 21:30 - 23:15)
+### 【Slide 12 (原S10): 模組綜合實戰與即時熔斷】 (預估時間: 23:30 - 25:15)
 
 * **畫面焦點**：21 行完整範例程式碼，右側 4 個說明框：宣告 Rate 自訂指標、Tags 過濾門檻、`abortOnFail` 即時熔斷與 `delayAbortEval` 暖機寬限、貼標籤並把 check 結果寫入業務成功率。
 * **螢幕動作**：【動作：圈選 abortOnFail 參數】。
@@ -276,11 +297,11 @@
 > 【動作：按下 Enter】  
 > 大家看，原本要跑 20 次迭代，才兩秒左右就被腰斬，紅字寫著 `at least one has abortOnFail enabled, stopping test prematurely`，結束碼一樣是 99。在一小時的耐久測試裡，這兩秒跟六十分鐘的差別，就是你的雲端帳單。」
 
-✂️ **【分段點 B2 → C】** 停錄；切回投影片 Slide 12 開新片段。
+✂️ **【分段點 B2 → C】** 停錄；切回投影片 Slide 13 開新片段。
 
 ---
 
-### 【Slide 12 (原S2): 隨堂實作練習指引】 (預估時間: 23:15 - 24:30)
+### 【Slide 13 (原S2): 隨堂實作練習指引】 (預估時間: 25:15 - 26:30)
 
 * **畫面焦點**：三張任務卡：同一支 `ch3_quality_gates_exit99.js` 以 `FAIL_SLO=false`、`FAIL_SLO=true`、`ABORT_TEST=true` 切出三種情境，各附指令與觀察重點。
 * **螢幕動作**：【動作：切換至專案 demo 目錄指引學員開始上機】。
@@ -325,4 +346,4 @@
 > 最後底部的『SRE 避坑指南』第一條請背下來：**check 只是輔助，threshold 才是法律**。  
 > 另外，本頁開頭的『SLI、SLO、SLA 與 k6 Thresholds』請一定要讀：**壓測通過 threshold，不代表上線後就符合 SLO**。好，回到投影片。」
 
-* **螢幕動作**：【🎞️ 切回投影片 Slide 12，唸「完成實作後……」預告段】
+* **螢幕動作**：【🎞️ 切回投影片 Slide 13，唸「完成實作後……」預告段】

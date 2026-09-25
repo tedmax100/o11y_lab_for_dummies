@@ -32,7 +32,7 @@ const ABORT_TEST = __ENV.ABORT_TEST === 'true';
 const orderCount = new Counter('orders_submitted_total');
 const activeVUGauge = new Gauge('active_workers_gauge');
 const businessSuccessRate = new Rate('business_transaction_success');
-const customDbTrend = new Trend('custom_db_processing_duration');
+const customDbTrend = new Trend('custom_db_processing_duration', true); // 時間型 Trend：摘要顯示為 ms
 
 export const options = {
   vus: 3,
