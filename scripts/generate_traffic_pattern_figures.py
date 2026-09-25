@@ -3,9 +3,11 @@
 Render the Chapter 2 traffic-pattern figures for the k6 codelab, plotted from the
 exact `stages` arrays shown next to each figure (k6 ramps linearly between stages):
 
+    codelabs/tutorials/assets/images/k6-ch2-smoke-pattern.png
     codelabs/tutorials/assets/images/k6-ch2-load-pattern.png
     codelabs/tutorials/assets/images/k6-ch2-stress-pattern.png
     codelabs/tutorials/assets/images/k6-ch2-spike-pattern.png
+    codelabs/tutorials/assets/images/k6-ch2-soak-pattern.png
 
 If you change a `stages` example in the codelab, update STAGES here and re-run.
 Single series per chart, so no legend: the title names it and phases are labelled
@@ -43,7 +45,10 @@ STAGES = {
     "stress": [(120, 50), (180, 50), (120, 100), (180, 100), (120, 200), (180, 200),
                (120, 300), (180, 300), (180, 0)],
     "spike": [(30, 10), (10, 200), (60, 200), (10, 10), (120, 10), (10, 0)],
+    "soak": [(300, 40), (4 * 3600, 40), (300, 0)],
 }
+# Smoke uses `vus: 1, duration: '1m'` (no stages): 1 VU from the first second, no ramp.
+SMOKE_VUS, SMOKE_SECONDS = 1, 60
 
 
 def points(stages):
@@ -81,7 +86,7 @@ def draw(ax, t, v):
 def phase(ax, x0, x1, y, text, color=INK_2):
     ax.annotate("", xy=(x0, y), xytext=(x1, y),
                 arrowprops=dict(arrowstyle="<->", color=MUTED, lw=1, shrinkA=0, shrinkB=0))
-    ax.text((x0 + x1) / 2, y + 0.02 * ax.get_ylim()[1] + 1, text, ha="center", va="bottom", fontsize=9.5, color=color)
+    ax.text((x0 + x1) / 2, y + 0.03 * ax.get_ylim()[1], text, ha="center", va="bottom", fontsize=9.5, color=color)
 
 
 def save(fig, name):
@@ -138,11 +143,44 @@ def spike():
     save(fig, "k6-ch2-spike-pattern.png")
 
 
+def hours(x, _):
+    return f"{x / 3600:g}h"
+
+
+def smoke():
+    t = [0, 0, SMOKE_SECONDS, SMOKE_SECONDS]
+    v = [0, SMOKE_VUS, SMOKE_VUS, 0]
+    fig, ax = base_axes("Smoke Test 流量波形：固定 1 VU，驗證腳本與環境",
+                        "options：vus: 1、duration: '1m'（沒有 stages，從第一秒起就是 1 個 VU，不爬坡）",
+                        SMOKE_SECONDS * 1.25, 3, 15, mmss)
+    ax.yaxis.set_major_locator(MultipleLocator(1))
+    draw(ax, t, v)
+    phase(ax, 0, SMOKE_SECONDS, 1.55, "1 分鐘：API 路由、Token、資料庫連線是否全部正常？")
+    ax.text(SMOKE_SECONDS + 1.5, 0.5, "門檻：錯誤率 = 0\nchecks 全數通過", fontsize=9.5, color=INK_2, va="center")
+    save(fig, "k6-ch2-smoke-pattern.png")
+
+
+def soak():
+    t, v = points(STAGES["soak"])
+    fig, ax = base_axes("Soak Test 流量波形：固定負載長跑，讓時間成為唯一變數",
+                        "stages：5m 預熱至 40 VUs → 維持 4h → 5m 收尾（共 4 小時 10 分鐘；生產級常跑 8~24 小時）",
+                        t[-1], 60, 1800, hours)
+    draw(ax, t, v)
+    ax.annotate("預熱 5m", xy=(150, 20), xytext=(700, 12), fontsize=9.5, color=INK_2, va="center",
+                arrowprops=dict(arrowstyle="->", color=MUTED, lw=1))
+    phase(ax, 300, 300 + 4 * 3600, 46, "固定 40 VUs × 4h：看 P95、錯誤率、RPS 的「斜率」，而不只是紅綠燈")
+    ax.annotate("收尾 5m：負載歸零後\n系統有沒有恢復？", xy=(t[-1] - 150, 20), xytext=(t[-1] - 3300, 14),
+                fontsize=9.5, color=INK_2, va="center", arrowprops=dict(arrowstyle="->", color=MUTED, lw=1))
+    save(fig, "k6-ch2-soak-pattern.png")
+
+
 def main():
     os.makedirs(IMG_DIR, exist_ok=True)
+    smoke()
     load()
     stress()
     spike()
+    soak()
 
 
 if __name__ == "__main__":

@@ -439,6 +439,9 @@ Duration: 25
 
 - **業務目標**：極小負載下的功能性「健康校驗」。通常在壓測腳本剛寫完、或微服務新版本部署至 Staging 環境時執行，確認 API 路由、鑑權 Token、資料庫連線通暢無阻。
 - **流量特徵**：1~2 個 VU，測試時長 30 秒至 1 分鐘。
+
+![Smoke Test 流量波形：從第一秒起固定 1 個 VU，持續 1 分鐘](assets/images/k6-ch2-smoke-pattern.png)
+
 - **配置範例**：
 
 ```javascript
@@ -539,6 +542,9 @@ export const options = {
   2. **連線池洩漏 (Connection Pool Exhaustion)**：資料庫 Query 或 HTTP Client 連線未顯式關閉，累積數小時後池化連線耗盡。
   3. **日誌與磁碟爆滿 (Disk Full)**：無上限日誌堆積填滿 Pod 磁碟空間引發 Evicted。
   4. **認證憑證失效 (Token Expiration)**：JWT/OAuth Token 長期運行未刷新，引發大面積 401 故障。
+
+![Soak Test 流量波形：5 分鐘預熱至 40 VUs，固定維持 4 小時，5 分鐘收尾](assets/images/k6-ch2-soak-pattern.png)
+
 - **配置範例**：
 
 ```javascript
