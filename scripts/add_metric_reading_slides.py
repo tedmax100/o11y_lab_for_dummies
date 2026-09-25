@@ -34,6 +34,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SLIDES_DIR = os.environ.get("K6_SLIDES_DIR", os.path.join(ROOT, "k6", "slides"))
 CH3 = os.path.join(SLIDES_DIR, "Ch3_k6_Quality_Gates.pptx")
 CH5 = os.path.join(SLIDES_DIR, "Ch5_k6_Observability_and_Modular_Architecture.pptx")
+FIGURE = os.path.join(ROOT, "k6", "slides", "assets", "Ch5", "curve_patterns.png")  # generate_curve_patterns_figure.py
 
 MARKER = "MetricReading_Marker"
 CODELAB_URL = "https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/"
@@ -421,67 +422,14 @@ def style_mini_chart(chart, colors, widths):
 def ch5_curve_patterns(prs, bg):
     s = prs.slides.add_slide(blank_layout(prs))
     dark_header(s, bg, "看懂儀表板：8 種經典曲線型態",
-                "永遠把「負載軸」（VUs / RPS）和「反應軸」（P95・P99 / 錯誤率）疊在一起看，找出第一個偏離平穩的拐點")
+                "虛線＝負載軸（VUs / RPS），實線＝反應軸（延遲、錯誤率）；找出第一個偏離平穩的拐點")
 
-    x12 = list(range(12))
-    patterns = [
-        ("① 健康線性",
-         [("VUs", [0.8 * i + 0.5 for i in x12], D_CYAN, 2.0),
-          ("RPS", [0.8 * i + 0.2 for i in x12], D_PURPLE, 2.0),
-          ("P95", [1.6] * 12, D_AMBER, 2.75)],
-         "VUs 和 RPS 同比例上升，P95 平穩", "還有餘裕 → 繼續加壓找上限"),
-        ("② 飽和平台（拐點）",
-         [("VUs", [0.8 * i + 0.5 for i in x12], D_CYAN, 2.0),
-          ("RPS", [0.8 * i + 0.2 if i < 7 else 5.8 for i in x12], D_PURPLE, 2.0),
-          ("P95", [1.6] * 7 + [2.6, 3.8, 5.0, 6.2, 7.4], D_AMBER, 2.75)],
-         "VUs 還在加，RPS 卻走平；同時 P95 開始爬升", "容量上限：拐點當下的 RPS 就是系統容量"),
-        ("③ 崩潰懸崖",
-         [("RPS", [0.8 * i + 0.4 for i in range(7)] + [4.0, 3.2, 2.8, 2.6, 2.5], D_PURPLE, 2.0),
-          ("P95", [1.6] * 7 + [8.5, 9.4, 9.6, 9.7, 9.7], D_AMBER, 2.75),
-          ("錯誤率", [0.1] * 7 + [4.5, 6.5, 7.0, 7.2, 7.3], D_RED, 2.75)],
-         "P95 垂直暴衝、錯誤率同時竄升、RPS 反而下降", "佇列溢出、逾時、連線池或執行緒池耗盡"),
-        ("④ 尾巴張開",
-         [("P90", [1.8] * 12, D_GRAY, 2.0),
-          ("P95", [2.6 + 0.05 * i for i in x12], D_AMBER, 2.75),
-          ("P99", [3.4] * 5 + [4.2, 5.2, 6.1, 7.0, 7.9, 8.8, 9.6], D_ORANGE, 2.75)],
-         "P90 / P95 平穩，P99 越拉越開", "少數請求受害：GC 停頓、鎖競爭、快取失效"),
-        ("⑤ 緩慢爬坡（Soak）",
-         [("VUs", [6.0] * 12, D_CYAN, 2.0),
-          ("P95", [1.6, 1.7, 1.9, 2.1, 2.4, 2.8, 3.2, 3.7, 4.2, 4.8, 5.4, 6.0], D_AMBER, 2.75)],
-         "負載不變，P95 緩升（P50 常一起爬）", "記憶體／GC 壓力，或資料越積越多"),
-        ("⑥ 週期鋸齒",
-         [("VUs", [6.0] * 12, D_CYAN, 2.0),
-          ("P95", [1.6, 1.6, 7.0, 1.6, 1.6, 7.2, 1.6, 1.6, 7.0, 1.6, 1.6, 7.1], D_AMBER, 2.75)],
-         "固定間隔出現尖峰", "排程、GC 週期、TTL 同時到期、擴縮容"),
-        ("⑦ 錯誤率階梯（Soak）",
-         [("VUs", [6.0] * 12, D_CYAN, 2.0),
-          ("錯誤率", [0.1] * 4 + [2.2] * 3 + [4.4] * 3 + [6.8] * 2, D_RED, 2.75)],
-         "負載不變，錯誤率一階一階往上跳", "有限資源耗盡：連線池、open files"),
-        ("⑧ 吞吐下滑・連線層",
-         [("RPS", [7.0 - 0.3 * i for i in x12], D_PURPLE, 2.0),
-          ("P95", [1.6] * 12, D_AMBER, 2.75),
-          ("blocked", [0.4 + 0.35 * i for i in x12], "80CBC4", 2.75)],
-         "RPS 下滑、P95 持平、blocked 上升", "連線建立層：先排除壓測機自己"),
-    ]
-
-    cw, ch_, gx, gy, x0, y0 = 302, 290, 16, 16, 60, 130
-    for i, (title, series, seen, means) in enumerate(patterns):
-        cx = x0 + (i % 4) * (cw + gx)
-        cy = y0 + (i // 4) * (ch_ + gy)
-        add_box(s, cx, cy, cw, ch_, fill=D_CARD, line=D_CARD_BORDER, radius=0.05)
-        add_text(s, cx + 14, cy + 10, cw - 28, 30, [[(title, S(15, D_WHITE, True))]], anchor=MSO_ANCHOR.MIDDLE)
-
-        cd = CategoryChartData()
-        cd.categories = [str(v) for v in x12]
-        for name, vals, _, _ in series:
-            cd.add_series(name, vals)
-        gf = s.shapes.add_chart(XL_CHART_TYPE.LINE, *px(cx + 8, cy + 40, cw - 16, 140), cd)
-        style_mini_chart(gf.chart, [c for _, _, c, _ in series], [w for _, _, _, w in series])
-
-        add_text(s, cx + 14, cy + 186, cw - 28, 98, [
-            [("看到  ", S(12, D_CYAN, True)), (seen, S(13, D_TEXT))],
-            [("代表  ", S(12, D_AMBER, True)), (means, S(13, D_WHITE, True))],
-        ], space_after=6)
+    # Same figure as the codelab (scripts/generate_curve_patterns_figure.py), on a light card
+    # so its validated light palette reads correctly on the dark slide.
+    add_box(s, 60, 130, 1256, 586, fill="FCFCFB", line=D_CARD_BORDER, radius=0.025)
+    img_w = 1226
+    img_h = img_w * 1080 / 2400
+    s.shapes.add_picture(FIGURE, *px(75, 130 + (586 - img_h) / 2, img_w, img_h))
 
     copy_badge(prs, s)
     s.notes_slide.notes_text_frame.text = (

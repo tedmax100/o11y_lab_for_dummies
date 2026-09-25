@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-Render the Chapter 5 "8 classic dashboard curve patterns" small-multiples figure
-for the k6 codelab:
+Render the Chapter 5 "8 classic dashboard curve patterns" small-multiples figure:
 
-    codelabs/tutorials/assets/images/k6-ch5-curve-patterns.png
+    codelabs/tutorials/assets/images/k6-ch5-curve-patterns.png   (codelab, with title)
+    k6/slides/assets/Ch5/curve_patterns.png                      (Ch5 slide 8, no title)
+
+Both use the same light palette so the codelab and the slide show identical colours;
+the slide places the image on a light card (see add_metric_reading_slides.py).
 
 Colour follows the metric, never the panel: every metric keeps one colour in all
 eight panels. Load-axis metrics (VUs, RPS) are dashed, response-axis metrics are
@@ -21,6 +24,7 @@ from matplotlib import font_manager  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "codelabs", "tutorials", "assets", "images", "k6-ch5-curve-patterns.png")
+OUT_SLIDE = os.path.join(ROOT, "k6", "slides", "assets", "Ch5", "curve_patterns.png")
 
 for fam in ("Noto Sans CJK TC", "Noto Sans CJK HK", "Noto Sans CJK JP"):
     if any(f.name == fam for f in font_manager.fontManager.ttflist):
@@ -71,17 +75,20 @@ PANELS = [
 ]
 
 
-def main():
-    fig, axes = plt.subplots(2, 4, figsize=(16, 7.8), dpi=150, facecolor=SURFACE)
-    fig.subplots_adjust(left=0.02, right=0.955, top=0.80, bottom=0.05, wspace=0.28, hspace=0.5)
-    fig.text(0.02, 0.96, "儀表板的 8 種經典曲線型態", fontsize=17, fontweight="bold", color=INK)
-    fig.text(0.02, 0.918, "虛線＝負載軸（VUs / RPS），實線＝反應軸（延遲、錯誤率）；同一個指標在每一格都用同一個顏色",
-             fontsize=11, color=INK_2)
+def render(out, header):
+    k = 1.0 if header else 1.3  # slide variant: larger type for recording
+    fig, axes = plt.subplots(2, 4, figsize=(16, 7.8 if header else 7.2), dpi=150, facecolor=SURFACE)
+    fig.subplots_adjust(left=0.02, right=0.955 if header else 0.945, top=0.80 if header else 0.885, bottom=0.05 if header else 0.055,
+                        wspace=0.28, hspace=0.5 if header else 0.66)
+    if header:
+        fig.text(0.02, 0.96, "儀表板的 8 種經典曲線型態", fontsize=17, fontweight="bold", color=INK)
+        fig.text(0.02, 0.918, "虛線＝負載軸（VUs / RPS），實線＝反應軸（延遲、錯誤率）；同一個指標在每一格都用同一個顏色",
+                 fontsize=11, color=INK_2)
 
     for ax, (title, sub, series, mark) in zip(axes.flat, PANELS):
         ax.set_facecolor(SURFACE)
-        ax.set_title(title, loc="left", fontsize=13.5, fontweight="bold", color=INK, pad=22)
-        ax.text(0, 1.035, sub, transform=ax.transAxes, fontsize=10, color=INK_2, va="bottom")
+        ax.set_title(title, loc="left", fontsize=13.5 * k, fontweight="bold", color=INK, pad=22 * k)
+        ax.text(0, 1.035, sub, transform=ax.transAxes, fontsize=10 * k, color=INK_2, va="bottom")
         ends = []
         for key, ys in series:
             label, color, dashed = M[key]
@@ -91,15 +98,15 @@ def main():
         # direct labels at the line ends, nudged apart so they never collide
         ends.sort(key=lambda e: e[0])
         for i in range(1, len(ends)):
-            if ends[i][0] - ends[i - 1][0] < 0.85:
-                ends[i][0] = ends[i - 1][0] + 0.85
+            if ends[i][0] - ends[i - 1][0] < 0.85 * k:
+                ends[i][0] = ends[i - 1][0] + 0.85 * k
         for y, label, color, y_end in ends:
-            ax.text(11.3, y, label, fontsize=9.5, color=INK_2, va="center", ha="left", fontweight="bold")
+            ax.text(11.3, y, label, fontsize=9.5 * k, color=INK_2, va="center", ha="left", fontweight="bold")
             ax.plot([11], [y_end], marker="o", ms=4, color=color, zorder=4, clip_on=False)
         if mark:
             text, xm = mark
             ax.axvline(xm, color=MUTED, lw=1, ls=(0, (2, 2)), zorder=1)
-            ax.text(xm + 0.2, 10.2, text, fontsize=9.5, color=INK_2, va="top")
+            ax.text(xm + 0.2, 10.2, text, fontsize=9.5 * k, color=INK_2, va="top")
         ax.set_xlim(0, 11)
         ax.set_ylim(0, 10.6)
         ax.set_yticks([])
@@ -107,11 +114,17 @@ def main():
         for side in ("top", "right", "left"):
             ax.spines[side].set_visible(False)
         ax.spines["bottom"].set_color(BASELINE)
-        ax.set_xlabel("時間 →", fontsize=9, color=MUTED, loc="right", labelpad=2)
+        ax.set_xlabel("時間 →", fontsize=9 * k, color=MUTED, loc="right", labelpad=2)
 
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    fig.savefig(OUT, facecolor=SURFACE)
-    print(f"wrote {OUT}")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    fig.savefig(out, facecolor=SURFACE)
+    plt.close(fig)
+    print(f"wrote {out}")
+
+
+def main():
+    render(OUT, header=True)
+    render(OUT_SLIDE, header=False)
 
 
 if __name__ == "__main__":
