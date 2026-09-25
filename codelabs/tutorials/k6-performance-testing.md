@@ -1871,8 +1871,7 @@ xk6 的底層設計極其精妙：
 | **Output Extensions (時序指標匯出擴充)** | `xk6-output-timescaledb`<br>`xk6-output-kafka`<br>`xk6-output-influxdb` | 攔截 k6 產生的每一筆指標並即時轉發 | 將高頻壓測時序串流即時寫入 TimescaleDB、Kafka 或 Datadog |
 
 Positive
-: **講師實戰手記：手把手從零開發 Web3 OTP 插件**  
-: 想深入了解如何親手用 Go 語言撰寫一個 xk6 擴充插件嗎？推薦研讀講師專欄文章：[Grafana xk6: 手把手從開發 k6 插件程式到編譯出 k6 插件](https://ganhua.wang/grafana-xk6)。文章詳細拆解了 Go-to-JS 橋接的 `RootModule` 與 `ModuleInstance` 生命週期，並以 Web3 身份驗證為例，實作高併發動態生成一次性密碼 (OTP) 與簽名的自訂模組！
+: **講師實戰手記：手把手從零開發 Web3 OTP 插件**——想深入了解如何親手用 Go 語言撰寫一個 xk6 擴充插件嗎？推薦研讀講師專欄文章：[Grafana xk6: 手把手從開發 k6 插件程式到編譯出 k6 插件](https://ganhua.wang/grafana-xk6)。文章詳細拆解了 Go-to-JS 橋接的 `RootModule` 與 `ModuleInstance` 生命週期，並以 Web3 身份驗證為例，實作高併發動態生成一次性密碼 (OTP) 與簽名的自訂模組！
 
 ---
 
@@ -1885,8 +1884,10 @@ Positive
 #### Docker 編譯兩大軍規避坑點
 
 Negative
-: 1. **目錄掛載避坑 (`-v "$(pwd)/bin:/xk6"`)**：官方 `grafana/xk6` 容器的預設工作目錄是 `/xk6`。若掛載路徑寫錯，編譯產出的 `k6` 二進位檔會被遺留在已被銷毀的容器層中，本機空空如也！  
-: 2. **使用者權限避坑 (`-u "$(id -u):$(id -g)"`)**：Docker 預設以 `root` 執行。如果不指定本機用戶的 UID/GID，編譯產生的客製化 `k6` 檔案權限會屬於 `root:root`，導致本機一般使用者無法執行、無法覆寫、甚至 CI Runner 刪除 Workspace 時噴出 Permission Denied！
+: **目錄掛載**：務必用 `-v "$(pwd)/bin:/xk6"` 把本機目錄掛到容器內。官方 `grafana/xk6` 容器的預設工作目錄是 `/xk6`。若掛載路徑寫錯，編譯產出的 `k6` 二進位檔會被遺留在已被銷毀的容器層中，本機空空如也！  
+
+Negative
+: **使用者權限**：務必加上 `-u "$(id -u):$(id -g)"`。Docker 預設以 `root` 執行。如果不指定本機用戶的 UID/GID，編譯產生的客製化 `k6` 檔案權限會屬於 `root:root`，導致本機一般使用者無法執行、無法覆寫、甚至 CI Runner 刪除 Workspace 時噴出 Permission Denied！
 
 #### 生產級 Docker 確定性編譯指令
 
