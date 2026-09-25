@@ -36,6 +36,13 @@ jobs:
           mv claat-linux-amd64 claat
           ./claat version
 
+      - name: Lint codelab callouts
+        run: |
+          cd codelabs
+          # Positive/Negative callouts break apart (text spills out of the box) when bold wraps
+          # inline code or a callout spans several ": " lines; fail before publishing.
+          python3 lint_callouts.py tutorials/*.md
+
       - name: Generate HTML from Markdown
         run: |
           cd codelabs

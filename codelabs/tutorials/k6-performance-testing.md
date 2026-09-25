@@ -427,7 +427,7 @@ Negative
 : **預設摘要看不到分段統計**：k6 v1 起預設為精簡模式，只顯示整體數字。要看到上面的 `█ GROUP` 區塊，請加 `--summary-mode=full`；或是在 thresholds 為某一段設門檻，例如 `'http_req_duration{group:::送出評分}': ['p(95)<1500']`，那一段就會出現在摘要的 THRESHOLDS 區（Chapter 3 會再深入）。
 
 Negative
-: **比較各段快慢時，看 `http_req_duration`，不要看 `group_duration`**：`group_duration` 量的是整段 group 的經過時間，**連 `sleep()` 的停頓也算進去**。實測中「瀏覽首頁」的請求只花約 200ms，但 `group_duration` 會超過 1 秒，因為停頓也被算進去了。
+: **比較各段快慢時，看請求延遲，不要看整段時間**：請比較各 group 的 `http_req_duration`，不要用 `group_duration`。`group_duration` 量的是整段 group 的經過時間，連 `sleep()` 的停頓也**一起算進去**。實測中「瀏覽首頁」的請求只花約 200ms，但 `group_duration` 會超過 1 秒，因為停頓也被算進去了。
 
 Positive
 : **group 名稱要固定**：group 名稱會變成指標的標籤，跟 `http.url` 同樣的道理，**不要把使用者 ID、訂單編號這類動態值放進 group 名稱**，否則每個不同的名稱都會產生一組新的指標。
