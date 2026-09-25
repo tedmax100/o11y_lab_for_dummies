@@ -235,7 +235,7 @@
 > 
 > 右下角三個陷阱，我看過太多人踩：  
 > 第一，Web Dashboard Overview 最上排那個 HTTP Request Duration 大數字，**是平均值，不是 P95**！延遲請看下方的 P95、P99 曲線。  
-> 第二，我們自己 Grafana 上的 P95 面板，查詢是把多條序列的 P95 再取平均。百分位數在數學上是不能平均的，所以它只是近似值；要精確值，請開啟 Prometheus 的 Native Histogram。  
+> 第二，**百分位數不能再取平均。** 如果用傳統的 Trend Stats 模式，k6 會先算好每條序列的 P95 再推過去，你在 Grafana 上對它取 avg()，得到的根本不是真正的 P95。所以本專案改用 Native Histogram：k6 推送完整分佈，Grafana 再用 `histogram_quantile()` 算出真正的 P95。  
 > 第三，如果 RPS 走平，但後端 CPU 很閒、延遲也沒漲，**瓶頸可能是壓測機自己**，請去看 k6 那台主機的 CPU 和網卡。  
 > 好，帶著這四個步驟，我們來看一個真實的破案現場。」
 

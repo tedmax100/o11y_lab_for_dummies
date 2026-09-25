@@ -61,7 +61,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(k6_http_reqs_total)",
+          "expr": "sum(k6_http_reqs_total{commit_id=~\"$commit_id\",git_branch=~\"$git_branch\",environment=~\"$environment\"})",
           "instant": false,
           "range": true,
           "refId": "A"
@@ -131,14 +131,15 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "avg(k6_http_req_duration_p95)",
-          "instant": false,
-          "range": true,
+          "expr": "histogram_quantile(0.95, sum(increase(k6_http_req_duration_seconds{commit_id=~\"$commit_id\",git_branch=~\"$git_branch\",environment=~\"$environment\"}[$__range]))) * 1000",
+          "instant": true,
+          "range": false,
           "refId": "A"
         }
       ],
-      "title": "⚡ P95 Request Duration",
-      "type": "stat"
+      "title": "⚡ P95 Request Duration (整段時間範圍)",
+      "type": "stat",
+      "description": "Native histogram：histogram_quantile 對整段儀表板時間範圍 ($__range) 內所有請求計算真正的 P95，不是把多條序列的 P95 再平均。"
     },
     {
       "datasource": {
@@ -192,7 +193,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "max(k6_active_workers_gauge)",
+          "expr": "max(k6_active_workers_gauge{commit_id=~\"$commit_id\",git_branch=~\"$git_branch\",environment=~\"$environment\"})",
           "instant": false,
           "range": true,
           "refId": "A"
@@ -264,7 +265,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "avg(k6_business_transaction_success) * 100",
+          "expr": "avg(k6_business_transaction_success_rate{commit_id=~\"$commit_id\",git_branch=~\"$git_branch\",environment=~\"$environment\"}) * 100",
           "instant": false,
           "range": true,
           "refId": "A"
@@ -317,9 +318,11 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "avg(k6_http_req_duration_p90)",
-          "legendFormat": "P90 Latency",
-          "refId": "A"
+          "expr": "histogram_quantile(0.9, sum(rate(k6_http_req_duration_seconds{commit_id=~\"$commit_id\",git_branch=~\"$git_branch\",environment=~\"$environment\"}[$__rate_interval]))) * 1000",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "P90"
         },
         {
           "datasource": {
@@ -327,9 +330,11 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "avg(k6_http_req_duration_p95)",
-          "legendFormat": "P95 Latency (SLO)",
-          "refId": "B"
+          "expr": "histogram_quantile(0.95, sum(rate(k6_http_req_duration_seconds{commit_id=~\"$commit_id\",git_branch=~\"$git_branch\",environment=~\"$environment\"}[$__rate_interval]))) * 1000",
+          "instant": false,
+          "range": true,
+          "refId": "B",
+          "legendFormat": "P95"
         },
         {
           "datasource": {
@@ -337,13 +342,16 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "avg(k6_http_req_duration_p99)",
-          "legendFormat": "P99 Tail Latency",
-          "refId": "C"
+          "expr": "histogram_quantile(0.99, sum(rate(k6_http_req_duration_seconds{commit_id=~\"$commit_id\",git_branch=~\"$git_branch\",environment=~\"$environment\"}[$__rate_interval]))) * 1000",
+          "instant": false,
+          "range": true,
+          "refId": "C",
+          "legendFormat": "P99"
         }
       ],
       "title": "📈 HTTP Request Duration Percentiles (P90 / P95 / P99)",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Native histogram：每個時間點以 $__rate_interval 視窗內的請求計算 P90 / P95 / P99。"
     },
     {
       "datasource": {
@@ -392,9 +400,11 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (api_type) (k6_http_reqs_total)",
-          "legendFormat": "{{api_type}}",
-          "refId": "A"
+          "expr": "sum by (api_type) (k6_http_reqs_total{commit_id=~\"$commit_id\",git_branch=~\"$git_branch\",environment=~\"$environment\"})",
+          "instant": false,
+          "range": true,
+          "refId": "A",
+          "legendFormat": "{{api_type}}"
         }
       ],
       "title": "🏷️ Requests by Tagged Endpoint",
@@ -416,5 +426,102 @@
   "timezone": "browser",
   "title": "Grafana k6 Performance Engineering Dashboard",
   "uid": "k6-live-metrics",
-  "version": 1
+  "version": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "commit_id",
+        "label": "Commit",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(k6_http_reqs_total, commit_id)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(k6_http_reqs_total, commit_id)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "sort": 2,
+        "hide": 0,
+        "options": []
+      },
+      {
+        "name": "git_branch",
+        "label": "Branch",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(k6_http_reqs_total, git_branch)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(k6_http_reqs_total, git_branch)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "sort": 2,
+        "hide": 0,
+        "options": []
+      },
+      {
+        "name": "environment",
+        "label": "Environment",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(k6_http_reqs_total, environment)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(k6_http_reqs_total, environment)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "sort": 2,
+        "hide": 0,
+        "options": []
+      }
+    ]
+  }
 }

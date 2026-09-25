@@ -524,7 +524,7 @@ def ch5_dashboard_sop(prs, bg):
     add_text(s, 704, 424, 592, 32, [[("⚠ 三個判讀陷阱", S(16, D_AMBER, True))]], anchor=MSO_ANCHOR.MIDDLE)
     traps = [
         ("Overview 上排數字卡的 HTTP Request Duration 是 avg，不是 P95", "延遲請看下方 P95 / P99 曲線"),
-        ("Grafana「P95 Request Duration」面板是 avg(k6_http_req_duration_p95)", "百分位數不能平均，只是近似值；要精確請開 Native Histogram"),
+        ("對 Trend Stats 推送的 k6_http_req_duration_p95 再取 avg()", "百分位數不能平均！本專案改用 Native Histogram ＋ histogram_quantile()"),
         ("RPS 走平，但後端 CPU 很閒、延遲也沒漲", "瓶頸可能在壓測機本身：看 k6 主機的 CPU、網卡與 dropped_iterations"),
     ]
     add_text(s, 704, 462, 596, 236, [p for t, fix in traps for p in (
@@ -535,7 +535,7 @@ def ch5_dashboard_sop(prs, bg):
     copy_badge(prs, s)
     s.notes_slide.notes_text_frame.text = (
         "判讀 4 步驟：確認壓力打出去 → 找拐點 → Timings 定位哪一段 → Grafana 十字準星對齊後端。"
-        "陷阱：Overview 數字卡是 avg；Grafana P95 面板是 p95 的平均；RPS 走平但後端很閒要懷疑壓測機。")
+        "陷阱：Overview 數字卡是 avg；P95 不能再取平均，要用 native histogram；RPS 走平但後端很閒要懷疑壓測機。")
     return s
 
 

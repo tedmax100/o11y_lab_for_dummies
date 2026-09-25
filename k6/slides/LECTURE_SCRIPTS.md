@@ -588,7 +588,7 @@
 * **心智模型**：確認壓力打出去 → 找拐點 → Timings 定位哪一段 → Grafana 十字準星對齊後端。
 * **🎤 口播逐字稿**：
   > 「四步驟：先確認壓力真的打出去，再找拐點時間，接著用 Timings 分頁定位哪一段變慢，最後帶著拐點時間到 Grafana 對齊後端指標。  
-  > 三個陷阱：Overview 數字卡的 Duration 是平均值不是 P95；Grafana 的 P95 面板是把 P95 再取平均，只是近似值；RPS 走平但後端很閒，瓶頸可能在壓測機自己。」
+  > 三個陷阱：Overview 數字卡的 Duration 是平均值不是 P95；P95 不能再取平均，所以本專案改用 Native Histogram 加 `histogram_quantile()`；RPS 走平但後端很閒，瓶頸可能在壓測機自己。」
 
 ---
 

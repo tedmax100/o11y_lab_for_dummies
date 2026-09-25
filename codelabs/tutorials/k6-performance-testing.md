@@ -2033,11 +2033,37 @@ Prometheus 傳統上使用定時「拉取 (Scrape)」機制（例如每 15 秒�
 
 在 Prometheus 的啟動參數中必須顯式啟用：
 ```yaml
-# prometheus.yml 或 Docker 啟動指令：
---web.enable-remote-write-receiver
+# Prometheus 啟動參數：
+--web.enable-remote-write-receiver          # 接收 k6 推送的 Remote Write
+--enable-feature=native-histograms          # 接收 native histogram（缺少時 k6 推送會收到 HTTP 500）
 ```
 
-> **本 Lab 環境**：本專案 Docker Compose 中的 Prometheus 容器已經預先配置並啟用了該參數，接收端點為 `http://localhost:9090/api/v1/write`。
+> **本 Lab 環境**：本專案 Docker Compose 中的 Prometheus 容器已經預先啟用上述兩個參數，接收端點為 `http://localhost:9090/api/v1/write`。
+
+#### Trend 指標的兩種轉換方式：為什麼選 Native Histogram
+
+k6 的 Trend 指標（如 `http_req_duration`）推到 Prometheus 時有兩種轉換方式：
+
+| 方式 | 設定 | Prometheus 端的指標 | 問題 |
+| :-- | :-- | :-- | :-- |
+| **Trend Stats**（預設） | `K6_PROMETHEUS_RW_TREND_STATS="p(95),p(99)"` | 每個統計量各一條 Gauge，如 `k6_http_req_duration_p95` | k6 端已經算好百分位數，**Prometheus 無法再正確合併**：把多條序列（不同端點、不同時間）的 P95 取平均，得到的不是真正的 P95 |
+| **Native Histogram**（本課程採用） | `K6_FEATURES=native-histograms` | 一條直方圖 `k6_http_req_duration_seconds`（單位：秒） | 無：保留完整分佈，任意過濾、合併後再用 `histogram_quantile()` 算出真正的百分位數 |
+
+Negative
+: **k6 v2 的新寫法**：舊版文件中的 `K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM=true` 在 k6 v2.2 已被標為舊寫法，執行時會出現 `Legacy env var detected` 警告。請改用 Feature Flag：環境變數 `K6_FEATURES=native-histograms`，或 CLI 參數 `k6 run --features native-histograms`。可用 `k6 features` 列出目前版本支援的 Flag。
+
+查詢範例（Grafana / PromQL）：
+
+```promql
+# 每個時間點的 P95（毫秒），用於趨勢圖
+histogram_quantile(0.95, sum(rate(k6_http_req_duration_seconds[$__rate_interval]))) * 1000
+
+# 整段儀表板時間範圍的 P95（毫秒），用於單一數字卡（Instant 查詢）
+histogram_quantile(0.95, sum(increase(k6_http_req_duration_seconds[$__range]))) * 1000
+
+# 依端點標籤拆開看 P95
+histogram_quantile(0.95, sum by (api_type) (rate(k6_http_req_duration_seconds[$__rate_interval]))) * 1000
+```
 
 #### 注入 Git Commit Tag 實現 A/B 版本回歸對比
 
@@ -2050,7 +2076,7 @@ COMMIT_ID=$(git rev-parse --short HEAD 2>/dev/null || echo "demo-rev1")
 BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
 
 K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
-K6_PROMETHEUS_RW_TREND_STATS="p(90),p(95),p(99),min,max,avg,med" \
+K6_FEATURES=native-histograms \
 k6 run \
   -o experimental-prometheus-rw \
   --tag "commit_id=${COMMIT_ID}" \
@@ -2059,7 +2085,7 @@ k6 run \
   script.js
 ```
 
-在 Grafana 中，只需將儀表板的變數 (Variables) 綁定為 `label_values(k6_http_req_duration_p95, commit_id)`，即可透過下拉選單自由切換不同的 Git Commit，同屏對比兩次發版的 P95 延遲曲線！
+在 Grafana 中，只需將儀表板的變數 (Variables) 綁定為 `label_values(k6_http_reqs_total, commit_id)`，並在查詢中加上 `{commit_id=~"$commit_id"}` 過濾，即可透過下拉選單自由切換不同的 Git Commit，同屏對比兩次發版的 P95 延遲曲線！本專案的 `k6-live-metrics` 儀表板已內建 `commit_id`、`git_branch`、`environment` 三個變數。
 
 ![Grafana 統一可觀測性效能監控儀表板 (Prometheus Remote Write 串流)](assets/images/k6-ch5-grafana-dashboard.png)
 
@@ -2121,10 +2147,10 @@ Positive
 | 面板 | 回答什麼問題 | 判讀注意事項 |
 | :-- | :-- | :-- |
 | 🚀 **Total Requests** | 這次總共打了多少請求？ | 是累積數，只能確認「有沒有打出去」，不代表效能 |
-| ⚡ **P95 Request Duration** | 整體延遲水位？ | 查詢是 `avg(k6_http_req_duration_p95)`，把多條時間序列的 P95 **再取平均**，是近似值（百分位數在數學上不能平均）。要精確值可改用原生直方圖（`K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM=true`）搭配 `histogram_quantile()` |
+| ⚡ **P95 Request Duration** | 整段時間範圍的延遲水位？ | 以 native histogram 對**整段儀表板時間範圍**計算真正的 P95（`increase(...[$__range])`）。縮放時間範圍，數字會跟著重算；要看某次測試，請先把時間範圍對準那次測試 |
 | 👥 **Active VUs** | 施加了多少壓力？ | 與延遲面板對照，找出拐點 |
 | 🎯 **Business Transaction Success Rate** | 業務流程真的成功了嗎？ | 來自自訂 `Rate` 指標。**HTTP 200 不代表業務成功**，若它下降但 `http_req_failed` 正常，代表 API 回了 200 但內容錯誤 |
-| 📈 **Duration Percentiles (P90/P95/P99)** | 延遲分佈隨時間怎麼變？ | 直接套用上面的型態 ②④⑤⑥ |
+| 📈 **Duration Percentiles (P90/P95/P99)** | 延遲分佈隨時間怎麼變？ | 每個點是該時間視窗內的百分位數，直接套用上面的型態 ②④⑤⑥ |
 | 🏷️ **Requests by Tagged Endpoint** | 流量配比是否符合設計？ | 若配比與腳本預期不符（例如結帳佔比過低），這次壓測結果就不具代表性 |
 
 #### 5. 儀表板判讀 4 步驟 SOP
