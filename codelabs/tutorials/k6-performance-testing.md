@@ -27,7 +27,7 @@ Duration: 3
 - **Go 語言並發威力**：理解 Goroutine 如何在單機上以遠低於傳統執行緒模型的資源驅動數萬並發用戶。
 - **科學化流量建模**：破解「協調性漏測 (Coordinated Omission)」盲點，運用利特爾法則（Little's Law）配置開放模型。
 - **看懂測試結果**：用 5 步驟 SOP 判讀 k6 結尾摘要，從儀表板的 8 種曲線型態找出系統飽和的「拐點」，並判讀 Soak 長跑的洩漏訊號。
-- **精準品質門禁 (Quality Gates)**：設定 P95/P99 尾端延遲 SLO，以 **Exit Code 99** 在 CI/CD 中自動阻斷不良發布。
+- **精準品質門禁 (Quality Gates)**：依 SLO 推導 P95/P99 尾端延遲門檻，以 **Exit Code 99** 在 CI/CD 中自動阻斷不良發布。
 - **全鏈路混合壓測 (Hybrid Testing)**：打造 **99:1 黃金配比**，兼顧後端高壓與前端 Core Web Vitals (LCP/INP/CLS) 真實渲染體驗。
 - **可觀測性閉環**：接入 Prometheus Remote Write 與 Grafana，實現 API 延遲突波與 Kubernetes CPU CFS Throttling 雙時間軸對齊除錯。
 
@@ -328,11 +328,11 @@ Positive
 | `stages` | `--stage` | 陣列（如 `[{ duration: '1m', target: 50 }]`） | **階梯式負載**。依時間動態調整 VU 數量，實現漸進爬坡 (Ramp-up) 與降溫 (Ramp-down)。 |
 | `scenarios` | *(無單一旗標)* | 物件 | **進階多情境調度**。支援不同 Executor（如按固定抵達率 RPS、或不同執行函式並行）。 |
 
-##### B. 品質門禁與 SLA 判定 (Quality Gates & Thresholds)
+##### B. 品質門禁 (Quality Gates & Thresholds)
 
 | Option 屬性 | CLI 旗標 | 型態 / 範例 | 說明與典型場景 |
 | :--- | :--- | :--- | :--- |
-| `thresholds` | *(無單一旗標)* | 物件 | **宣告式 SLA/SLO 門檻**。例如 `http_req_duration: ['p(95)<200']`（95% 請求需在 200ms 內完成）。若失敗則 k6 退出碼非 0，直接熔斷 CI/CD。 |
+| `thresholds` | *(無單一旗標)* | 物件 | **宣告式效能門檻**（從 SLO 推導而來，但不等於 SLO，見 Chapter 3）。例如 `http_req_duration: ['p(95)<200']`（95% 請求需在 200ms 內完成）。若失敗則 k6 退出碼非 0，直接熔斷 CI/CD。 |
 
 ##### C. 網路協定與連線行為 (Network & Protocols)
 
@@ -446,7 +446,7 @@ export const options = {
 
 #### 2. Load Testing（常規負載測試 / 階梯波形）
 
-- **業務目標**：評估系統在預期的日常峰值流量下的吞吐量、平均延遲與 P95/P99 表現，驗證是否符合業務 SLA/SLO。
+- **業務目標**：評估系統在預期的日常峰值流量下的吞吐量、平均延遲與 P95/P99 表現，驗證是否達到由 SLO 推導出的效能門檻。
 - **流量波形**：經典三段式波形：
   1. **預熱緩升 (Ramp-up)**：讓快取預熱、連線池逐步建立，避免冷啟動擊穿。
   2. **尖峰高原期 (Plateau / Steady State)**：維持高負載持續觀察系統資源是否穩定。
@@ -561,7 +561,7 @@ export const options = {
 | 模式名稱 | 併發量級 (VU) | 測試時長 | 核心測試目標 | CI/CD 觸發時機 | 典型失敗徵兆 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Smoke (冒煙)** | 1 ~ 2 VU | 30s ~ 1m | 腳本與 API 路由連通性 | 每次 Git Push / PR 構建 | 404/401、斷言失效率 > 0% |
-| **Load (常規負載)** | 預估尖峰 100% | 15m ~ 30m | 驗證常態峰值 SLA/SLO | 每週 Release / 發版前審核 | P95 延遲超標、Thread 阻塞 |
+| **Load (常規負載)** | 預估尖峰 100% | 15m ~ 30m | 驗證常態峰值是否達到效能門檻 | 每週 Release / 發版前審核 | P95 延遲超標、Thread 阻塞 |
 | **Stress (極限壓力)** | 預估尖峰 150%~300% | 20m ~ 45m | 探尋崩潰拐點與防禦降級 | 重大版本升級 / 季度容量評估 | RPS 倒退、500 Internal Error |
 | **Spike (突發尖峰)** | 瞬間暴衝 5x~20x | 3m ~ 5m | 檢驗 HPA 彈性擴展與快取抗震 | 促銷活動前夕 / 大促架構演練 | HPA 擴展滯後、快取擊穿崩潰 |
 | **Soak (浸泡耐久)** | 安全水位 70%~80% | 2h ~ 24h | 揪出記憶體洩漏與連線池枯竭 | 週末排程 / 上線前最後耐久驗證 | 記憶體階梯上升、DB Connection Timeout |
@@ -943,12 +943,23 @@ Duration: 30
 
 #### k6 核心指標與 RED Method 的映射關係
 
-| RED 維度 | 對應 k6 內建指標 | 指標型態 | 監控核心意義 | 典型 SLO 門檻範例 |
+| RED 維度 | 對應 k6 內建指標 | 指標型態 | 監控核心意義 | 典型 threshold 範例 |
 | :--- | :--- | :--- | :--- | :--- |
 | **Rate** | `http_reqs` | Counter | 系統整體處理速率 (RPS) 與總請求量 | `rate > 500` (每秒需能承受 500 RPS) |
 | **Errors** | `http_req_failed` | Rate (0~1) | 非 2xx/3xx HTTP 狀態碼之失敗比例 | `rate < 0.01` (全站錯誤率嚴格低於 1%) |
-| **Duration** | `http_req_duration` | Trend | 請求完整耗時（自連線至完全接收回應） | `p(95) < 1000` (95% 請求需在 1 秒內完成) |
+| **Duration** | `http_req_duration` | Trend | 送出請求到收完回應的耗時（不含連線建立，見下一節） | `p(95) < 1000` (95% 請求需在 1 秒內完成) |
 | **Saturation** | `vus` / `vus_max` | Gauge | 壓測端資源飽和度與動態 Goroutine 水位 | 觀察是否觸發 `dropped_iterations` |
+
+#### SLI、SLO、SLA 與 k6 Thresholds
+
+| 名詞 | 是什麼 | 例子 |
+| :--- | :--- | :--- |
+| **SLI**（Service Level Indicator，服務水準指標） | 衡量服務好壞的量測值 | 請求延遲、錯誤率——對應 k6 的 `http_req_duration`、`http_req_failed` |
+| **SLO**（Service Level Objective，服務水準目標） | 團隊對 SLI 訂的內部目標，搭配一段時間窗口 | 「過去 28 天內，99% 的結帳請求在 500ms 內完成」 |
+| **SLA**（Service Level Agreement，服務水準協議） | 對客戶的合約承諾，違反要賠償；通常比 SLO 寬鬆 | 「月可用率低於 99.9% 時退還部分費用」 |
+
+Negative
+: **k6 threshold 不等於 SLO。** SLO 是對「真實流量、一段時間窗口」的目標；k6 threshold 是「發版前、單次測試」的門檻，是從 SLO 推導出來的替代指標。兩者的流量組成、時間長度、執行環境都不同，所以 threshold 通常要訂得**比 SLO 更嚴格**，留下安全邊際——例如 SLO 是「99% 請求在 500ms 內」，壓測門檻可設 `p(99)<400`。**跑一次壓測通過 threshold，只代表這個版本在這次測試條件下沒有明顯退化，不代表上線後就會符合 SLO**；是否真的達標，要看監控系統對真實流量的長期量測。
 
 ---
 
@@ -1020,7 +1031,7 @@ Negative
   █ THRESHOLDS
 
     http_req_duration
-    ✗ 'p(95)<500' p(95)=812.4ms                              ◀ ① 判決：SLO 違規
+    ✗ 'p(95)<500' p(95)=812.4ms                              ◀ ① 判決：門檻違規
 
     http_req_failed
     ✓ 'rate<0.01' rate=0.84%
