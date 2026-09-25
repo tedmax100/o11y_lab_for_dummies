@@ -761,6 +761,32 @@ export const options = {
 
 ---
 
+### Open Model 不是萬用解：何時仍該用閉環模型
+
+協調性漏測之所以是「謊言」，有一個前提：**真實世界的流量本來就是 open 的**。公開網站的使用者不會因為你變慢就停手。但如果被測系統在現實中本來就是 closed 的，硬用開放模型，反而是把流量模擬錯了。
+
+選模型只要問一題：**後端變慢時，真實的 client 會不會跟著少送？**
+
+| 答案 | 模型 | 執行器 | 典型場景 |
+| :-- | :-- | :-- | :-- |
+| 不會：使用者照樣湧入 | 開放模型 | `constant-arrival-rate`、`ramping-arrival-rate` | 公開網站、公開 API、活動搶購 |
+| 會：client 等回應才送下一筆 | 閉環模型 | `constant-vus`、`ramping-vus`、`per-vu-iterations` | 下表 5 種情境 |
+
+以下 5 種情境，閉環模型仍然是正確的選擇：
+
+| # | 情境 | 為什麼用閉環 | 建議執行器 |
+| :-: | :-- | :-- | :-- |
+| 1 | 固定數量的 client，等回應才送下一筆 | batch worker、MQ consumer、固定 50 位客服、IoT 輪詢——後端變慢時本來就會少送，RPS 下降是真實行為，不是漏測 | `constant-vus` |
+| 2 | 要驗的是同時在線數／連線數 | 「撐得住 1 萬條 WebSocket 嗎？」、session 上限、connection pool——arrival rate 控制的是每秒開始幾個 iteration，管不到同時掛著幾條連線 | `ramping-vus` |
+| 3 | Browser 測試（Chapter 4） | 每個 VU 都是一個 Chromium；開放模型一遇到變慢就加開瀏覽器，先垮的是壓測機。後端壓力交給 protocol 腳本，browser 只用少量 VU 量體驗 | `constant-vus` |
+| 4 | 測試資料只能用固定次數 | 每個 VU 綁一組帳號、每筆訂單資料只能用一次——要的是精確的次數，不是速率 | `per-vu-iterations` |
+| 5 | Smoke 與共用環境初探 | 1～2 個 VU 確認腳本能跑；變慢時自動降速，不會把大家共用的 staging 打爆 | `vus: 1` |
+
+Negative
+: **用閉環模型時記得**：協調性漏測依然存在，量到的延遲會偏樂觀。它適合上面這些本身就是 closed 的情境，但不要拿它來驗證公開服務的 SLO。
+
+---
+
 ### 關鍵過載指標：`dropped_iterations` 底層機制與實戰防線
 
 在使用開放模型（`constant-arrival-rate` 或 `ramping-arrival-rate`）時，終端機輸出中有一個極其關鍵的指標：**`dropped_iterations`**。
@@ -1007,6 +1033,7 @@ k6 run k6/spike-test.js
 1. **區分 VU 與 RPS**：
    - 如果你的測試目標是「驗證系統能否承受 500 名使用者同時在線閒晃」，請使用基於 VU 的模型（閉環模型 + Think Time）。
    - 如果你的測試目標是「驗證 API 能否支撐每秒 500 筆訂單湧入 (500 RPS)」，請務必使用基於抵達率的**開放模型**！
+   - 判斷口訣：後端變慢時，真實 client 會不會跟著少送？不會就用開放模型，會就用閉環模型（見〈Open Model 不是萬用解〉的 5 種情境）。
 2. **永遠在開放模型中設定門禁 `dropped_iterations: ['count==0']`**：
    - 任何非零的 `dropped_iterations` 都是壓測無效或系統崩潰的明確信號。
 3. **海量測試資料唯有 `SharedArray`**：

@@ -2,7 +2,7 @@
 
 > **課程名稱**：現代化效能測試實戰：從 k6 到雲原生可觀測性  
 > **章節名稱**：Module 2: 測試案例設計與流量模型 — 拒絕盲測，用程式碼定義真實流量  
-> **預估時長**：18 ~ 22 分鐘  
+> **預估時長**：20 ~ 24 分鐘  
 > **配套簡報**：[`k6/slides/Ch2_Scientific_k6_Traffic_Modeling.pptx`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/slides/Ch2_Scientific_k6_Traffic_Modeling.pptx)  
 > **配套演示**：  
 > - [`k6/demos/ch2_closed_vs_open_model.js`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/demos/ch2_closed_vs_open_model.js) (協調性漏測與開放模型對決)  
@@ -25,10 +25,10 @@
 
 | 片段 | 內容 | 畫面 | 預估 | 備註 |
 | :-- | :-- | :-- | :-: | :-- |
-| **A 觀念** | Slide 1 → Slide 8 前半 | 🎞️ 投影片 | 17 分 | Slide 5「協調性漏測」是本章靈魂，放慢講 |
-| **B Demo** | Slide 8 後半：closed → open → `delay/3` 過載；Slide 9 + `ch2_shared_array.js` | 🖥️ 終端機 ⇄ 🎞️ | 5 分 | 三次執行共約 50 秒，**畫面可在 k6 跑的時候剪掉等待** |
+| **A 觀念** | Slide 1 → Slide 9 前半 | 🎞️ 投影片 | 19 分 | Slide 5「協調性漏測」是本章靈魂，放慢講 |
+| **B Demo** | Slide 9 後半：closed → open → `delay/3` 過載；Slide 10 + `ch2_shared_array.js` | 🖥️ 終端機 ⇄ 🎞️ | 5 分 | 三次執行共約 50 秒，**畫面可在 k6 跑的時候剪掉等待** |
 | **C Codelab** | Codelab [#2 Chapter 2](https://tedmax100.github.io/o11y_lab_for_dummies/k6-performance-testing/index.html#2)「手把手實作演練：科學流量建模驗證」 | 📘 Codelab | 3 分 | |
-| **D 收尾** | Slide 10 總結 + 第三章預告 | 🎞️ 投影片 | 1.5 分 | |
+| **D 收尾** | Slide 11 總結 + 第三章預告 | 🎞️ 投影片 | 1.5 分 | |
 
 > ⚠️ **公網風險**：本章全部打 `quickpizza.grafana.com/api/delay/*`。若 preflight 顯示 `dropped_iterations` 不為 0，代表當下網路抖動，closed/open 對比會不明顯，建議換時段錄或改播預錄片段。
 
@@ -160,13 +160,36 @@
 
 ---
 
-### 【Slide 7: VU 精算心法：Little's Law 與記憶體防暴衝】 (預估時間: 14:00 - 16:30)
+### 【Slide 7: Open Model 不是萬用解：何時仍該用 Closed Model】 (預估時間: 14:00 - 16:00)
+
+* **畫面焦點**：左側「選模型只問一題」決策卡（青色 Open / 洋紅 Closed），右側 5 種仍該用 Closed Model 的情境與對應 executor。
+* **螢幕動作**：【動作：先圈左側問題，再由上往下點過右側 5 張卡，最後指左下角警語】。
+
+**【口播逐字稿】**：
+> 「講到這裡，一定有人會想：『那我以後全部用 arrival rate 就好了吧？』——不對。  
+> 
+> 協調性漏測之所以是謊言，有一個前提：**真實世界的流量本來就是 open 的**。公開網站的使用者不會因為你變慢就停手。但如果你的系統在現實中本來就是 closed 的，硬用 open model，反而是把流量模擬錯了。  
+> 
+> 所以選模型只要問一題：**後端變慢時，真實的 client 會不會跟著少送？** 不會，用 open model；會，就老老實實用 VU。  
+> 
+> 右邊這五種，就是 closed model 仍然正確的情境：  
+> 第一，**固定數量、等回應才送下一筆的 client**，像 batch worker、MQ consumer、固定 50 位客服。後端變慢，它們本來就會少送——這是真實行為，不是漏測。  
+> 第二，**你要驗的是同時在線數或連線數**，例如一萬條 WebSocket。arrival rate 控制的是每秒開始幾個 iteration，管不到同時掛著幾條連線。  
+> 第三，**Browser 測試**。每個 VU 都是一個 Chromium；用 open model 的話，後端一變慢 k6 就狂開瀏覽器，先倒下的是你的壓測機。第四章會看到，後端壓力交給 protocol 腳本，browser 只用少量 VU 量體驗。  
+> 第四，**測試資料只能用固定次數**，比如每個 VU 綁一組帳號，這時你要的是 `per-vu-iterations` 的精確次數，不是速率。  
+> 第五，**Smoke 與共用環境初探**：1、2 個 VU 確認腳本能跑；閉環會自動降速，不會一不小心把大家共用的 staging 打爆。  
+> 
+> 最後記住左下角這句：用 closed 的時候，量出來的延遲依然偏樂觀，所以**別拿它去驗公開服務的 SLO**。」
+
+---
+
+### 【Slide 8: VU 精算心法：Little's Law 與記憶體防暴衝】 (預估時間: 16:00 - 18:30)
 
 * **畫面焦點**：數學公式 $L = \lambda W$ 視覺化，配合 `preAllocatedVUs` 與 `maxVUs` 的換算範例。
 * **螢幕動作**：【動作：指引公式變數，帶領學員心算推演】。
 
 **【口播逐字稿】**：
-> 「但是在設定開放模型時，很多工程師又遇到了新挑戰：『老師，既然 VU 是由 k6 動態調派的，那我到底該設定多少 `preAllocatedVUs`（預先配置）和 `maxVUs`（最大上限）呢？設太少會噴錯，設太大又怕本機記憶體爆炸，該怎麼辦？』  
+> 「好，回到開放模型。在設定開放模型時，很多工程師又遇到了新挑戰：『老師，既然 VU 是由 k6 動態調派的，那我到底該設定多少 `preAllocatedVUs`（預先配置）和 `maxVUs`（最大上限）呢？設太少會噴錯，設太大又怕本機記憶體爆炸，該怎麼辦？』  
 > 
 > 這時候，我們需要請出排隊論的經典基石——**利特爾法則（Little's Law）**：  
 > 公式非常簡潔美麗：  
@@ -186,7 +209,7 @@
 
 ---
 
-### 【Slide 8: 多場景架構與 Dropped Iterations 預警】 (預估時間: 16:30 - 18:30)
+### 【Slide 9: 多場景架構與 Dropped Iterations 預警】 (預估時間: 18:30 - 20:30)
 
 * **畫面焦點**：多個 Scenario 並行重疊圖，下方特別框出 `dropped_iterations` 指標為 0。
 * **螢幕動作**：【動作：切換至終端機進行協調性漏測 Live Demo】。
@@ -211,7 +234,7 @@
 
 ---
 
-### 【Slide 9: SharedArray 記憶體救援神技】 (預估時間: 18:30 - 20:30)
+### 【Slide 10: SharedArray 記憶體救援神技】 (預估時間: 20:30 - 22:30)
 
 * **畫面焦點**：對比圖：普通 JS 陣列載入 1000 份拷貝引發 OOM 崩潰，對比 `SharedArray` 透過底層 Go 共享單一唯讀記憶體區塊。
 * **螢幕動作**：【動作：圈選 `import { SharedArray } from 'k6/data'` 程式碼】。
@@ -232,11 +255,11 @@
 
 ✂️ **【分段點 B → C】** 停錄；打開 Codelab，照文末〈📘 Codelab 導覽講稿〉錄 C 段。
 
-✂️ **【分段點 C → D】** C 段錄完，切回投影片 Slide 10 開新片段。
+✂️ **【分段點 C → D】** C 段錄完，切回投影片 Slide 11 開新片段。
 
 ---
 
-### 【Slide 10: 本章總結與品質防線引言】 (預估時間: 20:30 - 22:00)
+### 【Slide 11: 本章總結與品質防線引言】 (預估時間: 22:30 - 24:00)
 
 * **畫面焦點**：全章核心能力回顧，引導至 Quality Gate 輸送帶與 Exit Code 99 標籤。
 * **螢幕動作**：收尾總結，為 Chapter 3 埋下高懸念。
@@ -276,4 +299,4 @@
 >
 > 最後，這一頁最底下的『核心心智模型與避坑指南』四條，請大家截圖存起來，特別是第二條：**開放模型一定要設 `dropped_iterations: ['count==0']` 門檻**。好，我們回到投影片做總結。」
 
-* **螢幕動作**：【🎞️ 切回投影片 Slide 10】
+* **螢幕動作**：【🎞️ 切回投影片 Slide 11】

@@ -6,7 +6,7 @@
 
 ## 📑 快速章節導航
 - [Chapter 1: Modern Performance Testing with k6 (18~20 mins)](#chapter-1-modern-performance-testing-with-k6)
-- [Chapter 2: Scientific k6 Traffic Modeling (18~22 mins)](#chapter-2-scientific-k6-traffic-modeling)
+- [Chapter 2: Scientific k6 Traffic Modeling (20~24 mins)](#chapter-2-scientific-k6-traffic-modeling)
 - [Chapter 3: k6 Quality Gates & SLO Enforcement (18~20 mins)](#chapter-3-k6-quality-gates--slo-enforcement)
 - [Chapter 4: Precision k6 Hybrid Testing (18~22 mins)](#chapter-4-precision-k6-hybrid-testing)
 - [Chapter 5: k6 Observability and Modular Architecture (15~20 mins)](#chapter-5-k6-observability-and-modular-architecture)
@@ -127,7 +127,7 @@
 ---
 
 # Chapter 2: Scientific k6 Traffic Modeling
-**建議錄製時長**：18 ~ 22 分鐘  
+**建議錄製時長**：20 ~ 24 分鐘  
 **章節主旨**：深入 5 大流量模式、破解「協調性漏測 (Coordinated Omission)」陷阱、運用 Little's Law 精算開放模型，並掌握 `SharedArray` 記憶體優化。
 
 ---
@@ -183,7 +183,15 @@
 
 ---
 
-### Slide 7: VU 精算心法 (Little's Law 與記憶體防暴衝)
+### Slide 7: Open Model 不是萬用解 (何時仍該用 Closed Model)
+* **視覺焦點**：左側「選模型只問一題」決策卡；右側 5 種情境與對應 executor（constant-vus、ramping-vus、per-vu-iterations、vus: 1）。
+* **心智模型**：協調性漏測只在真實流量本來就是 open 時才是問題；先問「後端變慢時，真實 client 會不會跟著少送？」再選模型。
+* **🎤 口播逐字稿**：
+  > 「不是全部用 arrival rate 就好。後端變慢時真實 client 不會少送，用 open；會少送，就用 VU。Closed 仍然正確的五種情境：固定數量、等回應才送下一筆的 client；要驗同時在線或連線數；Browser 測試；測試資料只能用固定次數；Smoke 與共用環境初探。記得：closed 量到的延遲偏樂觀，別拿它驗公開服務的 SLO。」
+
+---
+
+### Slide 8: VU 精算心法 (Little's Law 與記憶體防暴衝)
 * **視覺焦點**：公式 L = λ × W，搭配 `preAllocatedVUs` 與 `maxVUs` 的換算範例。
 * **心智模型**：需要的 VU 數 = 目標 RPS × 平均回應時間；maxVUs 要預留延遲劣化時的緩衝。
 * **🎤 口播逐字稿**：
@@ -191,7 +199,7 @@
 
 ---
 
-### Slide 8: 多場景調度與 Dropped Iterations 預警
+### Slide 9: 多場景調度與 Dropped Iterations 預警
 * **視覺焦點**：多個 Scenario 疊加圖形與 `dropped_iterations` 指標紅字。
 * **心智模型**：當 `maxVUs` 耗盡仍無法維持目標 RPS 時，k6 會記錄 `dropped_iterations`。
 * **🎤 口播逐字稿**：
@@ -203,7 +211,7 @@
 
 ---
 
-### Slide 9: SharedArray 記憶體救援神技
+### Slide 10: SharedArray 記憶體救援神技
 * **視覺焦點**：普通 JS 陣列 (1000 份拷貝 OOM) vs `SharedArray` (單一唯讀記憶體映射)。
 * **心智模型**：普通陣列隨 VU 複製，`SharedArray` 全域共享，節省 90% 記憶體。
 * **🎤 口播逐字稿**：
@@ -215,7 +223,7 @@
 
 ---
 
-### Slide 10: 第二章總結與品質門禁引言
+### Slide 11: 第二章總結與品質門禁引言
 * **視覺焦點**：科學流量建模總覽與 Exit Code 99 標誌。
 * **🎤 口播逐字稿**：
   > 「恭喜大家完成第二章！我們學會了五大流量特徵、掌握了避免協調性漏測的開放模型，並學會了用 `SharedArray` 壓榨極限效能。  

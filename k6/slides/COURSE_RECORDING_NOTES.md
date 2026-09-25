@@ -31,6 +31,7 @@
      - **Ch5 第 14 頁**由 `scripts/add_metric_reading_slides.py` 重建：改為 Codelab 實作 1～4 共四個任務，xk6 指令與 Codelab 一致。
      - **Ch1 第 6 頁**由 `scripts/build_ch1_group_slide.py` 改為原生頁：group() 改以「QuickPizza 使用者旅程」講解（瀏覽首頁 → 取得推薦 → 送出評分），搭配新 Demo `k6/demos/ch1_group_journey.js` 與實測的分段 p95。此腳本直接修改 Google Slides 匯出的版本，保留嵌入字型。
      - **Ch3 新增第 8 頁「自訂指標的 5 個規則」**（`scripts/add_ch3_custom_metric_rules_slide.py`，直接插入 Google Slides 匯出版）：原第 8～12 頁順延為 9～13；配套 Demo `k6/demos/ch3_custom_metric_rules.js`。Ch3 Demo 的 `custom_db_processing_duration` 改為時間型 Trend（加 `true`），摘要會顯示 ms；Codelab 的 `k6-ch3-cmd1-pass.png` 截圖仍是舊格式。
+     - **Ch2 新增第 7 頁「Open Model 不是萬用解：何時仍該用 Closed Model」**（`scripts/add_ch2_closed_model_cases_slide.py`，直接插入 Google Slides 匯出版）：接在 scenarios 執行器範例之後，列出 closed model 仍然正確的 5 種情境；原第 7～10 頁順延為 8～11。
      - ⚠️ 簡報已改用 Google Slides 匯出（內嵌字型）。`build_ch3_native_deck.py`、`build_ch2_stages_slide.py`、`add_metric_reading_slides.py` 是從 601893d 的舊版重建，重跑會蓋掉 Google Slides 版本；除非要整份重建，否則不要再執行。
 3. **圖片像素級技術勘誤 (Patching)**：
    - **Ch4 Slide 8**：修正 `options: { options: { browser: { type: 'chromium' } } }` 為標準 `browser: { type: 'chromium' }`。
@@ -65,13 +66,13 @@
 
 ---
 
-### Chapter 2: Scientific k6 Traffic Modeling (10 頁)
-* **建議時長**：18 ~ 22 分鐘
-* **學習動線**：5 大流量型態 $\rightarrow$ stages 寫法 $\rightarrow$ 協調性漏測 (Coordinated Omission) 盲點 $\rightarrow$ ramping-arrival-rate 開放模型 $\rightarrow$ Little's Law 精算 (preAllocatedVUs vs maxVUs) $\rightarrow$ SharedArray 記憶體拯救 $\rightarrow$ Thresholds & Exit Code 99。
+### Chapter 2: Scientific k6 Traffic Modeling (11 頁)
+* **建議時長**：20 ~ 24 分鐘
+* **學習動線**：5 大流量型態 $\rightarrow$ stages 寫法 $\rightarrow$ 協調性漏測 (Coordinated Omission) 盲點 $\rightarrow$ ramping-arrival-rate 開放模型 $\rightarrow$ 何時仍該用 Closed Model $\rightarrow$ Little's Law 精算 (preAllocatedVUs vs maxVUs) $\rightarrow$ SharedArray 記憶體拯救 $\rightarrow$ Thresholds & Exit Code 99。
 * **順序說明**：Slide 2 晶片總覽在口播中定義為「今日學習地圖」。
 * **講師避坑點**：
   - Slide 1 封面代碼：`export default function ()`（已修正）。
-  - Slide 9 `SharedArray`：口播提醒模組引入 `import { SharedArray } from 'k6/data'`。
+  - Slide 10 `SharedArray`：口播提醒模組引入 `import { SharedArray } from 'k6/data'`。
   - **Live Demo 推薦**：以 FastAPI 延遲 API 演示閉環（RPS被拖垮）與開放模型（自動加 VU 維持 RPS）的差異。
 
 ---
@@ -180,7 +181,7 @@
 4. [x] **產出全章節完整錄課逐字稿與講者提詞卡**：
    - **專屬廣播級逐字稿全集目錄**：[`k6/slides/transcripts/`](file:///home/nathan/Project/o11y_lab_for_dummies/k6/slides/transcripts)
      - [Ch1 逐字稿 (10 頁, ~20 mins)](file:///home/nathan/Project/o11y_lab_for_dummies/k6/slides/transcripts/Ch1_逐字稿_Modern_Performance_Testing_with_k6.md)
-     - [Ch2 逐字稿 (10 頁, ~20 mins)](file:///home/nathan/Project/o11y_lab_for_dummies/k6/slides/transcripts/Ch2_逐字稿_Scientific_k6_Traffic_Modeling.md)
+     - [Ch2 逐字稿 (11 頁, ~22 mins)](file:///home/nathan/Project/o11y_lab_for_dummies/k6/slides/transcripts/Ch2_逐字稿_Scientific_k6_Traffic_Modeling.md)
      - [Ch3 逐字稿 (10 頁, ~20 mins)](file:///home/nathan/Project/o11y_lab_for_dummies/k6/slides/transcripts/Ch3_逐字稿_k6_Quality_Gates.md)
      - [Ch4 逐字稿 (11 頁, ~22 mins)](file:///home/nathan/Project/o11y_lab_for_dummies/k6/slides/transcripts/Ch4_逐字稿_Precision_k6_Hybrid_Testing.md)
      - [Ch5 逐字稿 (11 頁, ~20 mins)](file:///home/nathan/Project/o11y_lab_for_dummies/k6/slides/transcripts/Ch5_逐字稿_k6_Observability_and_Modular_Architecture.md)
