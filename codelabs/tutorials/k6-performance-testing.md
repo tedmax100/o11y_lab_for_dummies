@@ -1409,7 +1409,43 @@ export const options = {
 };
 ```
 
-#### 3. 避免高基數維度爆炸 (High Cardinality)
+#### 3. 以 group 為單位設門檻 (Group Thresholds)
+
+Chapter 1 用 `group()` 把一趟使用者旅程切成幾段。k6 會自動幫 group 內送出的每個指標（`http_req_*`、`checks`、自訂指標）打上 `group` 標籤，所以不必逐一幫請求加 tags，就能直接對「旅程中的某一段」設門檻：
+
+```javascript
+export const options = {
+  thresholds: {
+    'http_req_duration{group:::01_核心結帳交易}': ['p(95)<1000'],
+    'http_req_duration{group:::02_背景報表查詢}': ['p(95)<3000'],
+  },
+};
+
+export default function () {
+  group('01_核心結帳交易', () => { /* ... */ });
+  group('02_背景報表查詢', () => { /* ... */ });
+}
+```
+
+**為什麼是三個冒號？** 標籤名稱是 `group`，後面接一個 `:`；k6 存的標籤值會在 group 名稱前加上 `::`，變成 `::01_核心結帳交易`。兩段接在一起就成了 `group:::01_核心結帳交易`。巢狀 group 則用 `::` 串接各層名稱，例如 `group('結帳', () => group('付款', ...))` 要寫成 `{group:::結帳::付款}`。
+
+**tag 與 group 怎麼選？** 兩者都能拿來篩選門檻，差別在於你想用什麼方式分類：
+
+| | `group` | 請求層級 `tags` |
+| :-- | :-- | :-- |
+| 回答的問題 | 旅程中的**哪一段**慢？ | **哪一類** API 慢？ |
+| 打標方式 | 包在 `group()` 裡自動套用 | 每個請求手動傳 `tags` |
+| 典型用法 | 「結帳這一段 p95 < 1s」 | 「所有 critical API p99 < 300ms」，不管出現在哪一段 |
+
+同一個端點如果會在不同段落被呼叫，想「不分段落，統一管這一類 API」就用 tags；想知道「這一段旅程整體表現如何」就用 group。`ch3_quality_gates_exit99.js` 兩種都用了：`{api_type:critical}` 管端點等級，`{group:::01_核心結帳交易}` 管旅程段落。
+
+Negative
+: **group 門檻的三個陷阱**（k6 v2.2 實測）：  
+① **名稱打錯不會報錯，而且會顯示通過**：門檻對不到任何請求時，摘要會顯示 `p(95)=0` 並打上 `✓`。修改 group 名稱時，記得同步修改門檻，並確認摘要中的數值不是 0。  
+② **外層 group 不含內層的數據**：`{group:::結帳}` 只統計直接寫在「結帳」裡的請求；巢狀在「付款」裡的請求只屬於 `{group:::結帳::付款}`，要另外設門檻。  
+③ **延遲門檻不要用 group_duration**：它會把 `sleep()` 的停頓一起算進去，請改用 `http_req_duration`（見 Chapter 1）。
+
+#### 4. 避免高基數維度爆炸 (High Cardinality)
 
 Negative
 : 嚴禁將動態變數（如用戶 ID、訂單 ID、時間戳）直接拼接在 URL 或 Tag 中！  
