@@ -224,11 +224,13 @@
 ---
 
 ### Slide 11: 第二章總結與品質門禁引言
-* **視覺焦點**：科學流量建模總覽與 Exit Code 99 標誌。
+* **視覺焦點**：「程式碼化 SLO：thresholds 品質防線與 Tags 過濾」——三條 thresholds（兩條 Pass、`{name:Checkout}` 那條 Fail）→ Exit Code 99 → CI/CD 自動中斷部署。
+* **心智模型**：本頁是第三章預告，只講「門檻沒過 → Exit Code 99 → 擋部署」這條因果鏈，語法細節留給 Ch3。
 * **🎤 口播逐字稿**：
   > 「恭喜大家完成第二章！我們學會了五大流量特徵、掌握了避免協調性漏測的開放模型，並學會了用 `SharedArray` 壓榨極限效能。  
   > 但是，壓測跑完了、圖表印出來了，到底怎樣算『通過』？怎樣算『失敗』？我們總不能叫維運工程師每次都用肉眼去盯報表吧？  
-  > 下一章，我們將進入企業級 CI/CD 的靈魂核心——Chapter 3: k6 Quality Gates。」
+  > 答案就在畫面上：這三條 `thresholds` 就是寫成程式碼的 SLO。錯誤率、整體 P95 都 Pass，但只看結帳 API 的 `{name:Checkout}` 那條 P95 超過 500 毫秒——Fail。只要一條沒過，k6 就回傳 Exit Code 99，CI/CD 自動擋下這次部署。  
+  > 其實 Demo 裡的 `dropped_iterations: ['count==0']` 就是同一套機制。語法與標籤過濾怎麼寫，下一章細講——Chapter 3: k6 Quality Gates。」
 
 ---
 
